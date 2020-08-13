@@ -1,0 +1,9 @@
+*~
+*.log
+*.out
+*.test
+
+.idea/
+
+/vpp-probe
+/cmd/vpp-probe/vpp-probe

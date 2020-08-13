@@ -1,0 +1,10 @@
+create tap host-ip4-addr 192.168.33.10/24 host-ip4-gw 192.168.33.1 host-if-name tapx1
+set interface ip address tap0 192.168.33.1/24
+set interface state tap0 up
+
+create tap host-ip4-addr 192.168.66.10/24 host-ip4-gw 192.168.66.1 host-if-name tapx2
+set interface ip address tap1 192.168.66.1/24
+set interface state tap1 up
+
+test http server
+
