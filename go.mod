@@ -5,25 +5,22 @@ go 1.14
 require (
 	git.fd.io/govpp.git v0.3.5
 	github.com/gizak/termui/v3 v3.1.0
-	github.com/googleapis/gnostic v0.4.0 // indirect
 	github.com/gookit/color v1.2.7
 	github.com/imdario/mergo v0.3.11 // indirect
-	github.com/json-iterator/go v1.1.10 // indirect
-	github.com/mattn/go-runewidth v0.0.9 // indirect
-	github.com/mitchellh/go-wordwrap v1.0.0 // indirect
-	github.com/onsi/gomega v1.10.1 // indirect
 	github.com/sirupsen/logrus v1.6.0
 	github.com/spf13/cobra v1.0.0
-	go.ligato.io/vpp-agent/v3 v3.2.0-alpha.0.20200811103204-c6728d63d014
-	golang.org/x/text v0.3.3 // indirect
-	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
+	go.ligato.io/vpp-agent/v3 v3.2.0-alpha.0.20200814091243-d012a4d78d1f
 	k8s.io/api v0.18.8
 	k8s.io/apimachinery v0.18.8
 	k8s.io/client-go v11.0.0+incompatible
-	k8s.io/utils v0.0.0-20200603063816-c1c6865ac451 // indirect
+	k8s.io/utils v0.0.0-20200731180307-f00132d28269 // indirect
 )
 
 replace (
+	github.com/Azure/go-autorest/autorest/azure/auth => github.com/Azure/go-autorest/autorest/azure/auth v0.3.0
+	github.com/census-instrumentation/opencensus-proto v0.1.0-0.20181214143942-ba49f56771b8 => github.com/census-instrumentation/opencensus-proto v0.0.3-0.20181214143942-ba49f56771b8
+	github.com/coreos/go-systemd v0.0.0-00010101000000-000000000000 => github.com/coreos/go-systemd/v22 v22.0.0
+
 	k8s.io/api => k8s.io/api v0.18.1
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.18.1
 	k8s.io/apimachinery => k8s.io/apimachinery v0.18.2-beta.0
@@ -49,5 +46,3 @@ replace (
 	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.18.1
 	k8s.io/sample-controller => k8s.io/sample-controller v0.18.1
 )
-
-//replace github.com/coreos/bbolt => go.etcd.io/bbolt v1.3.5
