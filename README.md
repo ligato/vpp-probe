@@ -15,10 +15,12 @@ A CLI tool for examining VPP instances
 
 ## Packet Tracer
 
-[![asciicast](https://asciinema.org/a/Pp5IOFRNWEgT5JhrOn3kYHfI5.svg)](https://asciinema.org/a/Pp5IOFRNWEgT5JhrOn3kYHfI5)
-
 Packet tracer connects to multiple VPP instances inside Kubernetes cluster and
 collects packet traces that can be further analyzed via terminal UI.
+
+### Preview
+
+[![asciicast](https://asciinema.org/a/Pp5IOFRNWEgT5JhrOn3kYHfI5.svg)](https://asciinema.org/a/Pp5IOFRNWEgT5JhrOn3kYHfI5)
 
 Example usage:
 
