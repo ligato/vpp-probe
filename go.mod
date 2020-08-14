@@ -5,7 +5,7 @@ go 1.14
 require (
 	git.fd.io/govpp.git v0.3.5
 	github.com/gizak/termui/v3 v3.1.0
-	github.com/googleapis/gnostic v0.3.1 // indirect
+	github.com/googleapis/gnostic v0.4.0 // indirect
 	github.com/gookit/color v1.2.7
 	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/json-iterator/go v1.1.10 // indirect
