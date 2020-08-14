@@ -440,7 +440,7 @@ func (c *packetNode) String() string {
 		fmt.Sprintf("[Packet %4v](fg:blue,mod:bold)", packet.ID),
 		fmt.Sprintf("[%2d](fg:blue) nodes", len(packet.Captures)),
 		fmt.Sprintf("took [%5v](fg:blue)", took),
-		fmt.Sprintf("[%20s](%s) \uE25B  [%s](%s)", first.Name, colorNode(first.Name), last.Name, colorNode(last.Name)),
+		fmt.Sprintf("[%20s](%s) ---> [%s](%s)", first.Name, colorNode(first.Name), last.Name, colorNode(last.Name)),
 	}
 	if c.node.Expanded {
 		pktFields = append(pktFields, fmt.Sprintf("⏲  [%v](fg:blue)", formatDurTimestamp(start)))
