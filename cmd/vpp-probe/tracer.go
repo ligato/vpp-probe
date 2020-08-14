@@ -124,7 +124,7 @@ func runTracer(args []string) error {
 	return nil
 }
 
-func tracePackets(instance *VppInstance, dur time.Duration) (*vpptrace.Traces, error) {
+func tracePackets(instance *VppInstance, dur time.Duration) (*vpptrace.TraceResult, error) {
 	tracer, err := vpptrace.NewTracer(instance)
 	if err != nil {
 		return nil, err
@@ -152,11 +152,12 @@ func tracePackets(instance *VppInstance, dur time.Duration) (*vpptrace.Traces, e
 	return trace, nil
 }
 
-func saveTraceData(dir string, instance *VppInstance, trace *vpptrace.Traces) {
+func saveTraceData(dir string, instance *VppInstance, trace *vpptrace.TraceResult) {
 	t := time.Now()
+	host, _ := os.Hostname()
 
 	s := strings.ReplaceAll(instance.String(), " ", "-")
-	name := fmt.Sprintf("vpptrace_%s_%s_%dpkts.txt", strings.ToLower(s), t.Format("20150225_110639"), len(trace.Packets))
+	name := fmt.Sprintf("vpptrace_%s_%s_%dpkts.txt", strings.ToLower(s), t.Format("2015-Feb-25_11:06:39"), len(trace.Packets))
 
 	file, err := os.OpenFile(filepath.Join(dir, name), os.O_WRONLY|os.O_CREATE, 0655)
 	if err != nil {
@@ -169,7 +170,7 @@ func saveTraceData(dir string, instance *VppInstance, trace *vpptrace.Traces) {
 	fmt.Fprintln(file, "#  VPP PACKET TRACE")
 	fmt.Fprintln(file, "# ========================================")
 	fmt.Fprintln(file, "#      Time:", t.Format(time.UnixDate))
-	fmt.Fprintln(file, "#      Host:", os.Getenv("HOSTNAME"))
+	fmt.Fprintln(file, "#      Host:", host)
 	fmt.Fprintln(file, "# ----------------------------------------")
 	fmt.Fprintln(file, "#  Instance:", instance.String())
 	fmt.Fprintln(file, "#   Version:", instance.Version)

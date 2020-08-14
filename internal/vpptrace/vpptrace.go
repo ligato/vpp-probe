@@ -73,14 +73,14 @@ var ALL = []string{
 	VMXNET3_INPUT,
 }
 
-// Traces contains list of traced packets.
-type Traces struct {
-	RawTrace string
+// TraceResult contains traced data.
+type TraceResult struct {
 	Packets  []Packet
-	// TODO: store thread info??
+	RawTrace string
 }
 
 // Packet is a single packet from trace.
+// TODO: store thread info??
 type Packet struct {
 	ID       int
 	Captures []Capture
@@ -163,7 +163,7 @@ func (t *Tracer) BeginTrace(nodes ...string) error {
 	return nil
 }
 
-func (t *Tracer) EndTrace() (*Traces, error) {
+func (t *Tracer) EndTrace() (*TraceResult, error) {
 	traceData, err := t.showTrace()
 	if err != nil {
 		return nil, err
@@ -207,12 +207,12 @@ func (t *Tracer) clearTrace() error {
 var reShowTrace = regexp.MustCompile("(?m)(?:[-]+ Start of thread ([0-9]+) ([[:word:]]+) [-]+\n((?s).*))+")
 var reTracePacket = regexp.MustCompile("(?:((?:[0-9]{2}:)+[0-9]{6}): (\\S+)\n)")
 
-func ParseTrace(ss string) (*Traces, error) {
+func ParseTrace(ss string) (*TraceResult, error) {
 	s := strings.ReplaceAll(ss, "\r", "")
 
 	logrus.Debugf("-> parsing trace %d bytes (%d stripped)", len(s), len(ss)-len(s))
 
-	trace := &Traces{
+	trace := &TraceResult{
 		RawTrace: ss,
 	}
 

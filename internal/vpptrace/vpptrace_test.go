@@ -33,7 +33,7 @@ func TestParseTrace(t *testing.T) {
 	tests := []struct {
 		name    string
 		data    string
-		want    *Traces
+		want    *TraceResult
 		wantErr bool
 	}{
 		{
@@ -23134,7 +23134,7 @@ Packet 1125
     fragment id 0x0000
   UDP: 50101 -> 4789
     length 94, checksum 0x0000`,
-			want: &Traces{Packets: []Packet{
+			want: &TraceResult{Packets: []Packet{
 				{
 					ID: 1,
 					Captures: []Capture{
@@ -23197,7 +23197,7 @@ Packet 1125
 		{
 			name:    "empty",
 			data:    ``,
-			want:    &Traces{},
+			want:    &TraceResult{},
 			wantErr: false,
 		},
 	}
