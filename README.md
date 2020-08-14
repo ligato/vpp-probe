@@ -37,19 +37,25 @@ $ vpp-probe tracer --help
 Analyze packet traces in VPP
 
 Usage:
-  vpp-probe tracer [flags] LABELS
+  vpp-probe tracer [flags]
 
 Flags:
-      --all strings         List of traced nodes (default [af-packet-input,avf-input,bond-process,memif-input,p2p-ethernet-input,pg-input,punt-socket-rx,rdma-input,session-queue,tuntap-rx,vhost-user-input,virtio-input,vmxnet3-input])
-  -d, --duration duration   Duration of tracing (default 3s)
-  -h, --help                help for tracer
-      --kubeconfig string   Path to kubeconfig
-  -t, --target string       Target to trace
+  -h, --help                 help for tracer
+      --kubeconfig string    Path to kubeconfig
+  -d, --tracedur duration    Duration of tracing (default 3s)
+      --tracenodes strings   List of traced nodes (default [af-packet-input,avf-input,bond-process,memif-input,p2p-ethernet-input,pg-input,punt-socket-rx,rdma-input,session-queue,tuntap-rx,vhost-user-input,virtio-input,vmxnet3-input])
 
 Global Flags:
   -D, --debug   Enable debug mode
 ```
 
 ## Install
+
+Requirements:
+- Go 1.14+
+
+```
+GO111MODULE=on go get -u go.ligato.io/vpp-probe/cmd/vpp-probe@latest
+```
 
 // TBD

@@ -35,10 +35,10 @@ import (
 func init() {
 	rootCmd.AddCommand(tracerCmd)
 
-	tracerCmd.Flags().StringSliceVar(&TraceNodes, "all", TraceNodes, "List of traced nodes")
 	tracerCmd.Flags().StringVar(&kubeconfig, "kubeconfig", "", "Path to kubeconfig")
-	tracerCmd.Flags().StringVarP(&TraceTarget, "target", "t", "", "Target to trace")
-	tracerCmd.Flags().DurationVarP(&TraceTime, "duration", "d", TraceTime, "Duration of tracing")
+	//tracerCmd.Flags().StringVarP(&TraceTarget, "target", "t", "", "Target to trace")
+	tracerCmd.Flags().StringSliceVar(&TraceNodes, "tracenodes", TraceNodes, "List of traced nodes")
+	tracerCmd.Flags().DurationVarP(&TraceTime, "tracedur", "d", TraceTime, "Duration of tracing")
 }
 
 var tracerCmd = &cobra.Command{
@@ -51,10 +51,10 @@ var tracerCmd = &cobra.Command{
 }
 
 var (
-	kubeconfig  string
-	TraceTime   = time.Second * 3
-	TraceNodes  = vpptrace.ALL
-	TraceTarget string
+	kubeconfig string
+	TraceTime  = time.Second * 3
+	TraceNodes = vpptrace.ALL
+	//TraceTarget string
 )
 
 func runTracer(args []string) error {
