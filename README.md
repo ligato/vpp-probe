@@ -14,8 +14,6 @@
 - [Install](#install)
 - [Packet Tracer](#packet-tracer)
 
-<br>
-
 ## Install
 
 #### Requirements
@@ -36,18 +34,18 @@ collects packet traces that can be further analyzed via terminal UI.
 
 #### Preview
 
-[![asciicast](https://asciinema.org/a/Pp5IOFRNWEgT5JhrOn3kYHfI5.svg)](https://asciinema.org/a/Pp5IOFRNWEgT5JhrOn3kYHfI5)
+<a href="https://asciinema.org/a/353305?autoplay=1&size=medium"><img src="https://asciinema.org/a/353305.svg" width="450"/></a>
 
 #### Usage
 
 ```sh
-$ vpp-probe tracer --kubeconfig $HOME/kubeconfigs/nsm/kind-1.kubeconfig \
+vpp-probe tracer --kubeconfig "$HOME/kubeconfigs/nsm/kind-1.kubeconfig" \
     networkservicemesh.io/app=vl3-nse-bar \
     app=nsm-vpp-plane
 ```
 
 <details>
-<summary><b><code>tracer</code> usage</b></summary>
+<summary><b>All <code>tracer</code> options</b></summary>
 <br>
 
 
