@@ -9,6 +9,7 @@ require (
 	github.com/gookit/color v1.2.7
 	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/json-iterator/go v1.1.10 // indirect
+	github.com/mattn/go-runewidth v0.0.9 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.0 // indirect
 	github.com/onsi/gomega v1.10.1 // indirect
 	github.com/sirupsen/logrus v1.6.0
@@ -16,8 +17,8 @@ require (
 	go.ligato.io/vpp-agent/v3 v3.2.0-alpha.0.20200811103204-c6728d63d014
 	golang.org/x/text v0.3.3 // indirect
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
-	k8s.io/api v0.18.4
-	k8s.io/apimachinery v0.18.4
+	k8s.io/api v0.18.8
+	k8s.io/apimachinery v0.18.8
 	k8s.io/client-go v11.0.0+incompatible
 	k8s.io/utils v0.0.0-20200603063816-c1c6865ac451 // indirect
 )
@@ -48,3 +49,5 @@ replace (
 	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.18.1
 	k8s.io/sample-controller => k8s.io/sample-controller v0.18.1
 )
+
+//replace github.com/coreos/bbolt => go.etcd.io/bbolt v1.3.5
