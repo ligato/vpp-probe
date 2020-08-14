@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -27,7 +29,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"go.ligato.io/vpp-probe/internal/vppcli"
 	"go.ligato.io/vpp-probe/internal/vpptrace"
 	"go.ligato.io/vpp-probe/pkg/kube"
 )
@@ -36,14 +37,16 @@ func init() {
 	rootCmd.AddCommand(tracerCmd)
 
 	tracerCmd.Flags().StringVar(&kubeconfig, "kubeconfig", "", "Path to kubeconfig")
-	//tracerCmd.Flags().StringVarP(&TraceTarget, "target", "t", "", "Target to trace")
+	tracerCmd.Flags().StringVar(&TraceDir, "tracedir", os.TempDir(), "Directory to store raw trace data")
 	tracerCmd.Flags().StringSliceVar(&TraceNodes, "tracenodes", TraceNodes, "List of traced nodes")
 	tracerCmd.Flags().DurationVarP(&TraceTime, "tracedur", "d", TraceTime, "Duration of tracing")
+	tracerCmd.Flags().UintVar(&NumPackets, "numpackets", NumPackets, "Number of packets to trace per node")
+	//tracerCmd.Flags().StringVarP(&TraceTarget, "target", "t", "", "Target to trace")
 }
 
 var tracerCmd = &cobra.Command{
 	Use:   "tracer",
-	Short: "Analyze packet traces in VPP",
+	Short: "Collect and analyze packet traces from VPP instances",
 	Args:  cobra.ArbitraryArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runTracer(args)
@@ -52,8 +55,10 @@ var tracerCmd = &cobra.Command{
 
 var (
 	kubeconfig string
-	TraceTime  = time.Second * 3
-	TraceNodes = vpptrace.ALL
+	TraceDir   string
+	TraceTime       = time.Second * 5
+	TraceNodes      = vpptrace.ALL
+	NumPackets uint = 10000
 	//TraceTarget string
 )
 
@@ -80,26 +85,7 @@ func runTracer(args []string) error {
 	}
 
 	logrus.Infof("found %d VPP instances, initializing tracer..", len(instances))
-	time.Sleep(time.Second)
 
-	/*cli := vppcli.Default
-	ver, err := cli.RunCli("show version")
-	if err != nil {
-		logrus.Fatal(err)
-	}
-	logrus.Infof("conneted: %v", ver)*/
-	/*conn, err := govpp.Connect(adapter.DefaultBinapiSocket)
-	if err != nil {
-		logrus.Fatalln("ERROR: connecting to VPP failed:", err)
-	}
-	defer conn.Disconnect()
-
-	ch, err := conn.NewAPIChannel()
-	if err != nil {
-		logrus.Fatalln("ERROR: creating channel:", err)
-	}
-	defer conn.Disconnect()
-	_ = ch*/
 	//var traceIdx int
 	/*if TraceTarget != "" {
 		ifaces := dumpInterfaces(ch)
@@ -135,13 +121,11 @@ func runTracer(args []string) error {
 
 	initTracer(instances)
 
-	//traceView(ver, packets)
-
 	return nil
 }
 
-func tracePackets(cli vppcli.CLI, dur time.Duration) ([]vpptrace.Packet, error) {
-	tracer, err := vpptrace.NewTracer(cli)
+func tracePackets(instance *VppInstance, dur time.Duration) (*vpptrace.Traces, error) {
+	tracer, err := vpptrace.NewTracer(instance)
 	if err != nil {
 		return nil, err
 	}
@@ -162,10 +146,36 @@ func tracePackets(cli vppcli.CLI, dur time.Duration) ([]vpptrace.Packet, error) 
 	if err != nil {
 		return nil, err
 	}
-	if len(trace.Packets) == 0 {
-		return nil, fmt.Errorf("no packets traced")
+	if TraceDir != "" {
+		saveTraceData(TraceDir, instance, trace)
 	}
-	return trace.Packets, nil
+	return trace, nil
+}
+
+func saveTraceData(dir string, instance *VppInstance, trace *vpptrace.Traces) {
+	t := time.Now()
+
+	s := strings.ReplaceAll(instance.String(), " ", "-")
+	name := fmt.Sprintf("vpptrace_%s_%s_%dpkts.txt", strings.ToLower(s), t.Format("20150225_110639"), len(trace.Packets))
+
+	file, err := os.OpenFile(filepath.Join(dir, name), os.O_WRONLY|os.O_CREATE, 0655)
+	if err != nil {
+		logrus.Warnf("failed to save trace data to dir %s: %v", TraceDir, err)
+		return
+	}
+	defer file.Close()
+
+	fmt.Fprintln(file, "# ========================================")
+	fmt.Fprintln(file, "#  VPP PACKET TRACE")
+	fmt.Fprintln(file, "# ========================================")
+	fmt.Fprintln(file, "#      Time:", t.Format(time.UnixDate))
+	fmt.Fprintln(file, "#      Host:", os.Getenv("HOSTNAME"))
+	fmt.Fprintln(file, "# ----------------------------------------")
+	fmt.Fprintln(file, "#  Instance:", instance.String())
+	fmt.Fprintln(file, "#   Version:", instance.Version)
+	fmt.Fprintln(file, "# ----------------------------------------")
+	fmt.Fprintln(file)
+	fmt.Fprint(file, trace.RawTrace)
 }
 
 func buildTreeNodes(packets []vpptrace.Packet) []*widgets.TreeNode {
@@ -219,11 +229,12 @@ func initTracer(instances []*VppInstance) {
 	}
 
 	packetTree := widgets.NewTree()
-	packetTree.Title = "[ Traced packets ]"
+	packetTree.Title = "[ Packets ]"
 	packetTree.TitleStyle = ui.NewStyle(ui.ColorBlue + 11)
 	packetTree.SelectedRowStyle = ui.NewStyle(ui.ColorClear, ui.ColorClear, ui.ModifierReverse)
 	packetTree.WrapText = true
 	packetTree.PaddingLeft = 1
+	packetTree.BorderStyle = ui.NewStyle(ui.ColorClear, ui.ColorClear)
 
 	label := func(instance *VppInstance) string {
 		return fmt.Sprintf("[%v](fg:cyan)", instance)
@@ -264,12 +275,14 @@ func initTracer(instances []*VppInstance) {
 	hintBar.Border = false
 	hintStyle := "fg:black,bg:white,mod:bold"
 	hintFields := []string{
+		fmt.Sprintf("[<T>](%[1]s) start trace", hintStyle),
+		fmt.Sprintf("[<h>](%[1]s) hide drops", hintStyle),
 		fmt.Sprintf("[<Up>](%[1]s)/[<Down>](%[1]s) move", hintStyle),
-		fmt.Sprintf("[<Home>](%[1]s)/[<End>](%[1]s) scroll top/bottom", hintStyle),
+		fmt.Sprintf("[<Home>](%[1]s)/[<End>](%[1]s) scroll", hintStyle),
 		fmt.Sprintf("[<Enter>](%[1]s) toggle", hintStyle),
-		fmt.Sprintf("[<e>](%[1]s)/[<E>](%[1]s) expand current/all", hintStyle),
-		fmt.Sprintf("[<c>](%[1]s)/[<C>](%[1]s) collapse current/all", hintStyle),
-		fmt.Sprintf("[<q>](%[1]s) Quit", hintStyle),
+		fmt.Sprintf("[<e>](%[1]s)/[<E>](%[1]s) expand", hintStyle),
+		fmt.Sprintf("[<c>](%[1]s)/[<C>](%[1]s) collapse", hintStyle),
+		fmt.Sprintf("[<q>](%[1]s) quit", hintStyle),
 	}
 	hintBar.Text = " " + strings.Join(hintFields, " | ")
 
@@ -298,6 +311,7 @@ func initTracer(instances []*VppInstance) {
 		return pkts
 	}
 
+	var tracingNow bool
 	var results = make(map[*VppInstance][]vpptrace.Packet, len(instances))
 
 	showResults := func(instance *VppInstance) {
@@ -306,7 +320,7 @@ func initTracer(instances []*VppInstance) {
 			return
 		}
 		pkts := filter(packets)
-		s := fmt.Sprintf("%v => [%d packets](fg:cyan,mod:bold) ", label(instance), len(pkts))
+		s := fmt.Sprintf("%v - [%d packets](fg:yellow,mod:bold) ", label(instance), len(pkts))
 		if h := len(packets) - len(pkts); h > 0 {
 			s += fmt.Sprintf("(%d hidden) ", h)
 		}
@@ -320,35 +334,58 @@ func initTracer(instances []*VppInstance) {
 			}
 		}
 	}
-	trace := func(instance *VppInstance, node *widgets.TreeNode) {
-		packets, err := tracePackets(instance, TraceTime)
+	trace := func(instance *VppInstance, node *widgets.TreeNode, done chan bool) {
+		defer func() {
+			done <- true
+		}()
+		traces, err := tracePackets(instance, TraceTime)
 		if err != nil {
 			logrus.Errorf("tracing instance %v error: %v", instance, err)
 			results[instance] = nil
-			s := fmt.Sprintf("%v => [error: %v](fg:red)", label(instance), err.Error())
+			s := fmt.Sprintf("%v - [ERROR: %v](fg:yellow)", label(instance), err.Error())
+			node.Value = bytes.NewBufferString(s)
+			node.Nodes = nil
+			node.Expanded = true
+		} else if len(traces.Packets) == 0 {
+			logrus.Errorf("tracing instance %v: no packets traced", instance)
+			results[instance] = nil
+			s := fmt.Sprintf("%v - [no packets traced](fg:magenta)", label(instance))
 			node.Value = bytes.NewBufferString(s)
 			node.Nodes = nil
 			node.Expanded = true
 		} else {
-			logrus.Infof("instance %v traced %v packets", instance, len(packets))
-			results[instance] = packets
+			logrus.Infof("instance %v traced %v packets", instance, len(traces.Packets))
+			results[instance] = traces.Packets
 			showResults(instance)
 		}
 		packetTree.SetNodes(nodes)
 		update()
 	}
 	traceAll := func() {
+		if tracingNow {
+			return
+		}
+		tracingNow = true
 		logrus.Infof("tracing..")
+		oldStyle := packetTree.BorderStyle
+		packetTree.BorderStyle = ui.NewStyle(ui.ColorRed, ui.ColorClear)
+
+		done := make(chan bool, len(instances))
 		for i, instance := range instances {
 			inst := instance
 			node := nodes[i]
-			node.Nodes = []*widgets.TreeNode{
-				{
-					Value: bytes.NewBufferString("tracing.."),
-				},
-			}
-			go trace(inst, node)
+			s := fmt.Sprintf("%v - [TRACING...](fg:red)", label(instance))
+			node.Value = bytes.NewBufferString(s)
+			node.Nodes = nil
+			go trace(inst, node, done)
 		}
+		go func() {
+			for range instances {
+				<-done
+			}
+			tracingNow = false
+			packetTree.BorderStyle = oldStyle
+		}()
 		packetTree.SetNodes(nodes)
 		packetTree.ExpandAll()
 		packetTree.ScrollTop()
@@ -439,8 +476,8 @@ func (c *packetNode) String() string {
 	pktFields := []string{
 		fmt.Sprintf("[Packet %4v](fg:blue,mod:bold)", packet.ID),
 		fmt.Sprintf("[%2d](fg:blue) nodes", len(packet.Captures)),
-		fmt.Sprintf("took [%5v](fg:blue)", took),
-		fmt.Sprintf("[%20s](%s) ---> [%s](%s)", first.Name, colorNode(first.Name), last.Name, colorNode(last.Name)),
+		fmt.Sprintf("took [%8v](fg:blue)", took),
+		fmt.Sprintf("[%20s](%s) => [%s](%s)", first.Name, colorNode(first.Name), last.Name, colorNode(last.Name)),
 	}
 	if c.node.Expanded {
 		pktFields = append(pktFields, fmt.Sprintf("⏲  [%v](fg:blue)", formatDurTimestamp(start)))

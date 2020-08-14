@@ -16,13 +16,16 @@ package vpptrace
 
 import (
 	"fmt"
-	"io/ioutil"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
+)
+
+const (
+	defaultNumPackets = 5000
 )
 
 // List of trace-able input nodes.
@@ -72,7 +75,8 @@ var ALL = []string{
 
 // Traces contains list of traced packets.
 type Traces struct {
-	Packets []Packet
+	RawTrace string
+	Packets  []Packet
 	// TODO: store thread info??
 }
 
@@ -120,17 +124,26 @@ type CLI interface {
 // Tracer handles tracing.
 type Tracer struct {
 	cli CLI
+
+	numPackets int
+	toRetrieve int
 }
 
 // NewTracer returns Tracer that uses CLI to manage tracing.
 func NewTracer(cli CLI) (*Tracer, error) {
 	tracer := &Tracer{
-		cli: cli,
+		cli:        cli,
+		numPackets: defaultNumPackets,
 	}
 	return tracer, nil
 }
 
-const maxPackets = 1000
+func (t *Tracer) SetNumPackets(numPackets int) {
+	if numPackets <= 0 {
+		return
+	}
+	t.numPackets = numPackets
+}
 
 func (t *Tracer) BeginTrace(nodes ...string) error {
 	if len(nodes) == 0 {
@@ -139,10 +152,13 @@ func (t *Tracer) BeginTrace(nodes ...string) error {
 	if err := t.clearTrace(); err != nil {
 		return err
 	}
+	t.toRetrieve = 0
 	for _, node := range nodes {
-		if err := t.addTrace(node, maxPackets); err != nil {
-			return err
+		if err := t.addTrace(node, t.numPackets); err != nil {
+			logrus.Warnf("adding trace for node %v failed: %v", node, err)
+			continue
 		}
+		t.toRetrieve += t.numPackets
 	}
 	return nil
 }
@@ -157,16 +173,15 @@ func (t *Tracer) EndTrace() (*Traces, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parsing trace failed: %v", err)
 	}
-	f, _ := ioutil.TempFile("", fmt.Sprintf("vpptrace_%d_-*", len(trace.Packets)))
-	defer f.Close()
-	if _, err := f.WriteString(traceData); err != nil {
-		panic(err)
-	}
 	return trace, nil
 }
 
 func (t *Tracer) showTrace() (string, error) {
-	reply, err := t.cli.RunCli("show trace max 10000")
+	count := t.toRetrieve
+	if count < t.numPackets {
+		count = t.numPackets
+	}
+	reply, err := t.cli.RunCli(fmt.Sprintf("show trace max %d", count))
 	if err != nil {
 		return "", err
 	}
@@ -196,12 +211,14 @@ func ParseTrace(ss string) (*Traces, error) {
 	s := strings.ReplaceAll(ss, "\r", "")
 
 	logrus.Debugf("-> parsing trace %d bytes (%d stripped)", len(s), len(ss)-len(s))
-	//logrus.Tracef("%q", s)
+
+	trace := &Traces{
+		RawTrace: ss,
+	}
 
 	matches := reShowTrace.FindAllStringSubmatch(s, -1)
 	logrus.Debugf("-> %d matches", len(matches))
 
-	trace := &Traces{}
 	for _, match := range matches {
 		packets := strings.Split(strings.TrimSpace(match[3]), "\n\n")
 		logrus.Debugf("-> %d packets", len(packets))
@@ -211,8 +228,7 @@ func ParseTrace(ss string) (*Traces, error) {
 				idstr := strings.TrimPrefix(pkt, "Packet ")
 				id, err := strconv.Atoi(idstr)
 				if err != nil {
-					fmt.Printf("invalid packet ID %v: %v", idstr, err)
-					panic(err)
+					logrus.Warnf("invalid packet ID %v: %v", idstr, err)
 					continue
 				}
 				packet = Packet{
@@ -224,14 +240,12 @@ func ParseTrace(ss string) (*Traces, error) {
 			capturesIndex := reTracePacket.FindAllStringSubmatchIndex(pkt, -1)
 			for c, capture := range captures {
 				if len(capture) < 3 {
-					fmt.Println("invalid capture")
-					panic("invalid capture")
+					logrus.Warn("invalid capture")
 					continue
 				}
 				start, err := parseTimestamp(capture[1])
 				if err != nil {
-					fmt.Println(err)
-					panic("invalid timestamp")
+					logrus.Warn(err)
 					continue
 				}
 				if c == 0 {
