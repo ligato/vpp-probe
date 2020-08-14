@@ -1,28 +1,44 @@
-<p align="center">
-
 ```
-                                                    ______       
- ___   _________________       ________________________  /______ 
- __ | / /__  __ \__  __ \_________  __ \_  ___/  __ \_  __ \  _ \
- __ |/ /__  /_/ /_  /_/ //_____/_  /_/ /  /   / /_/ /  /_/ /  __/
- _____/ _  .___/_  .___/       _  .___//_/    \____//_.___/\___/ 
-        /_/     /_/            /_/                               
+    ___    _________________                        ______       
+    __ |  / /__  __ \__  __ \   _______________________  /______ 
+    __ | / /__  /_/ /_  /_/ /_____  __ \_  ___/  __ \_  __ \  _ \
+    __ |/ / _  ____/_  ____/_____  /_/ /  /   / /_/ /  /_/ /  __/
+    _____/  /_/     /_/        _  .___//_/    \____//_.___/\___/ 
+                                /_/                               
+```
+> Developer tool for inspecting VPP instances running in the cloud :cloud:
+
+<hr>
+
+## Contents
+- [Install](#install)
+- [Packet Tracer](#packet-tracer)
+
+<br>
+
+## Install
+
+#### Requirements
+- [Go 1.14+](https://golang.org/dl/)
+
+```sh
+git clone https://github.com/ligato/vpp-probe.git
+cd vpp-probe
+go install ./cmd/vpp-probe 
 ```
 
-</p>
-
-A CLI tool for examining VPP instances
+<br>
 
 ## Packet Tracer
 
 Packet tracer connects to multiple VPP instances inside Kubernetes cluster and
 collects packet traces that can be further analyzed via terminal UI.
 
-### Preview
+#### Preview
 
 [![asciicast](https://asciinema.org/a/Pp5IOFRNWEgT5JhrOn3kYHfI5.svg)](https://asciinema.org/a/Pp5IOFRNWEgT5JhrOn3kYHfI5)
 
-Example usage:
+#### Usage
 
 ```sh
 $ vpp-probe tracer --kubeconfig $HOME/kubeconfigs/nsm/kind-1.kubeconfig \
@@ -30,7 +46,10 @@ $ vpp-probe tracer --kubeconfig $HOME/kubeconfigs/nsm/kind-1.kubeconfig \
     app=nsm-vpp-plane
 ```
 
-Flags:
+<details>
+<summary><b><code>tracer</code> usage</b></summary>
+<br>
+
 
 ```sh
 $ vpp-probe tracer --help
@@ -49,13 +68,6 @@ Global Flags:
   -D, --debug   Enable debug mode
 ```
 
-## Install
 
-Requirements:
-- Go 1.14+
-
-```
-GO111MODULE=on go get -u go.ligato.io/vpp-probe/cmd/vpp-probe@latest
-```
-
-// TBD
+<br>
+</details>

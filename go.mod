@@ -17,10 +17,6 @@ require (
 )
 
 replace (
-	github.com/Azure/go-autorest/autorest/azure/auth => github.com/Azure/go-autorest/autorest/azure/auth v0.3.0
-	github.com/census-instrumentation/opencensus-proto v0.1.0-0.20181214143942-ba49f56771b8 => github.com/census-instrumentation/opencensus-proto v0.0.3-0.20181214143942-ba49f56771b8
-	github.com/coreos/go-systemd v0.0.0-00010101000000-000000000000 => github.com/coreos/go-systemd/v22 v22.0.0
-
 	k8s.io/api => k8s.io/api v0.18.1
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.18.1
 	k8s.io/apimachinery => k8s.io/apimachinery v0.18.2-beta.0
