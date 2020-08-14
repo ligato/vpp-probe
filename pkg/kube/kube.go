@@ -83,7 +83,7 @@ func (k *KubeCtx) FindPods(queries []PodQuery) (list []corev1.Pod) {
 
 func (k *KubeCtx) Exec(namespace, pod, container, command string) (string, error) {
 	var out bytes.Buffer
-	err := ExecCmdExample(k.client, k.config, namespace, pod, container, command, nil, &out, &out)
+	err := execCmd(k.client, k.config, namespace, pod, container, command, nil, &out, &out)
 	if err != nil {
 		return "", err
 	}
@@ -91,13 +91,8 @@ func (k *KubeCtx) Exec(namespace, pod, container, command string) (string, error
 }
 
 // ExecCmd exec command on specific pod and wait the command's output.
-func ExecCmdExample(client kubernetes.Interface, config *restclient.Config, namespace, podName, container string,
+func execCmd(client kubernetes.Interface, config *restclient.Config, namespace, podName, container string,
 	command string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
-	cmd := []string{
-		"sh",
-		"-c",
-		command,
-	}
 	req := client.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(podName).
@@ -106,7 +101,7 @@ func ExecCmdExample(client kubernetes.Interface, config *restclient.Config, name
 		Param("container", container)
 	req.VersionedParams(&corev1.PodExecOptions{
 		Container: container,
-		Command:   cmd,
+		Command:   []string{"sh", "-c", command},
 		Stdin:     stdin != nil,
 		Stdout:    true,
 		Stderr:    true,
@@ -126,6 +121,5 @@ func ExecCmdExample(client kubernetes.Interface, config *restclient.Config, name
 	if err != nil {
 		return err
 	}
-
 	return nil
 }

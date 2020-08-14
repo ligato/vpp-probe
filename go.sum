@@ -355,6 +355,7 @@ github.com/yuin/gopher-lua v0.0.0-20181031023651-12c4817b42c5/go.mod h1:aEV29Xrm
 github.com/yuin/gopher-lua v0.0.0-20190514113301-1cd887cd7036/go.mod h1:gqRgreBUhTSL0GeU64rtZ3Uq3wtjOa/TB2YfrtkCbVQ=
 go.etcd.io/bbolt v1.3.2/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
 go.etcd.io/bbolt v1.3.3/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
+go.ligato.io/cn-infra/v2 v2.5.0-alpha.0.20200313154441-b0d4c1b11c73 h1:sJFlfW8T9HF+5FkVRvhXnMrcMWSw8PVwDURzi5YiZ9o=
 go.ligato.io/cn-infra/v2 v2.5.0-alpha.0.20200313154441-b0d4c1b11c73/go.mod h1:mYLtG2Bq3C/SOUUafEe8JOwdqohd4NVYl6Bu/nh/O8Y=
 go.ligato.io/vpp-agent/v3 v3.2.0-alpha.0.20200811103204-c6728d63d014 h1:ModeTvL3P0+iqnxdm5azQOy7+AC8FGfK786eIP+LW+0=
 go.ligato.io/vpp-agent/v3 v3.2.0-alpha.0.20200811103204-c6728d63d014/go.mod h1:ZUfxxc/miOLTjhjvLsfwwGDU3ElvJ03+Zrwo4E0HV+A=

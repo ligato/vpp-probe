@@ -22,8 +22,8 @@ import (
 	"strings"
 
 	"git.fd.io/govpp.git/api"
-	"git.fd.io/govpp.git/examples/binapi/vpe"
 	"github.com/sirupsen/logrus"
+	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2001/vpe"
 )
 
 var Default = VppCtl()
@@ -36,15 +36,16 @@ type CLI interface {
 	RunCli(cmd string) (string, error)
 }
 
-func VppCtl() CLI {
+func VppCtl(args ...string) CLI {
 	return &cliCommand{
-		cmd: "/usr/bin/vppctl",
+		cmd:  "/usr/bin/vppctl",
+		args: args,
 	}
 }
 
-func KubeCtl(args ...string) CLI {
+func RemoteCmd(cmd string, args ...string) CLI {
 	return &cliCommand{
-		cmd:  "kubectl",
+		cmd:  cmd,
 		args: args,
 	}
 }
@@ -64,7 +65,6 @@ func (ctx *cliCommand) RunCli(cmd string) (string, error) {
 	args = append(args, cmd)
 
 	c := exec.Command(ctx.cmd, args...)
-
 	// STDIN annot be used for vppctl because it will
 	// fail with error "failed: broken pipe" and exit code 141
 	//c.Stdin = strings.NewReader(cmd)
@@ -75,6 +75,7 @@ func (ctx *cliCommand) RunCli(cmd string) (string, error) {
 	}
 
 	reply := string(bytes.ReplaceAll(out, []byte("\r\n"), []byte("\n")))
+	reply = strings.TrimLeft(reply, "\r\n")
 	logrus.Debugf("CLI command reply: %q", reply)
 
 	if prompt := strings.Index(reply, `vpp# `); prompt > 0 {

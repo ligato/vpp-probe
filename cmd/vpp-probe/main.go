@@ -17,6 +17,7 @@ package main
 import (
 	"os"
 
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"go.ligato.io/vpp-probe/version"
@@ -41,9 +42,16 @@ func init() {
 
 var rootCmd = &cobra.Command{
 	Use:     "vpp-probe",
-	Short:   "A CLI tool for probing VPP instances",
+	Short:   "A CLI tool for examining VPP instances",
 	Long:    Logo,
 	Version: version.Version,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		if debugOn {
+			logrus.SetLevel(logrus.DebugLevel)
+			logrus.Tracef("debugging enabled")
+		}
+		return nil
+	},
 }
 
 func main() {

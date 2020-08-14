@@ -17,7 +17,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -31,11 +30,11 @@ import (
 	govppapi "git.fd.io/govpp.git/api"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2005/interface_types"
-	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2005/interfaces"
-	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2005/ip"
-	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2005/ip_types"
-	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2005/vpe"
+	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2001/interface_types"
+	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2001/interfaces"
+	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2001/ip"
+	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2001/ip_types"
+	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2001/vpe"
 )
 
 func init() {
@@ -262,7 +261,7 @@ func watchIfaceEvents(conn api.Connection) <-chan *interfaces.SwInterfaceEvent {
 
 var NotifChanBufferSize = 10
 
-func WatchInterfaceEvents(ctx context.Context, conn govppapi.ChannelProvider, eventsCh chan<- *interfaces.SwInterfaceEvent) error {
+/*func WatchInterfaceEvents(ctx context.Context, conn govppapi.ChannelProvider, eventsCh chan<- *interfaces.SwInterfaceEvent) error {
 	ch, err := conn.NewAPIChannel()
 	if err != nil {
 		return fmt.Errorf("creating channel failed: %v", err)
@@ -323,4 +322,4 @@ func WatchInterfaceEvents(ctx context.Context, conn govppapi.ChannelProvider, ev
 	}
 
 	return nil
-}
+}*/

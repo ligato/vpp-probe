@@ -15,21 +15,23 @@
 package main
 
 import (
-	"context"
+	"encoding/gob"
 	"fmt"
 	"log"
 	"strings"
 	"time"
 
-	"git.fd.io/govpp.git"
-	"git.fd.io/govpp.git/adapter"
+	"git.fd.io/govpp.git/api"
+	"git.fd.io/govpp.git/proxy"
 	ui "github.com/gizak/termui/v3"
 	"github.com/gizak/termui/v3/widgets"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2005/interfaces"
+	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi"
+	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2001"
+	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2001/interfaces"
+	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2001/vpe"
 
-	"go.ligato.io/vpp-probe/pkg/vppcli"
+	"go.ligato.io/vpp-probe/internal/vppcli"
 )
 
 func init() {
@@ -47,36 +49,10 @@ var probeCmd = &cobra.Command{
 	},
 }
 
+const vppVersion = vpp2001.Version
+
 func runProbe() error {
-	/*if kubeconfigs != "" {
-		configs, err := loadConfigs(kubeconfigs)
-		if err != nil {
-			return fmt.Errorf("loading kubeconfigs failed: %w", err)
-		}
-		if len(configs) == 0 {
-			return fmt.Errorf("no kubeconfigs found in %s", kubeconfigs)
-		}
-
-		queries := parseQueries(queriesFlag)
-		if len(queries) == 0 {
-			return fmt.Errorf("at least one query neeeded")
-		}
-
-		for _, config := range configs {
-			apicfg, err := clientcmd.LoadFromFile(config)
-			if err != nil {
-				return fmt.Errorf("config %s error: %v", config, err)
-			}
-			instances, err := findInCluster(config, queries)
-			if err != nil {
-				return fmt.Errorf("cluster %s error: %v", apicfg.CurrentContext, err)
-			}
-
-			printInstances(apicfg, instances)
-		}
-	}*/
-
-	conn, err := govpp.Connect(adapter.DefaultBinapiSocket)
+	/*conn, err := govpp.Connect(adapter.DefaultBinapiSocket)
 	if err != nil {
 		return fmt.Errorf("connecting to VPP failed: %v", err)
 	}
@@ -85,21 +61,54 @@ func runProbe() error {
 	if err != nil {
 		logrus.Fatalln("ERROR: creating channel:", err)
 	}
-	defer conn.Disconnect()
+	defer conn.Disconnect()*/
 
-	events := make(chan *interfaces.SwInterfaceEvent, 100)
-	err = WatchInterfaceEvents(context.Background(), conn, events)
+	client, err := proxy.Connect(":9191")
 	if err != nil {
-		return fmt.Errorf("WatchInterfaceEvents failed: %v", err)
+		log.Fatalln("connecting to proxy failed:", err)
 	}
 
-	probe(vppcli.Default, func() []*Interface {
+	//proxyStats(client)
+	ch := proxyBinapi(client)
+
+	cli := vppcli.BinapiCLI(ch)
+
+	events := make(chan *interfaces.SwInterfaceEvent, 100)
+	/*err = WatchInterfaceEvents(context.Background(), conn, events)
+	if err != nil {
+		return fmt.Errorf("WatchInterfaceEvents failed: %v", err)
+	}*/
+
+	probeViewer(cli, func() []*Interface {
 		return dumpInterfaces(ch)
 	}, events)
 	return nil
 }
 
-func probe(cli vppcli.CLI, dump func() []*Interface, ifevents chan *interfaces.SwInterfaceEvent) {
+func proxyBinapi(client *proxy.Client) api.Channel {
+	binapiChannel, err := client.NewBinapiClient()
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	// All binapi messages must be registered to gob
+	for _, msg := range binapi.Versions[vppVersion].AllMessages() {
+		gob.Register(msg)
+	}
+
+	// Check compatibility with remote VPP version
+	var msgs []api.Message
+	msgs = append(msgs, interfaces.AllMessages()...)
+	msgs = append(msgs, vpe.AllMessages()...)
+	if err := binapiChannel.CheckCompatiblity(msgs...); err != nil {
+		log.Fatalf("compatibility check (VPP %v) failed: %v", vppVersion, err)
+	}
+	log.Printf("compatibility OK! (VPP %v)", vppVersion)
+
+	return binapiChannel
+}
+
+func probeViewer(cli vppcli.CLI, dump func() []*Interface, ifevents chan *interfaces.SwInterfaceEvent) {
 	if err := ui.Init(); err != nil {
 		log.Fatalf("failed to initialize termui: %v", err)
 	}
@@ -114,7 +123,6 @@ func probe(cli vppcli.CLI, dump func() []*Interface, ifevents chan *interfaces.S
 	table.FillRow = true
 	table.PaddingLeft = 1
 	table.PaddingRight = 1
-	//table.RowStyles[0] = ui.NewStyle(ui.ColorBlack, ui.ColorWhite)
 	table.RowStyles[0] = ui.NewStyle(ui.ColorWhite, ui.ColorClear, ui.ModifierBold)
 	table.ColumnResizer = func() {
 		var columnWidths []int

@@ -16,10 +16,13 @@ package vpptrace
 
 import (
 	"fmt"
+	"io/ioutil"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 // List of trace-able input nodes.
@@ -149,9 +152,15 @@ func (t *Tracer) EndTrace() (*Traces, error) {
 	if err != nil {
 		return nil, err
 	}
+	traceData = strings.ReplaceAll(traceData, "\r\n", "\n")
 	trace, err := ParseTrace(traceData)
 	if err != nil {
 		return nil, fmt.Errorf("parsing trace failed: %v", err)
+	}
+	f, _ := ioutil.TempFile("", fmt.Sprintf("vpptrace_%d_-*", len(trace.Packets)))
+	defer f.Close()
+	if _, err := f.WriteString(traceData); err != nil {
+		panic(err)
 	}
 	return trace, nil
 }
@@ -183,11 +192,19 @@ func (t *Tracer) clearTrace() error {
 var reShowTrace = regexp.MustCompile("(?m)(?:[-]+ Start of thread ([0-9]+) ([[:word:]]+) [-]+\n((?s).*))+")
 var reTracePacket = regexp.MustCompile("(?:((?:[0-9]{2}:)+[0-9]{6}): (\\S+)\n)")
 
-func ParseTrace(s string) (*Traces, error) {
-	trace := &Traces{}
+func ParseTrace(ss string) (*Traces, error) {
+	s := strings.ReplaceAll(ss, "\r", "")
+
+	logrus.Debugf("-> parsing trace %d bytes (%d stripped)", len(s), len(ss)-len(s))
+	//logrus.Tracef("%q", s)
+
 	matches := reShowTrace.FindAllStringSubmatch(s, -1)
+	logrus.Debugf("-> %d matches", len(matches))
+
+	trace := &Traces{}
 	for _, match := range matches {
 		packets := strings.Split(strings.TrimSpace(match[3]), "\n\n")
+		logrus.Debugf("-> %d packets", len(packets))
 		var packet Packet
 		for _, pkt := range packets {
 			if strings.HasPrefix(pkt, "Packet") {
@@ -195,6 +212,7 @@ func ParseTrace(s string) (*Traces, error) {
 				id, err := strconv.Atoi(idstr)
 				if err != nil {
 					fmt.Printf("invalid packet ID %v: %v", idstr, err)
+					panic(err)
 					continue
 				}
 				packet = Packet{
@@ -207,11 +225,13 @@ func ParseTrace(s string) (*Traces, error) {
 			for c, capture := range captures {
 				if len(capture) < 3 {
 					fmt.Println("invalid capture")
+					panic("invalid capture")
 					continue
 				}
 				start, err := parseTimestamp(capture[1])
 				if err != nil {
 					fmt.Println(err)
+					panic("invalid timestamp")
 					continue
 				}
 				if c == 0 {
@@ -247,7 +267,6 @@ func ParseTrace(s string) (*Traces, error) {
 				trace.Packets = append(trace.Packets, packet)
 			}
 		}
-
 	}
 	return trace, nil
 }

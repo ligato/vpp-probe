@@ -1,20 +1,59 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"os/exec"
 	"sort"
+	"strings"
 
-	"github.com/gookit/color"
+	"github.com/sirupsen/logrus"
 	linux_interfaces "go.ligato.io/vpp-agent/v3/proto/ligato/linux/interfaces"
 	vpp_interfaces "go.ligato.io/vpp-agent/v3/proto/ligato/vpp/interfaces"
+
+	"go.ligato.io/vpp-probe/internal/vppcli"
 )
 
 type VppInstance struct {
-	Pod             Pod
 	Version         string
 	Interfaces      []*VppInterface
 	LinuxInterfaces []*LinuxInterface
 	Extra           map[string]string
+
+	pod *Pod
+}
+
+func (vpp *VppInstance) String() string {
+	var loc = "local"
+	if pod := vpp.pod; pod != nil {
+		loc = pod.String()
+	}
+	return fmt.Sprintf("%v", loc)
+}
+
+func (vpp *VppInstance) ExecCmd(cmd string, args ...string) (string, error) {
+	if pod := vpp.pod; pod != nil {
+		cmd += " " + strings.Join(args, " ")
+		out, err := pod.KubeCtx.Exec(pod.Namespace, pod.Name, "", cmd)
+		if err != nil {
+			return "", fmt.Errorf("pod %v exec error: %v", pod.Name, err)
+		}
+		return strings.TrimSpace(out), nil
+	}
+	c := exec.Command(cmd, args...)
+	out, err := c.Output()
+	return string(out), err
+}
+
+func (vpp *VppInstance) RunCli(cmd string) (string, error) {
+	if pod := vpp.pod; pod != nil {
+		out, err := pod.KubeCtx.Exec(pod.Namespace, pod.Name, "", "vppctl "+cmd)
+		if err != nil {
+			return "", fmt.Errorf("pod %v: %v", pod.Name, err)
+		}
+		return strings.TrimSpace(out), nil
+	}
+	return vppcli.Run(cmd)
 }
 
 type LinuxInterface struct {
@@ -31,34 +70,79 @@ type VppInterface struct {
 	Origin   uint
 }
 
-func (iface *VppInterface) Info() string {
-	switch iface.Value.Type {
-	case vpp_interfaces.Interface_MEMIF:
-		memif := iface.Value.GetMemif()
-		var info string
-		info += fmt.Sprintf("socket:%s ", escapeClr(color.LightYellow, memif.SocketFilename))
-		if memif.Id > 0 {
-			info += fmt.Sprintf("ID:%d ", memif.Id)
+func updateInstanceInfo(instance *VppInstance) error {
+	runExtra := func(cmd string) {
+		out, err := instance.RunCli(cmd)
+		if err != nil {
+			logrus.Warnf("instance %v: %v", instance, err)
 		}
-		if memif.Master {
-			info += fmt.Sprintf("master:%s ", escapeClr(color.LightYellow, memif.Master))
-		}
-		return info
-	case vpp_interfaces.Interface_VXLAN_TUNNEL:
-		vxlan := iface.Value.GetVxlan()
-		var info string
-		info += fmt.Sprintf("src:%s -> dst:%s (vni:%v)", escapeClr(color.LightYellow, vxlan.SrcAddress), escapeClr(color.LightYellow, vxlan.DstAddress), escapeClr(color.LightYellow, vxlan.Vni))
-		return info
-	case vpp_interfaces.Interface_TAP:
-		tap := iface.Value.GetTap()
-		return fmt.Sprintf("host_ifname:%s %v", escapeClr(color.LightYellow, iface.Metadata["TAPHostIfName"]), tap.String())
-	case vpp_interfaces.Interface_AF_PACKET:
-		afp := iface.Value.GetAfpacket()
-		var info string
-		info += fmt.Sprintf("host_if_name:%s", escapeClr(color.LightYellow, afp.HostIfName))
-		return info
+		instance.Extra[cmd] = strings.TrimSpace(out)
 	}
-	return fmt.Sprint(iface.Value.GetLink())
+	runExtra("show int")
+	runExtra("show ha detail")
+	runExtra("show ip fib")
+	runExtra("show ip arp")
+	runExtra("show err")
+
+	// VPP interfaces
+	dump, err := instance.ExecCmd("agentctl dump -f json vpp.interfaces")
+	if err != nil {
+		logrus.Warnf("instance %v: dump vpp interfaces failed: %v", instance, err)
+	} else {
+		logrus.Debugf("vpp interface dump: %q", dump)
+		var list []VppInterface
+		err = json.Unmarshal([]byte(dump), &list)
+		if err != nil {
+			return err
+		}
+		sort.Slice(list, func(i, j int) bool {
+			return list[i].Value.Type < list[j].Value.Type
+		})
+		var ifaces []*VppInterface
+		for _, iface := range list {
+			ifc := iface
+			if ifc.Origin == 2 && strings.HasSuffix(ifc.Value.Name, "local0") {
+				continue
+			}
+			ifaces = append(ifaces, &ifc)
+		}
+		instance.Interfaces = ifaces
+	}
+	if instance.Interfaces == nil || hasIfaceType(instance.Interfaces, vpp_interfaces.Interface_MEMIF) {
+		runExtra("show memif")
+	}
+	if instance.Interfaces == nil || hasIfaceType(instance.Interfaces, vpp_interfaces.Interface_VXLAN_TUNNEL) {
+		runExtra("show vxlan tunnel")
+	}
+	if instance.Interfaces == nil || hasIfaceType(instance.Interfaces, vpp_interfaces.Interface_TAP) {
+		runExtra("show tap")
+	}
+
+	// Linux interfaces
+	dump, err = instance.ExecCmd("agentctl dump -f json linux.interfaces.interface")
+	if err != nil {
+		logrus.Warnf("instance %v: dump linux interfaces failed: %v", instance, err)
+	} else {
+		logrus.Debugf("linux interface dump: %q", dump)
+		var list []LinuxInterface
+		err = json.Unmarshal([]byte(dump), &list)
+		if err != nil {
+			return err
+		}
+		sort.Slice(list, func(i, j int) bool {
+			return list[i].Value.Type < list[j].Value.Type
+		})
+		var ifaces []*LinuxInterface
+		for _, iface := range list {
+			ifc := iface
+			if ifc.Origin == 2 && strings.HasSuffix(ifc.Value.Name, "local0") {
+				continue
+			}
+			ifaces = append(ifaces, &ifc)
+		}
+		instance.LinuxInterfaces = ifaces
+	}
+	return nil
 }
 
 func hasIfaceType(ifaces []*VppInterface, typ vpp_interfaces.Interface_Type) bool {
@@ -68,10 +152,4 @@ func hasIfaceType(ifaces []*VppInterface, typ vpp_interfaces.Interface_Type) boo
 		}
 	}
 	return false
-}
-
-func sortIfaces(ifaces []VppInterface) {
-	sort.Slice(ifaces, func(i, j int) bool {
-		return ifaces[i].Value.Type < ifaces[j].Value.Type
-	})
 }
