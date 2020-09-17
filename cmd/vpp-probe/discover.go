@@ -192,7 +192,7 @@ func printInstance(instance *VppInstance) {
 	fmt.Printf(" Version: %s\n", color.FgLightBlue.Sprint(instance.Version))
 	fmt.Println()
 
-	printInterfacesTable(os.Stdout, instance.Interfaces)
+	printInterfacesTable(os.Stdout, instance)
 	fmt.Println()
 	fmt.Printf("%d vpp interfaces\n", len(instance.Interfaces))
 
@@ -216,8 +216,20 @@ func printInstance(instance *VppInstance) {
 	}
 }
 
-func printInterfacesTable(out io.Writer, ifaces []*VppInterface) {
+func findL2XConnect(intfName string, l2XConnects []*VppL2XConnect) (*VppL2XConnect) {
+	for _, xconn := range l2XConnects {
+		if intfName == xconn.Value.ReceiveInterface ||
+			intfName == xconn.Value.TransmitInterface {
+			return xconn
+		}
+	}
+	return nil
+}
+
+func printInterfacesTable(out io.Writer, instance *VppInstance) {
 	var buf bytes.Buffer
+	ifaces := instance.Interfaces
+	xconns := instance.L2XConnects
 	w := tabwriter.NewWriter(&buf, 1, 8, 0, '\t', tabwriter.StripEscape)
 	fmt.Fprintf(w, "IDX\t%v\t%v\t%v\t%v\tVRF\t%s\tDETAILS\t\n",
 		escapeClr(color.LightWhite, "INTERFACE"), escapeClr(color.White, "TYPE"), escapeClr(color.White, "STATE"), escapeClr(color.White, "IP"), escapeClr(color.White, "MTU"))
@@ -232,8 +244,16 @@ func printInterfacesTable(out io.Writer, ifaces []*VppInterface) {
 		ips := escapeClr(color.LightBlue, strings.Join(iface.Value.IpAddresses, " "))
 		vrf := iface.Value.Vrf
 		mtu := escapeClr(color.Yellow, iface.Value.Mtu)
-		fmt.Fprintf(w, "%3v\t%v\t%v\t%v\v%v\t%v\t%v\t%v\t\n",
-			idx, name, typ, state, ips, vrf, mtu, interfaceInfo(iface))
+		endOfLine := "\n"
+		if xconn := findL2XConnect(iface.Value.Name, xconns); xconn != nil {
+			if iface.Value.Name == xconn.Value.ReceiveInterface {
+				endOfLine = fmt.Sprintf("[l2xconn to %s]\n", xconn.Value.TransmitInterface)
+			} else {
+				endOfLine = fmt.Sprintf("[l2xconn to %s]\n", xconn.Value.ReceiveInterface)
+			}
+		}
+		fmt.Fprintf(w,  "%3v\t%v\t%v\t%v\v%v\t%v\t%v\t%v %s",
+			idx, name, typ, state, ips, vrf, mtu, interfaceInfo(iface), endOfLine)
 	}
 	if err := w.Flush(); err != nil {
 		panic(err)

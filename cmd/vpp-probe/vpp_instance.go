@@ -10,6 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 	linux_interfaces "go.ligato.io/vpp-agent/v3/proto/ligato/linux/interfaces"
 	vpp_interfaces "go.ligato.io/vpp-agent/v3/proto/ligato/vpp/interfaces"
+	vpp_l2 "go.ligato.io/vpp-agent/v3/proto/ligato/vpp/l2"
 
 	"go.ligato.io/vpp-probe/internal/vppcli"
 )
@@ -18,6 +19,7 @@ type VppInstance struct {
 	Version         string
 	Interfaces      []*VppInterface
 	LinuxInterfaces []*LinuxInterface
+	L2XConnects     []*VppL2XConnect
 	Extra           map[string]string
 
 	pod *Pod
@@ -69,6 +71,12 @@ type VppInterface struct {
 	Metadata map[string]interface{}
 	Origin   uint
 }
+type VppL2XConnect struct {
+	Value    *vpp_l2.XConnectPair
+	Key      string
+	Metadata map[string]interface{}
+	Origin   uint
+}
 
 func updateInstanceInfo(instance *VppInstance) error {
 	runExtra := func(cmd string) {
@@ -116,6 +124,25 @@ func updateInstanceInfo(instance *VppInstance) error {
 	}
 	if instance.Interfaces == nil || hasIfaceType(instance.Interfaces, vpp_interfaces.Interface_TAP) {
 		runExtra("show tap")
+	}
+
+	dump, err = instance.ExecCmd("agentctl dump -f json vpp.l2.xconnect")
+	if err != nil {
+		logrus.Warnf("instance %v: dump vpp l2 xconnect failed: %v", instance, err)
+	} else {
+		logrus.Debugf("vpp l2 xconnect dump: %q", dump)
+		var list []VppL2XConnect
+		err = json.Unmarshal([]byte(dump), &list)
+		if err != nil {
+			return err
+		}
+
+		var l2xconns []*VppL2XConnect
+		for _, l2xconn := range list {
+			xconn := l2xconn
+			l2xconns = append(l2xconns, &xconn)
+		}
+		instance.L2XConnects = l2xconns
 	}
 
 	// Linux interfaces
