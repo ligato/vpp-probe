@@ -29,7 +29,7 @@ var discoverCmd = &cobra.Command{
 }
 
 func init() {
-	discoverCmd.Flags().StringVar(&kubeconfigs, "kubeconfigs", "", "Directory with kubeconfigs")
+	discoverCmd.Flags().StringVar(&kubeconfigs, "kubeconfigs", "", "File or Directory with kubeconfigs")
 	discoverCmd.Flags().StringSliceVarP(&queriesFlag, "query", "q", []string{}, "Queries for pods")
 	discoverCmd.Flags().BoolVar(&extra, "extra", false, "Extra info")
 
@@ -43,18 +43,27 @@ var (
 )
 
 func loadConfigs(d string) ([]string, error) {
-	dir, err := ioutil.ReadDir(d)
+	kconfFmode, err := os.Stat(d)
 	if err != nil {
+		logrus.Errorf("Bad kubeconfig file/dir: %v", err)
 		return nil, err
 	}
 	var configs []string
-	for _, f := range dir {
-		if f.IsDir() {
-			continue
+	if kconfFmode.IsDir() {
+		dir, err := ioutil.ReadDir(d)
+		if err != nil {
+			return nil, err
 		}
-		conf := path.Join(d, f.Name())
-		configs = append(configs, conf)
-		logrus.Debugf("found kubeconfig: %s", conf)
+		for _, f := range dir {
+			if f.IsDir() {
+				continue
+			}
+			conf := path.Join(d, f.Name())
+			configs = append(configs, conf)
+			logrus.Debugf("found kubeconfig: %s", conf)
+		}
+	} else {
+		configs = append(configs, d)
 	}
 	return configs, err
 }
