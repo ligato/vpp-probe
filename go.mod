@@ -4,14 +4,15 @@ go 1.14
 
 require (
 	git.fd.io/govpp.git v0.3.5
-	github.com/gizak/termui/v3 v3.1.0
-	github.com/gookit/color v1.2.7
+	github.com/gdamore/tcell v1.3.0
 	github.com/imdario/mergo v0.3.11 // indirect
+	github.com/rivo/tview v0.0.0-20200915114512-42866ecf6ca6
 	github.com/sirupsen/logrus v1.6.0
 	github.com/spf13/cobra v1.0.0
 	go.ligato.io/vpp-agent/v3 v3.2.0-alpha.0.20200814091243-d012a4d78d1f
 	k8s.io/api v0.18.8
 	k8s.io/apimachinery v0.18.8
+	k8s.io/cli-runtime v0.0.0-00010101000000-000000000000
 	k8s.io/client-go v11.0.0+incompatible
 	k8s.io/utils v0.0.0-20200731180307-f00132d28269 // indirect
 )

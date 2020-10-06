@@ -1,71 +1,80 @@
 ```
     ___    _________________                        ______       
     __ |  / /__  __ \__  __ \   _______________________  /______ 
-    __ | / /__  /_/ /_  /_/ /_____  __ \_  ___/  __ \_  __ \  _ \
-    __ |/ / _  ____/_  ____/_____  /_/ /  /   / /_/ /  /_/ /  __/
-    _____/  /_/     /_/        _  .___//_/    \____//_.___/\___/ 
+    __ | / /__  /_/ /_  /_/ /  ___  __ \_  ___/  __ \_  __ \  _ \
+    __ |/ / _  ____/_  ____/   __  /_/ /  /   / /_/ /  /_/ /  __/
+    _____/  /_/     /_/           .___//_/    \____//_.___/\___/ 
                                 /_/                               
 ```
-> Developer tool for inspecting VPP instances running in the cloud :cloud:
+> Inspect and monitor VPP instances running in :cloud:
 
-<hr>
+### Table of Contents
 
-## Contents
-- [Install](#install)
-- [Packet Tracer](#packet-tracer)
+- [Introduction](#Introduction)
+- [Features](#features)
+- [Install](#Install)
+- [Usage](#Usage)
+- [Documentation](#Documentation)
 
-## Install
+---
 
-#### Requirements
-- [Go 1.14+](https://golang.org/dl/)
+## Introduction
 
-```sh
-git clone https://github.com/ligato/vpp-probe.git
-cd vpp-probe
-go install ./cmd/vpp-probe 
-```
+VPP probe is a command-line tool for inspection and monitoring of VPP instances. It is primarily intended for VPP running in Kuberenetes environment, but works with VPP running on your host locally (Docker environment could be added in the future).  
 
-<br>
+## Features
 
-## Packet Tracer
+#### Instance Discovery
 
-Packet tracer connects to multiple VPP instances inside Kubernetes cluster and
-collects packet traces that can be further analyzed via terminal UI.
+VPP instances can be discovered in Kubernetes cluster by specifying selector of pod labels in which VPP is running.
 
-#### Preview
+#### Probe Inspector
+
+VPP probe provides a terminal UI to inspect VPP instances. Retrieving data from VPP can use various different ways to obtain it - CLI, Binary API, Stats API.
+
+#### Packet Tracer
+
+Tracer connects to multiple VPP instances running inside Kubernetes cluster to manage packet tracing. It provides a simple terminal UI for browsing of trace results to help analyze the data.
+
+Preview
 
 <a href="https://asciinema.org/a/353305?autoplay=1&size=medium"><img src="https://asciinema.org/a/353305.svg" width="450"/></a>
 
-#### Usage
+## Install
+
+Prerequisites:
+- [Go 1.14+](https://golang.org/dl/)
+
+To get the source code
+
+    ```sh
+    git clone https://github.com/ligato/vpp-probe.git
+    ```
+
+To install vpp-probe
+ 
+    ```sh
+    go install ./cmd/vpp-probe
+    ```
+    
+> NOTE: Remember to set `GOPATH` to the directory where you want pprof to be installed. The binary will be in `$GOPATH/bin`, ensure that directory is in your `PATH` 
+   
+Start probing VPPs! 🔬
+
+## Basic usage
+
+Inspect VPP instances running in pods with specific label
 
 ```sh
-vpp-probe tracer --kubeconfig "$HOME/kubeconfigs/nsm/kind-1.kubeconfig" \
-    networkservicemesh.io/app=vl3-nse-bar \
-    app=nsm-vpp-plane
+vpp-probe --selector="app=nsm-vpp-plane"
 ```
 
-<details>
-<summary><b>All <code>tracer</code> options</b></summary>
-<br>
-
+Trace and analyze captured packets from multiple VPP instances
 
 ```sh
-$ vpp-probe tracer --help
-Analyze packet traces in VPP
-
-Usage:
-  vpp-probe tracer [flags]
-
-Flags:
-  -h, --help                 help for tracer
-      --kubeconfig string    Path to kubeconfig
-  -d, --tracedur duration    Duration of tracing (default 3s)
-      --tracenodes strings   List of traced nodes (default [af-packet-input,avf-input,bond-process,memif-input,p2p-ethernet-input,pg-input,punt-socket-rx,rdma-input,session-queue,tuntap-rx,vhost-user-input,virtio-input,vmxnet3-input])
-
-Global Flags:
-  -D, --debug   Enable debug mode
+vpp-probe probe --kubeconfig="$HOME/.kube/config"
 ```
 
+## Documentation
 
-<br>
-</details>
+See [doc/README.md](doc/README.md) for more detailed documentation.

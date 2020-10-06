@@ -15,45 +15,29 @@
 package main
 
 import (
-	"os"
-
 	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 
-	"go.ligato.io/vpp-probe/version"
+	"go.ligato.io/vpp-probe/controller"
 )
 
 const Logo = `
- ___    _________________                        ______       
- __ |  / /__  __ \__  __ \   _______________________  /______ 
- __ | / /__  /_/ /_  /_/ /_____  __ \_  ___/  __ \_  __ \  _ \
- __ |/ / _  ____/_  ____/_____  /_/ /  /   / /_/ /  /_/ /  __/
- _____/  /_/     /_/        _  .___//_/    \____//_.___/\___/ 
-                            /_/                               
+ ___    _________________                        ______         
+ __ |  / /__  __ \__  __ \   _______________________  /______  
+ __ | / /__  /_/ /_  /_/ /_____  __ \_  ___/  __ \_  __ \  _ \ 
+ __ |/ / _  ____/_  ____/_____  /_/ /  /   / /_/ /  /_/ /  __/ 
+ _____/  /_/     /_/        _  .___//_/    \____//_.___/\___/  
+                            /_/
 `
 
-var (
-	debugOn bool
-)
-
-func init() {
-	rootCmd.PersistentFlags().BoolVarP(&debugOn, "debug", "D", os.Getenv("DEBUG") != "", "Enable debug mode")
-}
-
-var rootCmd = &cobra.Command{
-	Use:     "vpp-probe",
-	Short:   "A CLI tool for examining VPP instances",
-	Long:    Logo,
-	Version: version.Version,
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		if debugOn {
-			logrus.SetLevel(logrus.DebugLevel)
-			logrus.Tracef("debugging enabled")
-		}
-		return nil
-	},
-}
-
 func main() {
-	_ = rootCmd.Execute()
+	Execute()
+}
+
+func Execute() {
+	ctl := controller.NewController()
+	rootCmd := NewRootCmd(ctl)
+
+	if err := rootCmd.Execute(); err != nil {
+		logrus.Fatalf("ERROR: %v", err)
+	}
 }
