@@ -46,8 +46,8 @@ func (l *Handler) ExecCmd(cmd string, args ...string) (string, error) {
 	return strings.TrimSpace(out), nil
 }
 
-func (l *Handler) GetCLI() (vppcli.Handler, error) {
-	cli := vppcli.HandlerFunc(func(cmd string) (string, error) {
+func (l *Handler) GetCLI() (vppcli.Executor, error) {
+	cli := vppcli.ExecutorFunc(func(cmd string) (string, error) {
 		pod := l.Pod
 		command := `vppctl "` + cmd + `"`
 		out, err := pod.Exec(command)

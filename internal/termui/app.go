@@ -45,9 +45,9 @@ func NewApp(probectl *controller.Controller) *App {
 	}
 
 	a.statusBar.SetKeyBinds([]KeyBind{
-		{Key: tcell.KeyEnter, Action: "select instance"},
-		{Key: tcell.KeyTab, Action: "switch panel"},
-		{Ch: 'q', Action: "quit"},
+		{Key: "Enter", Action: "select instance"},
+		{Key: "Tab", Action: "switch panel"},
+		{Key: "q", Action: "quit"},
 	})
 
 	a.instanceList.SetSelectedFunc(func(index int, s string, s2 string, r rune) {

@@ -29,11 +29,11 @@ type CLI interface {
 
 // Result contains trace results.
 type Result struct {
-	// TraceTime is the time of trace.
+	// TraceTime is the actual time when the result was done
 	TraceTime time.Time
-	// Packets is list of traced packets
+	// Packets is a list of traced packets
 	Packets []Packet
-	// RawData is the raw trace output before parsing
+	// RawData is the raw trace data before parsing
 	RawData string
 }
 
@@ -41,10 +41,16 @@ type Result struct {
 type Packet struct {
 	// ID is a packet number
 	ID int
-	// Start is an actual uptime (elapsed time since boot) when packet started
-	Start time.Duration
 	// Captures contains captured data for packet
 	Captures []Capture
+}
+
+// Start returns an uptime (elapsed time since boot) when packet started.
+func (p *Packet) Start() time.Duration {
+	if first := p.FirstCapture(); first != nil {
+		return first.Start
+	}
+	return 0
 }
 
 func (p *Packet) FirstCapture() *Capture {
@@ -105,24 +111,18 @@ func (t *Tracer) BeginTrace(nodes ...string) error {
 	if len(nodes) == 0 {
 		return fmt.Errorf("no nodes to trace")
 	}
-	/*if err := t.clearTrace(); err != nil {
-		return err
-	}*/
 	cmds := []string{
 		"clear trace",
 	}
 	t.toRetrieve = 0
 	for _, node := range nodes {
-		/*if err := t.addTrace(node, t.numPackets); err != nil {
-			logrus.Warnf("adding trace for node %v failed: %v", node, err)
-			continue
-		}*/
-		cmds = append(cmds, fmt.Sprintf("trace add %s %d", node, t.numPackets))
+		cmd := fmt.Sprintf("trace add %s %d", node, t.numPackets)
+		cmds = append(cmds, cmd)
 		t.toRetrieve += t.numPackets
 	}
 	out, err := t.cli.RunCli(strings.Join(cmds, "\n"))
 	if err != nil {
-		return fmt.Errorf("trace CLI command failed: %w\n%s", err, out)
+		return fmt.Errorf("trace command failed: %w\n%s", err, out)
 	}
 	return nil
 }
@@ -133,6 +133,7 @@ func (t *Tracer) EndTrace() (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
+	traceTime := time.Now()
 
 	packets, err := ParseTracePackets(traceData)
 	if err != nil {
@@ -142,8 +143,9 @@ func (t *Tracer) EndTrace() (*Result, error) {
 		logrus.Debugf("no packets parsed from trace data:\n%s", traceData)
 	}
 	result := &Result{
-		RawData: traceData,
-		Packets: packets,
+		TraceTime: traceTime,
+		RawData:   traceData,
+		Packets:   packets,
 	}
 	return result, nil
 }
@@ -161,7 +163,8 @@ func (t *Tracer) showTrace() (string, error) {
 	if count < t.numPackets {
 		count = t.numPackets
 	}
-	reply, err := t.cli.RunCli(fmt.Sprintf("show trace max %d", count))
+	cmd := fmt.Sprintf("show trace max %d", count)
+	reply, err := t.cli.RunCli(cmd)
 	if err != nil {
 		return "", err
 	}

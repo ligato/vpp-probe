@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"go.ligato.io/vpp-probe/controller"
 	"go.ligato.io/vpp-probe/probe"
 	"go.ligato.io/vpp-probe/probe/kubeprobe"
 )
@@ -30,7 +31,7 @@ func setupProvider(glob GlobalFlags) (probe.Provider, error) {
 	env := resolveEnv(glob)
 	switch env {
 	case HostEnv:
-		return &probe.LocalProvider{}, nil
+		return controller.DefaultProvider, nil
 	case KubeEnv:
 		provider, err := kubeprobe.NewProvider(glob.Kubeconfig, glob.Selectors)
 		if err != nil {

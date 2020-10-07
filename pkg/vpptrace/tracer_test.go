@@ -16,9 +16,7 @@ package vpptrace
 
 import (
 	"fmt"
-	"io/ioutil"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 
@@ -33,7 +31,7 @@ func TestParseTrace(t *testing.T) {
 	tests := []struct {
 		name    string
 		data    string
-		want    *Result
+		want    []Packet
 		wantErr bool
 	}{
 		{
@@ -109,7 +107,7 @@ Packet 2
     fragment id 0x93e7, flags DONT_FRAGMENT
   ICMP echo_reply checksum 0xb15
 `,
-			want: &Result{Packets: []Packet{
+			want: []Packet{
 				{
 					ID: 1,
 					Captures: []Capture{
@@ -166,13 +164,13 @@ Packet 2
 							Content: "tap0\nIP4: 02:fe:a0:10:fd:8b -> 02:fe:2e:5d:d6:9a\nICMP: 192.168.33.1 -> 192.168.33.10\n  tos 0x00, ttl 64, length 84, checksum 0xe365 dscp CS0 ecn NON_ECN\n  fragment id 0x93e7, flags DONT_FRAGMENT\nICMP echo_reply checksum 0xb15\n"},
 					},
 				},
-			}},
+			},
 			wantErr: false,
 		},
 		{
 			name:    "empty",
-			data:    ``,
-			want:    &Result{},
+			data:    `No packets in trace buffer`,
+			want:    []Packet{},
 			wantErr: false,
 		},
 	}
@@ -183,8 +181,8 @@ Packet 2
 				t.Errorf("ParseResult() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got != nil && !reflect.DeepEqual(got, tt.want.Packets) {
-				t.Errorf("ParseResult() got = %#v, want %#v", got, tt.want)
+			if got != nil && !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ParseResult() got:\n%#v\nwant:\n%#v", got, tt.want)
 			}
 		})
 	}
@@ -245,17 +243,4 @@ func Test_parseTimestamp(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestFileTrace(t *testing.T) {
-	data, err := ioutil.ReadFile("/tmp/vpptrace_0_-982623859")
-	if err != nil {
-		panic(err)
-	}
-	traceData := strings.ReplaceAll(string(data), "\r\n", "\n")
-	packets, err := ParseTracePackets(traceData)
-	if err != nil {
-		t.Fatalf("ParseResult() error = %v", err)
-	}
-	t.Logf("packets: %+v", packets)
 }

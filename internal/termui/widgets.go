@@ -7,8 +7,18 @@ import (
 	"github.com/gdamore/tcell"
 	"github.com/rivo/tview"
 
-	"go.ligato.io/vpp-probe/client"
+	"go.ligato.io/vpp-probe/vpp/types"
 )
+
+func NewPanelBox(title string) *tview.Box {
+	panel := tview.NewBox()
+	panel.SetTitle(fmt.Sprintf(" [ %s ] ", title))
+	panel.SetBorder(true)
+	panel.SetBorderPadding(0, 0, 1, 1)
+	panel.SetBorderColor(Styles.PanelBorderColor)
+	panel.SetBorderColor(Styles.PanelTitleColor)
+	return panel
+}
 
 type InstanceList struct {
 	*tview.List
@@ -17,28 +27,26 @@ type InstanceList struct {
 func NewInstanceList() *InstanceList {
 	v := &InstanceList{}
 	v.List = tview.NewList()
-	v.List.SetTitle("[ Instances ]")
-	v.List.SetBorder(true)
-	v.List.SetBorderPadding(0, 0, 1, 1)
+	v.List.Box = NewPanelBox("Instances")
 	v.List.SetShortcutColor(tcell.ColorDodgerBlue)
 	v.List.SetSecondaryTextColor(tcell.ColorGray)
 	v.List.ShowSecondaryText(false)
-	v.List.SetSelectedBackgroundColor(tcell.ColorDimGray)
+	v.List.SetSelectedBackgroundColor(Styles.PanelSelectedBackgroundColor)
 	v.List.SetSelectedTextColor(tcell.ColorWhite)
 	return v
 }
 
 func (l *InstanceList) Focus(delegate func(p tview.Primitive)) {
-	l.List.SetSelectedBackgroundColor(tcell.ColorSteelBlue)
-	l.List.SetTitleColor(tcell.ColorGold)
-	l.List.SetBorderColor(tcell.ColorGold)
+	l.List.SetSelectedBackgroundColor(Styles.PanelSelectedBackgroundColor)
+	l.List.SetTitleColor(Styles.PanelTitleSelectedColor)
+	l.List.SetBorderColor(Styles.PanelBorderSelectedColor)
 	l.List.Focus(delegate)
 }
 
 func (l *InstanceList) Blur() {
-	l.List.SetSelectedBackgroundColor(tcell.ColorDimGray)
-	l.List.SetTitleColor(tcell.ColorWhite)
-	l.List.SetBorderColor(tcell.ColorWhite)
+	l.List.SetSelectedBackgroundColor(Styles.PanelSelectedBackgroundInactiveColor)
+	l.List.SetTitleColor(Styles.PanelTitleColor)
+	l.List.SetBorderColor(Styles.PanelBorderColor)
 	l.List.Blur()
 }
 
@@ -61,34 +69,38 @@ type InfoPanel struct {
 func NewInfoPanel() *InfoPanel {
 	v := &InfoPanel{}
 	v.TextView = tview.NewTextView()
-	v.TextView.SetTitle("[ Info ]")
-	v.TextView.SetBorder(true)
-	v.TextView.SetBorderPadding(0, 0, 1, 1)
+	v.TextView.Box = NewPanelBox("Info")
 	v.TextView.SetDynamicColors(true)
 	return v
 }
 
-func (l *InfoPanel) Focus(delegate func(p tview.Primitive)) {
-	l.TextView.SetTitleColor(tcell.ColorGold)
-	l.TextView.SetBorderColor(tcell.ColorGold)
-	l.TextView.Focus(delegate)
+func (v *InfoPanel) Focus(delegate func(p tview.Primitive)) {
+	v.TextView.SetTitleColor(Styles.PanelTitleSelectedColor)
+	v.TextView.SetBorderColor(Styles.PanelBorderSelectedColor)
+	v.TextView.Focus(delegate)
 }
 
-func (l *InfoPanel) Blur() {
-	l.TextView.SetTitleColor(tcell.ColorWhite)
-	l.TextView.SetBorderColor(tcell.ColorWhite)
-	l.TextView.Blur()
+func (v *InfoPanel) Blur() {
+	v.TextView.SetTitleColor(Styles.PanelTitleColor)
+	v.TextView.SetBorderColor(Styles.PanelBorderColor)
+	v.TextView.Blur()
 }
 
 func (v *InfoPanel) SetInstance(instance *Instance) {
 	v.Clear()
 	info := []string{
-		fmt.Sprintf("Handler: [steelblue]%v[-]", instance.ID),
-		"---",
+		fmt.Sprintf("Instance: [steelblue]%v[-]", instance.ID),
+	}
+	if instance.Error != nil {
+		info = append(info,
+			fmt.Sprintf("Error: [red]%v[-]", instance.Error.Error()),
+		)
+	}
+	info = append(info, []string{
 		fmt.Sprintf("Version: [yellow]%v[-]", instance.Version),
 		fmt.Sprintf("PID: [yellow]%v[-]", instance.Pid),
 		fmt.Sprintf("Clock: [yellow]%v[-]", instance.Clock),
-	}
+	}...)
 	v.TextView.SetText(strings.Join(info, "\n"))
 }
 
@@ -99,9 +111,7 @@ type InterfaceTable struct {
 func NewInterfaceTable() *InterfaceTable {
 	v := &InterfaceTable{}
 	v.Table = tview.NewTable()
-	v.Table.SetTitle("[ Interfaces ]")
-	v.Table.SetBorder(true)
-	v.Table.SetBorderPadding(0, 0, 1, 1)
+	v.Table.Box = NewPanelBox("Interfaces")
 	v.Table.SetSelectable(true, false)
 	v.Table.SetSelectedStyle(tcell.ColorDefault, tcell.ColorDimGray, 0)
 	v.Table.SetFixed(1, 0)
@@ -109,52 +119,41 @@ func NewInterfaceTable() *InterfaceTable {
 }
 
 func (l *InterfaceTable) Focus(delegate func(p tview.Primitive)) {
-	l.Table.SetSelectedStyle(tcell.ColorDefault, tcell.ColorSteelBlue, 0)
-	l.Table.SetTitleColor(tcell.ColorGold)
-	l.Table.SetBorderColor(tcell.ColorGold)
+	l.Table.SetSelectedStyle(tcell.ColorDefault, Styles.PanelSelectedBackgroundColor, 0)
+	l.Table.SetTitleColor(Styles.PanelTitleSelectedColor)
+	l.Table.SetBorderColor(Styles.PanelBorderSelectedColor)
 	l.Table.Focus(delegate)
 }
 
 func (l *InterfaceTable) Blur() {
-	l.Table.SetSelectedStyle(tcell.ColorDefault, tcell.ColorDimGray, 0)
-	l.Table.SetTitleColor(tcell.ColorWhite)
-	l.Table.SetBorderColor(tcell.ColorWhite)
+	l.Table.SetSelectedStyle(tcell.ColorDefault, Styles.PanelSelectedBackgroundInactiveColor, 0)
+	l.Table.SetTitleColor(Styles.PanelTitleColor)
+	l.Table.SetBorderColor(Styles.PanelBorderColor)
 	l.Table.Blur()
 }
 
-func (t *InterfaceTable) SetInterfaces(interfaces []*client.Interface) {
+func (t *InterfaceTable) SetInterfaces(interfaces []*types.Interface) {
 	t.Clear()
 	header := []string{
-		"Interface", "Idx", "Type", "State", "IP", "VRF", "MTUs",
+		"Interface", "Idx", "Type", "Status", "IP", "VRF", "MTUs",
 	}
 	for i := range header {
 		tableCell := tview.NewTableCell(header[i]).
 			SetAttributes(tcell.AttrUnderline).
-			SetTextColor(tcell.ColorYellow).
+			SetTextColor(tcell.ColorBlack).
+			SetBackgroundColor(tcell.ColorWhite).
 			SetAlign(tview.AlignLeft).
 			SetSelectable(false)
 		t.Table.SetCell(0, i, tableCell)
 	}
-
 	for idx, iface := range interfaces {
-		name := iface.Name
-		if len(strings.TrimSpace(iface.Tag)) > 0 {
-			name = fmt.Sprintf("%s (%s)", iface.Name, iface.Tag)
-		}
-		ips := strings.Join(iface.IPs, ", ")
-		var state string
-		if iface.State == "up" {
-			state = fmt.Sprintf("[green]UP[-]")
-		} else {
-			state = fmt.Sprintf("[red]DOWN[-]")
-		}
 		cols := []string{
-			fmt.Sprintf("[white]%s[-]", name),
+			formatInterfaceName(iface),
 			fmt.Sprint(iface.Index),
-			strings.ToUpper(iface.DevType),
-			state,
-			fmt.Sprintf("%s", ips),
-			fmt.Sprint(iface.VRF),
+			strings.ToUpper(iface.DeviceType),
+			formatInterfaceStatus(iface.Status),
+			formatInterfaceIPs(iface.IPs),
+			formatInterfaceVRF(iface.VRF),
 			formatInterfaceMTU(iface.MTUs),
 		}
 		row := idx + 1
@@ -185,23 +184,21 @@ type LogPanel struct {
 func NewLogPanel() *LogPanel {
 	v := &LogPanel{}
 	v.TextView = tview.NewTextView()
-	v.TextView.SetTitle("[ Log ]")
-	v.TextView.SetBorder(true)
-	v.TextView.SetBorderPadding(0, 0, 1, 1)
+	v.TextView.Box = NewPanelBox("Log")
 	v.TextView.SetTextColor(tcell.ColorDimGray)
 	v.TextView.SetDynamicColors(true)
 	return v
 }
 
 func (l *LogPanel) Focus(delegate func(p tview.Primitive)) {
-	l.TextView.SetTitleColor(tcell.ColorGold)
-	l.TextView.SetBorderColor(tcell.ColorGold)
+	l.TextView.SetTitleColor(Styles.PanelTitleSelectedColor)
+	l.TextView.SetBorderColor(Styles.PanelBorderSelectedColor)
 	l.TextView.Focus(delegate)
 }
 
 func (l *LogPanel) Blur() {
-	l.TextView.SetTitleColor(tcell.ColorWhite)
-	l.TextView.SetBorderColor(tcell.ColorWhite)
+	l.TextView.SetTitleColor(Styles.PanelTitleColor)
+	l.TextView.SetBorderColor(Styles.PanelBorderColor)
 	l.TextView.Blur()
 }
 
@@ -221,6 +218,11 @@ func NewStatusBar() *StatusBar {
 	v.TextView.SetTextColor(tcell.ColorWhite)
 	v.TextView.SetDynamicColors(true)
 	return v
+}
+
+type KeyBind struct {
+	Key    string
+	Action string
 }
 
 func (v *StatusBar) SetKeyBinds(binds []KeyBind) {

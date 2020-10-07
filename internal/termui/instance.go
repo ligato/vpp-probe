@@ -5,7 +5,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"go.ligato.io/vpp-probe/client"
+	"go.ligato.io/vpp-probe/vpp/types"
 )
 
 type Instance struct {
@@ -16,7 +16,7 @@ type Instance struct {
 	Pid     int
 	Clock   string
 
-	Interfaces []*client.Interface
+	Interfaces []*types.Interface
 	Logs       []string
 }
 

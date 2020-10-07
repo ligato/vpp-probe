@@ -14,7 +14,7 @@ import (
 	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2001/ip"
 	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2001/vpe"
 
-	"go.ligato.io/vpp-probe/client"
+	"go.ligato.io/vpp-probe/vpp/types"
 )
 
 func checkCompatibility(ch govppapi.Channel) error {
@@ -64,7 +64,7 @@ func DumpLogs(ch govppapi.Channel) ([]string, error) {
 	return logs, nil
 }
 
-func ListInterfaces(ch govppapi.Channel) ([]*client.Interface, error) {
+func ListInterfaces(ch govppapi.Channel) ([]*types.Interface, error) {
 	list, err := dumpInterfaces(ch)
 	if err != nil {
 		return nil, err
@@ -88,14 +88,14 @@ func ListInterfaces(ch govppapi.Channel) ([]*client.Interface, error) {
 	return list, nil
 }
 
-func dumpInterfaces(ch govppapi.Channel) ([]*client.Interface, error) {
+func dumpInterfaces(ch govppapi.Channel) ([]*types.Interface, error) {
 	rpc := interfaces.NewServiceClient(ch)
 
 	stream, err := rpc.DumpSwInterface(context.Background(), &interfaces.SwInterfaceDump{})
 	if err != nil {
 		return nil, fmt.Errorf("DumpSwInterface failed: %v", err)
 	}
-	var ifaces []*client.Interface
+	var ifaces []*types.Interface
 	for {
 		iface, err := stream.Recv()
 		if err == io.EOF {
@@ -103,21 +103,21 @@ func dumpInterfaces(ch govppapi.Channel) ([]*client.Interface, error) {
 		} else if err != nil {
 			return nil, fmt.Errorf("DumpSwInterface failed: %v", err)
 		}
-		ifaces = append(ifaces, &client.Interface{
-			Index:   uint32(iface.SwIfIndex),
-			Name:    strings.Trim(iface.InterfaceName, "\x00"),
-			Tag:     strings.Trim(iface.Tag, "\x00"),
-			Type:    vppIfTypeToString(iface.Type),
-			DevType: iface.InterfaceDevType,
-			State:   vppIfStatusFlagsToString(iface.Flags),
-			MTUs:    vppInterfaceMTU(iface.Mtu, iface.LinkMtu),
-			MAC:     vppL2AddrToString(iface.L2Address),
+		ifaces = append(ifaces, &types.Interface{
+			Index:      uint32(iface.SwIfIndex),
+			Name:       strings.Trim(iface.InterfaceName, "\x00"),
+			Tag:        strings.Trim(iface.Tag, "\x00"),
+			Type:       vppIfTypeToString(iface.Type),
+			DeviceType: iface.InterfaceDevType,
+			Status:     vppIfStatusFlagsToStatus(iface.Flags),
+			MTUs:       vppInterfaceMTU(iface.Mtu, iface.LinkMtu),
+			MAC:        vppL2AddrToString(iface.L2Address),
 		})
 	}
 	return ifaces, nil
 }
 
-func getInterfaceVRF(ch govppapi.Channel, index uint32) (*client.VRF, error) {
+func getInterfaceVRF(ch govppapi.Channel, index uint32) (*types.VRF, error) {
 	vrf4, err := getInterfaceVRFTable(ch, index, false)
 	if err != nil {
 		return nil, err
@@ -127,7 +127,7 @@ func getInterfaceVRF(ch govppapi.Channel, index uint32) (*client.VRF, error) {
 		return nil, err
 	}
 
-	vrf := &client.VRF{
+	vrf := &types.VRF{
 		IP4: vrf4,
 		IP6: vrf6,
 	}

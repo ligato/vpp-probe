@@ -60,7 +60,7 @@ func ParseTracePackets(trace string) (packets []Packet, err error) {
 			if len(packet.Captures) == 0 {
 				continue
 			}
-			packet.Start = packet.FirstCapture().Start
+			//packet.Start = packet.FirstCapture().Start
 			packets = append(packets, packet)
 
 		}

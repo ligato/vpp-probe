@@ -5,12 +5,20 @@ import (
 )
 
 type Theme struct {
-	PanelTitleSelectedColor  tcell.Color
-	PanelBorderSelectedColor tcell.Color
+	PanelTitleColor                      tcell.Color
+	PanelBorderColor                     tcell.Color
+	PanelTitleSelectedColor              tcell.Color
+	PanelBorderSelectedColor             tcell.Color
+	PanelSelectedBackgroundColor         tcell.Color
+	PanelSelectedBackgroundInactiveColor tcell.Color
 }
 
-// DefaultTheme defines theme defaults.
-var DefaultTheme = Theme{
-	PanelTitleSelectedColor:  tcell.ColorGoldenrod,
-	PanelBorderSelectedColor: tcell.ColorLightGoldenrodYellow,
+// Styles defines theme defaults.
+var Styles = Theme{
+	PanelTitleColor:                      tcell.ColorWhite,
+	PanelBorderColor:                     tcell.ColorDimGray,
+	PanelTitleSelectedColor:              tcell.ColorGoldenrod,
+	PanelBorderSelectedColor:             tcell.ColorLightGoldenrodYellow,
+	PanelSelectedBackgroundColor:         tcell.ColorSteelBlue,
+	PanelSelectedBackgroundInactiveColor: tcell.ColorDimGray,
 }

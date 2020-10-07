@@ -6,18 +6,18 @@ import (
 	govppapi "git.fd.io/govpp.git/api"
 	"github.com/sirupsen/logrus"
 
-	"go.ligato.io/vpp-probe/client"
 	"go.ligato.io/vpp-probe/pkg/vppcli"
 	"go.ligato.io/vpp-probe/probe"
+	"go.ligato.io/vpp-probe/vpp/types"
 )
 
 // Instance is an instance of probed VPP accessed via probe.Handler.
 type Instance struct {
 	handler probe.Handler
 
-	info *client.VersionInfo
+	info *types.VersionInfo
 
-	cli   vppcli.Handler
+	cli   vppcli.Executor
 	ch    govppapi.Channel
 	stats govppapi.StatsProvider
 }
@@ -32,12 +32,12 @@ func (v *Instance) ID() string {
 	return v.handler.Name()
 }
 
-func (v *Instance) VersionInfo() *client.VersionInfo {
+func (v *Instance) VersionInfo() *types.VersionInfo {
 	return v.info
 }
 
 func (v *Instance) Init() (err error) {
-	logrus.Debugf("instance %v init", v.ID())
+	logrus.Debugf("init instance %v", v.ID())
 
 	v.cli, err = v.handler.GetCLI()
 	if err != nil {
@@ -49,10 +49,10 @@ func (v *Instance) Init() (err error) {
 	}
 
 	if err := v.initBinapi(); err != nil {
-		logrus.Warnf("instance %v binapi error: %v", v.ID, err)
+		logrus.Warnf("binapi init error: %v", err)
 	}
 	if err := v.initStats(); err != nil {
-		logrus.Warnf("instance %v stats error: %v", v.ID, err)
+		logrus.Warnf("stats init error: %v", err)
 	}
 
 	return nil
@@ -65,7 +65,7 @@ func (v *Instance) RunCli(cmd string) (string, error) {
 	return v.cli.RunCli(cmd)
 }
 
-func (v *Instance) getVersionInfo() (*client.VersionInfo, error) {
+func (v *Instance) getVersionInfo() (*types.VersionInfo, error) {
 	return GetVersionInfoCLI(v.cli)
 }
 
@@ -94,7 +94,7 @@ func (v *Instance) initStats() error {
 	return nil
 }
 
-func (v *Instance) ListInterfaces() ([]*client.Interface, error) {
+func (v *Instance) ListInterfaces() ([]*types.Interface, error) {
 	return ListInterfaces(v.ch)
 }
 

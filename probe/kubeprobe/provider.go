@@ -11,8 +11,8 @@ import (
 
 // Provider finds instances running in Kubernetes pods.
 type Provider struct {
-	Clients []*kube.Client
-	Queries []PodQuery
+	clients []*kube.Client
+	queries []PodQuery
 }
 
 func NewProvider(kubeconfig string, selector []string) (*Provider, error) {
@@ -30,16 +30,16 @@ func NewProvider(kubeconfig string, selector []string) (*Provider, error) {
 			continue
 		}
 		logrus.Infof("kube client %s version info: %v", client, info)
-		provider.Clients = append(provider.Clients, client)
+		provider.clients = append(provider.clients, client)
 	}
 
-	if len(provider.Clients) == 0 {
+	if len(provider.clients) == 0 {
 		return nil, fmt.Errorf("no available kube clients")
 	}
-	logrus.Debugf("loaded %d clients", len(provider.Clients))
+	logrus.Debugf("loaded %d clients", len(provider.clients))
 
-	provider.Queries = parseQueries(selector)
-	if len(provider.Queries) == 0 {
+	provider.queries = parseQueries(selector)
+	if len(provider.queries) == 0 {
 		return nil, fmt.Errorf("at least one selector neeeded")
 	}
 
@@ -49,10 +49,10 @@ func NewProvider(kubeconfig string, selector []string) (*Provider, error) {
 func (k *Provider) Discover(query ...interface{}) ([]probe.Handler, error) {
 	var instances []probe.Handler
 
-	for _, client := range k.Clients {
+	for _, client := range k.clients {
 		logrus.Infof("-> searching in cluster %v", client.Cluster())
 
-		pods, err := queryPods(client, k.Queries)
+		pods, err := queryPods(client, k.queries)
 		if err != nil {
 			logrus.Warnf("query pods error: %v", err)
 			continue

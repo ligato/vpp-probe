@@ -4,8 +4,8 @@ import (
 	"regexp"
 	"strconv"
 
-	"go.ligato.io/vpp-probe/client"
 	"go.ligato.io/vpp-probe/pkg/vppcli"
+	"go.ligato.io/vpp-probe/vpp/types"
 )
 
 var (
@@ -13,13 +13,13 @@ var (
 	cliShowVersionVerbosePID = regexp.MustCompile(`PID:\s+([0-9]+)`)
 )
 
-func GetVersionInfoCLI(cli vppcli.Handler) (*client.VersionInfo, error) {
+func GetVersionInfoCLI(cli vppcli.Executor) (*types.VersionInfo, error) {
 	out, err := cli.RunCli("show version verbose")
 	if err != nil {
 		return nil, err
 	}
 
-	info := &client.VersionInfo{}
+	info := &types.VersionInfo{}
 
 	matchVersion := cliShowVersionVerbose.FindStringSubmatch(out)
 	if len(matchVersion) > 1 {
@@ -34,7 +34,7 @@ func GetVersionInfoCLI(cli vppcli.Handler) (*client.VersionInfo, error) {
 	return info, nil
 }
 
-func GetClockCLI(cli vppcli.Handler) (string, error) {
+func GetClockCLI(cli vppcli.Executor) (string, error) {
 	clock, err := cli.RunCli("show clock")
 	if err != nil {
 		return "", err

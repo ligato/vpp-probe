@@ -10,7 +10,7 @@ import (
 	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2001/ip_types"
 	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2001/vpe"
 
-	"go.ligato.io/vpp-probe/client"
+	"go.ligato.io/vpp-probe/vpp/types"
 )
 
 func vppL2AddrToString(mac interfaces.MacAddress) string {
@@ -40,26 +40,14 @@ func vppIfTypeToString(ifType interface_types.IfType) string {
 	return strings.ToLower(typ)
 }
 
-func vppIfStatusFlagsToString(status interface_types.IfStatusFlags) string {
+func vppIfStatusFlagsToStatus(status interface_types.IfStatusFlags) types.Status {
 	const (
 		LinkUp  = interface_types.IF_STATUS_API_FLAG_LINK_UP
 		AdminUp = interface_types.IF_STATUS_API_FLAG_ADMIN_UP
 	)
-	var (
-		linkUp  = status&LinkUp == LinkUp
-		adminUp = status&AdminUp == AdminUp
-	)
-	switch {
-	case adminUp && linkUp:
-		return "up"
-	case linkUp:
-		return "down (link up)"
-	case adminUp:
-		return "down (admin up)"
-	case !adminUp && !linkUp:
-		return "down"
-	default:
-		return fmt.Sprint(status)
+	return types.Status{
+		Up:   status&AdminUp == AdminUp,
+		Link: status&LinkUp == LinkUp,
 	}
 }
 
@@ -68,8 +56,8 @@ func vppLogLevelToString(level vpe.LogLevel) string {
 	return strings.TrimPrefix(level.String(), logLevelPrefix)
 }
 
-func vppInterfaceMTU(mtu []uint32, link uint16) client.MTU {
-	return client.MTU{
+func vppInterfaceMTU(mtu []uint32, link uint16) types.MTU {
+	return types.MTU{
 		L3:   uint(mtu[0]),
 		IP4:  uint(mtu[1]),
 		IP6:  uint(mtu[2]),

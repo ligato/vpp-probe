@@ -16,93 +16,45 @@ package vppcli
 
 import (
 	"bytes"
-	"fmt"
-	"os/exec"
-
-	"github.com/sirupsen/logrus"
 )
 
 var (
 	// Local provides default access to the VPP CLI via vppctl.
-	Local = ExecCmd("/usr/bin/vppctl")
+	VppCtl = NewCmdExecutor("/usr/bin/vppctl")
 )
 
-// Run executes a CLI command using Local handler.
-func Run(cmd string) (string, error) {
-	return Local.RunCli(cmd)
+// RunCli executes a CLI command via vppctl.
+func RunCli(cmd string) (string, error) {
+	return VppCtl.RunCli(cmd)
 }
 
-// VppCtl returns vppctl handler that
-func VppCtl(addr string) Handler {
-	return ExecCmd("/usr/bin/vppctl", "-s", addr)
+// VppCtlAddr returns vppctl handler that
+func VppCtlAddr(addr string) Executor {
+	return NewCmdExecutor("/usr/bin/vppctl", "-s", addr)
 }
 
-// Handler defines method executing VPP CLI commands.
-type Handler interface {
+// Executor defines method executing VPP CLI commands.
+type Executor interface {
 	RunCli(cmd string) (string, error)
 }
 
-// HandlerFunc is a helper type for simpler implementation of the Handler.
-type HandlerFunc func(cmd string) (string, error)
+// ExecutorFunc is a helper type for implementing the Executor from function.
+type ExecutorFunc func(cmd string) (string, error)
 
-func (f HandlerFunc) RunCli(cmd string) (string, error) {
+func (f ExecutorFunc) RunCli(cmd string) (string, error) {
 	return f(cmd)
 }
 
-// Command provides access to VPP CLI via external process.
-type Command struct {
-	Cmd  string
-	Args []string
-}
-
-// ExecCmd returns a new Command.
-func ExecCmd(cmd string, args ...string) *Command {
-	return &Command{
-		Cmd:  cmd,
-		Args: args,
-	}
-}
-
-// RunCli executes CLI command and returns the response or error.
-func (ctx *Command) RunCli(cmd string) (string, error) {
-	logrus.Debugf("command CLI: %q", cmd)
-
-	args := make([]string, len(ctx.Args)+1)
-	for i, a := range ctx.Args {
-		args[i] = a
-	}
-	args = append(args, cmd)
-
-	c := exec.Command(ctx.Cmd, args...)
-
-	// STDIN annot be used for vppctl because it will
-	// fail with error "failed: broken pipe" and exit code 141
-	//c.Stdin = strings.NewReader(cmd)
-
-	out, err := c.Output()
-	if err != nil {
-		if ee, ok := err.(*exec.ExitError); ok {
-			out = ee.Stderr
-		}
-		return string(out), fmt.Errorf("command CLI '%v' failed (%v): %s", c, err, out)
-	}
-	logrus.Tracef("CLI command reply: %q", out)
-
-	reply := CleanOutput(out)
-	return reply, nil
-}
-
-const vppPrompt = `vpp# `
-
-// CleanOutput cleans an output received from VPP CLI.
+// CleanOutput cleans the CLI output received from VPP:
+// - converts line endings to (CR LF -> LF)
+// - trim leading newlines (CR/LF)
+// - strips banner until the prompt  (one of random VPP bugs)
 func CleanOutput(out []byte) string {
-	// convert line endings
-	reply := bytes.ReplaceAll(out, []byte("\r\n"), []byte("\n"))
-	// trim leading newlines
-	reply = bytes.TrimLeft(reply, "\r\n")
-	// strip banner until prompt
-	if prompt := bytes.Index(reply, []byte(vppPrompt)); prompt > 0 {
-		reply = reply[prompt+len(vppPrompt):]
+	const promptChar = `vpp# `
+	o := bytes.ReplaceAll(out, []byte("\r\n"), []byte("\n"))
+	o = bytes.TrimLeft(o, "\r\n")
+	if prompt := bytes.Index(o, []byte(promptChar)); prompt > 0 {
+		o = o[prompt+len(promptChar):]
 	}
-	return string(reply)
+	return string(o)
 }
