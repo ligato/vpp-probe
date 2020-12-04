@@ -132,7 +132,7 @@ var DefaultCLIs = []string{
 	"show mode",
 	"show hardware detail",
 	"show ip fib",
-	"show ip arp",
+	"show ip neighbor",
 	"show err",
 }
 
