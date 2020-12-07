@@ -6,7 +6,7 @@
     _____/  /_/     /_/           .___//_/    \____//_.___/\___/ 
                                 /_/                               
 ```
-> Inspect and monitor VPP instances running in :cloud:
+> Inspect and monitor VPP instances running anywhere
 
 ### Table of Contents
 
@@ -14,67 +14,44 @@
 - [Features](#features)
 - [Install](#Install)
 - [Usage](#Usage)
-- [Documentation](#Documentation)
 
 ---
 
 ## Introduction
 
-VPP probe is a command-line tool for inspection and monitoring of VPP instances. It is primarily intended for VPP running in Kuberenetes environment, but works with VPP running on your host locally (Docker environment could be added in the future).  
+VPP probe is a command-line tool for inspecting and monitoring of VPP instances. 
 
 ## Features
 
-#### Instance Discovery
-
-VPP instances can be discovered in Kubernetes cluster by specifying selector of pod labels in which VPP is running.
-
-#### Probe Inspector
-
-VPP probe provides a terminal UI to inspect VPP instances. Retrieving data from VPP can use various different ways to obtain it - CLI, Binary API, Stats API.
-
-#### Packet Tracer
-
-Tracer connects to multiple VPP instances running inside Kubernetes cluster to manage packet tracing. It provides a simple terminal UI for browsing of trace results to help analyze the data.
-
-Preview
-
-<a href="https://asciinema.org/a/353305?autoplay=1&size=medium"><img src="https://asciinema.org/a/353305.svg" width="450"/></a>
+* Instance Discovery - discover VPP instances in any environment: a Kubernetes pod, a Docker container or just locally on your host
+* Interactive Inspector - inspect VPP instances using an interactive terminal UI providing an overview of instances
+* Packet Tracing - trace packets from multiple VPP instances while executing ping command between them 
 
 ## Install
 
 Prerequisites:
 - [Go 1.14+](https://golang.org/dl/)
 
-To get the source code
-
-    ```sh
-    git clone https://github.com/ligato/vpp-probe.git
-    ```
-
-To install vpp-probe
- 
-    ```sh
-    go install ./cmd/vpp-probe
-    ```
-    
-> NOTE: Remember to set `GOPATH` to the directory where you want pprof to be installed. The binary will be in `$GOPATH/bin`, ensure that directory is in your `PATH` 
-   
-Start probing VPPs! 🔬
-
-## Basic usage
-
-Inspect VPP instances running in pods with specific label
+To install vpp-probe run:
 
 ```sh
-vpp-probe --selector="app=nsm-vpp-plane"
+git clone https://github.com/ligato/vpp-probe.git
+cd vpp-probe
+go install
 ```
 
-Trace and analyze captured packets from multiple VPP instances
+> NOTE: Remember to set `GOPATH` to the directory where you want pprof to be installed. The binary will be in `$GOPATH/bin`, ensure that directory is in your `PATH`
+
+## Usage
+
+Discover VPP instances running in Kubernetes pods by specifying a label selector:
 
 ```sh
-vpp-probe probe --kubeconfig="$HOME/.kube/config"
+vpp-probe --env="kube" --query="label=app=wcm-nsm-vpp-forwarder" discover
 ```
 
-## Documentation
+Trace packets from multiple VPP instances while running ping command:
 
-See [doc/README.md](doc/README.md) for more detailed documentation.
+```sh
+vpp-probe  --env="kube" --query "label=app=wcm-nsm-vpp-forwarder" trace --cmd "kubectl exec -it helloworld-example-d86575f96-m5m59 -- ping 172.100.244.5"
+```

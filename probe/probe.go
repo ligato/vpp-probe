@@ -1,24 +1,50 @@
+// Package probe defines an API to manage probe instances.
 package probe
 
 import (
 	govppapi "git.fd.io/govpp.git/api"
-
-	"go.ligato.io/vpp-probe/pkg/vppcli"
 )
 
-// InstanceProvider is a common interface for finding instances.
+// Provider provides ways to discover instances.
 type Provider interface {
-	Discover(query ...interface{}) ([]Handler, error)
+	Env() Env
+
+	// Name returns a name of the provider.
+	Name() string
+
+	// Query runs query with list of parameters used as filters and returns a list
+	// of Handler for
+	Query(params ...map[string]string) ([]Handler, error)
 }
 
-// Handler is an interface for accessing probe instances.
+// Handler handles a running instance.
 type Handler interface {
-	Name() string
+	Host
+	VPP
+
+	// ID returns a string that identifies the instance.
+	ID() string
+	// Close closes open connections and frees resources used for this instance.
 	Close() error
+}
 
+// Host is a common interface to interact host system (OS).
+type Host interface {
+	// ExecCmd executes a command in the OS where the instance is running.
 	ExecCmd(cmd string, args ...string) (string, error)
+}
 
-	GetCLI() (vppcli.Executor, error)
+// VPP is a common interface to access VPP APIs.
+type VPP interface {
+	// GetCLI returns an executor for CLI commands.
+	GetCLI() (CliExecutor, error)
+	// GetAPI returns a channel for binary API requests.
 	GetAPI() (govppapi.Channel, error)
+	// GetStats returns a provider for stats data.
 	GetStats() (govppapi.StatsProvider, error)
+}
+
+// CliExecutor defines method executing CLI commands.
+type CliExecutor interface {
+	RunCli(cmd string) (string, error)
 }

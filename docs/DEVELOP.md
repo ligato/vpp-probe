@@ -6,17 +6,17 @@ This guide contains information for developers.
 
 The core components of vpp-probe are: 
 
-**Probe Environment**
+**Environment**
 - defines environment where VPP is running
 
 **Controller**
 - handles setup of running environment
 
-**Instance Provider**
+**Provider**
 - searches for VPP instances
 - initializes and manages access to VPP instances
 
-**Instance Handler**
+**Instance**
 - provides a common interface for accessing VPP
   - CLI
   - Stats
@@ -24,7 +24,7 @@ The core components of vpp-probe are:
 - provides a common interface for executing commands
 - can have different implementation for each env
 
-**VPP Instance**
+**VPP Handler**
 - represents running VPP instance
 - uses instance handler for interacting with VPP
 - negotiates the preferred access to VPP
