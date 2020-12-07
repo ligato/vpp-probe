@@ -86,6 +86,20 @@ type VppIPSecSPD struct {
 	Value *vpp_ipsec.SecurityPolicyDatabase
 }
 
+type VppIPSecSP struct {
+	KVData
+	Value *vpp_ipsec.SecurityPolicy
+}
+
+func agentctlDumpData(handler probe.Host, format, model string) ([]byte, error) {
+	dump, err := handler.ExecCmd("agentctl", "dump", "-f ", format, model)
+	if err != nil {
+		return nil, fmt.Errorf("dumping %s (format: %s) failed: %w", model, format, err)
+	}
+	logrus.Debugf("dumped %q (%d bytes)", model, len(dump))
+	return []byte(dump), err
+}
+
 type KVData struct {
 	Key      string
 	Value    json.RawMessage
@@ -306,4 +320,14 @@ func HasAnyIPSecConfig(config *Config) bool {
 		return true
 	}
 	return false
+}
+
+func retrieveIPSecSPs(handler probe.Handler) ([]VppIPSecSP, error) {
+	var list []VppIPSecSP
+	err := agentctlDumpModel(handler, vpp_ipsec.ModelSecurityPolicy, &list)
+	if err != nil {
+		return nil, err
+	}
+
+	return list, nil
 }
