@@ -16,21 +16,14 @@ import (
 	vpptrace "go.ligato.io/vpp-probe/vpp/trace"
 )
 
-var DefaultTracerOptions = TracerOptions{
-	ResultDir:  os.TempDir(),
-	TraceDur:   time.Second * 5,
-	TraceNodes: vpptrace.CommonNodes,
-	NumPackets: 10000,
-}
-
 func NewTracerCmd(glob *Flags) *cobra.Command {
 	var (
 		opts = DefaultTracerOptions
 	)
 	cmd := &cobra.Command{
 		Use:     "tracer",
-		Short:   "Trace packets from VPP instances",
 		Aliases: []string{"trace"},
+		Short:   "Trace packets from VPP instances",
 		Args:    cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runTracer(*glob, opts)
@@ -43,6 +36,13 @@ func NewTracerCmd(glob *Flags) *cobra.Command {
 	flags.StringVar(&opts.CustomCmd, "cmd", opts.CustomCmd, "Custom command to run during tracing")
 	flags.UintVar(&opts.NumPackets, "numpackets", opts.NumPackets, "Number of packets to vpptrace per node")
 	return cmd
+}
+
+var DefaultTracerOptions = TracerOptions{
+	ResultDir:  os.TempDir(),
+	TraceDur:   time.Second * 5,
+	TraceNodes: vpptrace.CommonNodes,
+	NumPackets: 10000,
 }
 
 type TracerOptions struct {

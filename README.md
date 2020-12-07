@@ -44,14 +44,25 @@ go install
 
 ## Usage
 
+To specify the environment where VPP is running use option `--env=<ENV>`, supported values are: `local`, `kube` and `docker`.
+
+To specify the query parameters use option `--query=<PARAMS>`, where query parameters are separated by a semicolon `;`.
+Multiple queries per command are supported by adding multiple `--query` options.
+
+### Discover
+
 Discover VPP instances running in Kubernetes pods by specifying a label selector:
 
 ```sh
 vpp-probe --env="kube" --query="label=app=wcm-nsm-vpp-forwarder" discover
 ```
 
+To include additional output from VPP CLI commands add option `--printclis`. To add extra VPP CLI commands use option `--extraclis`, to add multiple commands separate them by a comma.
+
+### Trace
+
 Trace packets from multiple VPP instances while running ping command:
 
 ```sh
-vpp-probe  --env="kube" --query "label=app=wcm-nsm-vpp-forwarder" trace --cmd "kubectl exec -it helloworld-example-d86575f96-m5m59 -- ping 172.100.244.5"
+vpp-probe --env="kube" --query "label=app=wcm-nsm-vpp-forwarder" trace --cmd "kubectl exec -it helloworld-example-d86575f96-m5m59 -- ping 172.100.244.5"
 ```

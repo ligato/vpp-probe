@@ -15,7 +15,7 @@ func NewDiscoverCmd(glob *Flags) *cobra.Command {
 	)
 	cmd := &cobra.Command{
 		Use:     "discover",
-		Aliases: []string{"d"},
+		Aliases: []string{"discovery"},
 		Short:   "Discover VPP instances",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return RunDiscover(*glob, opts)

@@ -10,8 +10,9 @@ import (
 
 func inspectorCmd(glob *Flags) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "inspector",
-		Short: "Inspect VPP instances using terminal UI browser",
+		Use:     "inspector",
+		Aliases: []string{"inspect"},
+		Short:   "Inspect VPP instances using terminal UI browser",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runInspector(*glob)
 		},
