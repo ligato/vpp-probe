@@ -6,7 +6,11 @@ import (
 )
 
 func init() {
-	providers.RegisterConnector(providers.Docker, func(opts ...interface{}) (probe.Provider, error) {
-		return DefaultProvider()
+	providers.Register(providers.Docker, func(opts ...interface{}) (probe.Provider, error) {
+		var endpoint string
+		if len(opts) > 0 {
+			endpoint = opts[0].(string)
+		}
+		return NewProvider(endpoint)
 	})
 }

@@ -20,11 +20,6 @@ const logo = `
                             /_/
 `
 
-func init() {
-	logrus.SetLevel(logrus.InfoLevel)
-	logrus2.DefaultLogger().SetLevel(logging.ErrorLevel)
-}
-
 // Execute creates root command and executes it
 func Execute() {
 	rootCmd := NewRootCmd()
@@ -47,7 +42,7 @@ func NewRootCmd() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			InitGlobal(glob)
+			Init(glob)
 		},
 	}
 	flags := cmd.PersistentFlags()
@@ -55,24 +50,31 @@ func NewRootCmd() *cobra.Command {
 
 	cmd.AddCommand(
 		versionCmd(),
-		uiCmd(&glob),
+		inspectorCmd(&glob),
 		NewDiscoverCmd(&glob),
 		NewTracerCmd(&glob),
 	)
 	return cmd
 }
 
-func InitGlobal(glob Flags) {
+func Init(glob Flags) {
 	if os.Getenv("VPP_PROBE_DEBUG") != "" {
 		glob.Debug = true
 	}
 	if glob.Debug {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
-	if lvl, err := logrus.ParseLevel(glob.LogLevel); err != nil {
-		logrus.SetLevel(lvl)
-		if lvl == logrus.TraceLevel {
-			logrus2.DefaultLogger().SetLevel(logging.DebugLevel)
+	if glob.LogLevel != "" {
+		if lvl, err := logrus.ParseLevel(glob.LogLevel); err != nil {
+			logrus.SetLevel(lvl)
+			if lvl == logrus.TraceLevel {
+				logrus2.DefaultLogger().SetLevel(logging.LogLevel(lvl))
+			}
+		} else {
+			logrus.Warnf("log level error: %v", err)
 		}
+	} else {
+		logrus.SetLevel(logrus.InfoLevel)
+		logrus2.DefaultLogger().SetLevel(logging.ErrorLevel)
 	}
 }

@@ -154,20 +154,22 @@ func (k *Client) Exec(namespace, pod, container, command string) (string, error)
 func execCmd(client kubernetes.Interface, config *restclient.Config, namespace, podName, container string,
 	command string, stdin io.Reader, stdout io.Writer, stderr io.Writer,
 ) error {
+	cmd := []string{"sh", "-c", command}
+	podExecOpts := &corev1.PodExecOptions{
+		Container: container,
+		Command:   cmd,
+		Stdin:     stdin != nil,
+		Stdout:    true,
+		Stderr:    true,
+		TTY:       true,
+	}
 	req := client.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(podName).
 		Namespace(namespace).
 		SubResource("exec").
-		Param("container", container)
-	req.VersionedParams(&corev1.PodExecOptions{
-		Container: container,
-		Command:   []string{"sh", "-c", command},
-		Stdin:     stdin != nil,
-		Stdout:    true,
-		Stderr:    true,
-		TTY:       true,
-	}, scheme.ParameterCodec)
+		Param("container", container).
+		VersionedParams(podExecOpts, scheme.ParameterCodec)
 
 	exec, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
 	if err != nil {

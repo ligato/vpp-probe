@@ -8,18 +8,18 @@ import (
 	"go.ligato.io/vpp-probe/internal/ui"
 )
 
-func uiCmd(glob *Flags) *cobra.Command {
+func inspectorCmd(glob *Flags) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "ui",
-		Short: "Open terminal UI",
+		Use:   "inspector",
+		Short: "Inspect VPP instances using terminal UI browser",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runUI(*glob)
+			return runInspector(*glob)
 		},
 	}
 	return cmd
 }
 
-func runUI(glob Flags) error {
+func runInspector(glob Flags) error {
 	defer func() {
 		if err := recover(); err != nil {
 			logrus.Errorf("PANIC: %+v\n%v", err, stack.Trace().String())

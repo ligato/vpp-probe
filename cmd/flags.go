@@ -40,52 +40,43 @@ type ProviderFlags struct {
 	Env     string
 	Queries []string
 
-	LocalFlags
-	DockerFlags
-	KubeFlags
-}
+	// vpp related
 
-func (glob *ProviderFlags) AddFlags(flags *pflag.FlagSet) {
-	flags.StringVar(&glob.Env, "env", "", "Environment type in which VPP is running (local, kube)")
-	flags.StringArrayVarP(&glob.Queries, "query", "q", nil, "Query parameters")
-
-	glob.LocalFlags.AddFlags(flags)
-	glob.KubeFlags.AddFlags(flags)
-	glob.DockerFlags.AddFlags(flags)
-}
-
-type LocalFlags struct {
 	APISocket   string
 	StatsSocket string
+
+	// provider-specific
+
+	Docker struct {
+		Host string
+	}
+	Kube struct {
+		Kubeconfig string
+		Context    string
+	}
 }
 
-func (local *LocalFlags) AddFlags(flags *pflag.FlagSet) {
-	flags.StringVar(&local.APISocket, "apisock", "/run/vpp/api.sock", "Path to VPP binary API socket file")
-	flags.StringVar(&local.StatsSocket, "statsock", "/run/vpp/stats.sock", "Path to VPP stats API socket file")
-}
+func (f *ProviderFlags) AddFlags(flags *pflag.FlagSet) {
+	flags.StringVar(&f.Env, "env", "", "Environment type in which VPP is running (local, kube)")
+	flags.StringArrayVarP(&f.Queries, "query", "q", nil, "Query parameters")
 
-type DockerFlags struct {
-	Host string
-}
+	// vpp flags
+	flags.StringVar(&f.APISocket, "apisock", "/run/vpp/api.sock", "Path to VPP binary API socket file")
+	flags.StringVar(&f.StatsSocket, "statsock", "/run/vpp/stats.sock", "Path to VPP stats API socket file")
 
-func (docker *DockerFlags) AddFlags(flags *pflag.FlagSet) {
-	flags.StringVarP(&docker.Host, "dockerhost", "H", "", "Daemon socket(s) to connect to\n")
-}
+	// docker flags
+	flags.StringVarP(&f.Docker.Host, "dockerhost", "H", "", "Daemon socket(s) to connect to\n")
 
-type KubeFlags struct {
-	Kubeconfig string
-	Context    string
-}
+	// kube flags
+	flags.StringVar(&f.Kube.Kubeconfig, "kubeconfig", "", "Path to kubeconfig, defaults to ~/.kube/config (or set via KUBECONFIG)")
+	flags.StringVar(&f.Kube.Context, "kubecontext", "", "The name of the kubeconfig context to use")
 
-func (kube *KubeFlags) AddFlags(flags *pflag.FlagSet) {
-	flags.StringVar(&kube.Kubeconfig, "kubeconfig", "", "Path to kubeconfig, defaults to ~/.kube/config (or set via KUBECONFIG)")
-	flags.StringVar(&kube.Context, "context", "", "The name of the kubeconfig context to use")
 }
 
 func SetupController(glob Flags) (*controller.Controller, error) {
 	env := resolveEnv(glob)
 
-	logrus.Infof("Setting up provider: %v", env)
+	logrus.Infof("Setting up %v provider env", env)
 
 	provider, err := SetupProvider(env, glob)
 	if err != nil {
@@ -102,19 +93,19 @@ func SetupProvider(env probe.Env, glob Flags) (probe.Provider, error) {
 	case providers.Local:
 		return local.NewProvider()
 	case providers.Kube:
-		provider, err := kube.NewProvider(glob.Kubeconfig, glob.Context)
+		provider, err := kube.NewProvider(glob.Kube.Kubeconfig, glob.Kube.Context)
 		if err != nil {
 			return nil, err
 		}
 		return provider, nil
 	case providers.Docker:
-		provider, err := docker.DefaultProvider()
+		provider, err := docker.NewProvider(glob.Docker.Host)
 		if err != nil {
 			return nil, err
 		}
 		return provider, nil
 	default:
-		return nil, fmt.Errorf("unknown value: %q", env)
+		return nil, fmt.Errorf("invalid env: %q", env)
 	}
 }
 
@@ -133,10 +124,12 @@ func resolveEnv(glob Flags) (env providers.Env) {
 		return providers.Env(glob.Env)
 	}
 	defer func() {
-		logrus.Infof("env resolved to %v", env)
+		logrus.Debugf("env resolved to %v", env)
 	}()
-
-	if glob.Kubeconfig != "" || glob.Context != "" {
+	if glob.Docker.Host != "" {
+		return providers.Docker
+	}
+	if glob.Kube.Kubeconfig != "" || glob.Kube.Context != "" {
 		return providers.Kube
 	}
 	return providers.Local

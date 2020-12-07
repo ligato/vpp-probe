@@ -98,20 +98,24 @@ func (c *Controller) discoverInstances(provider probe.Provider, queryParams ...m
 }
 
 func parseQueries(queries []string) []map[string]string {
+	const (
+		queryParamSeparator  = ";"
+		paramKeyValSeparator = "="
+	)
 	var queryParams []map[string]string
 	for _, q := range queries {
-		params := strings.Split(q, ",")
+		params := strings.Split(q, queryParamSeparator)
+		qp := map[string]string{}
 		for _, p := range params {
-			qp := map[string]string{}
-			if i := strings.Index(p, "="); i > 0 {
+			if i := strings.Index(p, paramKeyValSeparator); i > 0 {
 				key := p[:i]
 				val := p[i+1:]
 				qp[key] = val
 			} else {
 				qp[p] = ""
 			}
-			queryParams = append(queryParams, qp)
 		}
+		queryParams = append(queryParams, qp)
 	}
 	return queryParams
 }

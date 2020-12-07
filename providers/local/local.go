@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	providers.RegisterConnector(providers.Local, func(opts ...interface{}) (probe.Provider, error) {
+	providers.Register(providers.Local, func(opts ...interface{}) (probe.Provider, error) {
 		return NewProvider()
 	})
 }

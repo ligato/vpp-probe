@@ -6,7 +6,6 @@ import (
 	"go.ligato.io/vpp-probe/probe"
 )
 
-// Env
 type Env = probe.Env
 
 const (
@@ -15,48 +14,50 @@ const (
 	Docker = "docker"
 )
 
-// Provider
-type Provider struct {
+type ConnectFunc = func(...interface{}) (probe.Provider, error)
+
+func Register(env Env, connectFn ConnectFunc) {
+	if err := register(env, provider{
+		env:       env,
+		connectFn: connectFn,
+	}); err != nil {
+		panic(err)
+	}
+}
+
+func Connect(env Env, opts ...interface{}) (probe.Provider, error) {
+	p, err := get(env)
+	if err != nil {
+		return nil, err
+	}
+	return p.Connect(opts...)
+}
+
+type provider struct {
 	env       Env
 	connectFn ConnectFunc
 }
 
-func (p *Provider) Connect(a ...interface{}) (probe.Provider, error) {
+func (p *provider) Connect(a ...interface{}) (probe.Provider, error) {
 	return p.connectFn(a...)
 }
 
-type ConnectFunc = func(...interface{}) (probe.Provider, error)
-
 var (
-	registeredProviders = map[Env]Provider{}
+	registeredProviders = map[Env]provider{}
 )
 
-func Register(env Env, connectFn ConnectFunc) {
+func register(env Env, prov provider) error {
 	if _, ok := registeredProviders[env]; ok {
-		panic(fmt.Sprintf("duplicate registration for env %q", env))
+		return fmt.Errorf("duplicate registration for env %q", env)
 	}
-	registeredProviders[env] = Provider{
-		env:       env,
-		connectFn: connectFn,
-	}
+	registeredProviders[env] = prov
+	return nil
 }
 
-func RegisterConnector(env Env, newFn ConnectFunc) {
-	Register(env, newFn)
-}
-
-func Get(env Env) (*Provider, error) {
-	if _, ok := registeredProviders[env]; !ok {
+func get(env Env) (*provider, error) {
+	p, ok := registeredProviders[env]
+	if !ok {
 		return nil, fmt.Errorf("unknown env %v", env)
 	}
-	p := registeredProviders[env]
 	return &p, nil
-}
-
-func Connect(env Env, opts ...interface{}) (probe.Provider, error) {
-	if _, ok := registeredProviders[env]; !ok {
-		return nil, fmt.Errorf("unknown env %v", env)
-	}
-	p := registeredProviders[env]
-	return p.Connect(opts...)
 }

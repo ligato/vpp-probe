@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	providers.RegisterConnector(providers.Kube, func(opts ...interface{}) (probe.Provider, error) {
+	providers.Register(providers.Kube, func(opts ...interface{}) (probe.Provider, error) {
 		var kubeconfig, context string
 		if len(opts) > 0 {
 			kubeconfig = opts[0].(string)

@@ -18,12 +18,11 @@ type Provider struct {
 }
 
 func NewProvider(kubeconfig string, context string) (*Provider, error) {
-	cfg := client.NewConfig(kubeconfig)
-	cfg.Context = context
+	cfg := client.NewConfig(kubeconfig, context)
 
 	c, err := client.NewClient(cfg)
 	if err != nil {
-		logrus.Warnf("loading clientl for context %v failed: %v", cfg.Context, err)
+		logrus.Warnf("loading clientl for context %v failed: %v", context, err)
 		return nil, err
 	}
 
@@ -33,7 +32,7 @@ func NewProvider(kubeconfig string, context string) (*Provider, error) {
 		return nil, err
 	}
 
-	logrus.Infof("kube client %s version info: %v", c, info)
+	logrus.Debugf("client %s version info: %v", c, info)
 
 	provider := &Provider{
 		client: c,
@@ -56,10 +55,9 @@ func (p *Provider) Query(params ...map[string]string) ([]probe.Handler, error) {
 		return nil, err
 	}
 
-	c := p.client
-	logrus.Infof("-> query %q in %v (cluster %v)", params, c.String(), c.Cluster())
+	logrus.Infof("-> query %q in %v (cluster %v)", params, p.client, p.client.Cluster())
 
-	pods, err := queryPods(c, queries)
+	pods, err := queryPods(p.client, queries)
 	if err != nil {
 		return nil, fmt.Errorf("query pods error: %w", err)
 	}
@@ -154,14 +152,3 @@ func (q PodQuery) String() string {
 	}
 	return s
 }
-
-/*func parseQueries(qstrs []string) []PodQuery {
-	var queries []PodQuery
-	for _, q := range qstrs {
-		query := PodQuery{
-			LabelSelector: q,
-		}
-		queries = append(queries, query)
-	}
-	return queries
-}*/

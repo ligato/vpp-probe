@@ -11,21 +11,28 @@ import (
 	"go.ligato.io/vpp-probe/providers"
 )
 
-func DefaultProvider() (*Provider, error) {
-	c, err := docker.NewClientFromEnv()
-	if err != nil {
-		return nil, err
-	}
-	return NewProvider(c)
-}
-
 // Provider finds instances running in Docker containers.
 type Provider struct {
 	client *docker.Client
 	info   *docker.DockerInfo
 }
 
-func NewProvider(c *docker.Client) (*Provider, error) {
+func NewProvider(endpoint string) (*Provider, error) {
+	if endpoint == "" {
+		c, err := docker.NewClientFromEnv()
+		if err != nil {
+			return nil, err
+		}
+		return newProvider(c)
+	}
+	c, err := docker.NewClient(endpoint)
+	if err != nil {
+		return nil, err
+	}
+	return newProvider(c)
+}
+
+func newProvider(c *docker.Client) (*Provider, error) {
 	if err := c.Ping(); err != nil {
 		return nil, err
 	}
@@ -50,9 +57,6 @@ func (p *Provider) Env() probe.Env {
 
 func (p *Provider) Name() string {
 	endpoint := p.client.Endpoint()
-	/*if endpoint == client.DefaultDockerHost {
-		endpoint = "default-host"
-	}*/
 	return fmt.Sprintf("docker::%v@%v", endpoint, p.info.Name)
 }
 

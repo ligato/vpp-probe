@@ -6,28 +6,27 @@ import (
 )
 
 func AllContextsConfigs(kubeconfig string) []*Config {
-	config := NewConfig(kubeconfig)
-	config.KubeConfig = kubeconfig
+	config := NewConfig(kubeconfig, "")
 	var configs []*Config
 	for _, ctx := range config.Contexts() {
-		cfg := NewConfig(kubeconfig)
-		cfg.Context = ctx
+		cfg := NewConfig(kubeconfig, ctx)
 		configs = append(configs, cfg)
 	}
 	return configs
 }
 
 type Config struct {
-	KubeConfig string
-	Context    string
+	kubeconfig string
+	context    string
 
 	rawConfig    *clientcmdapi.Config
 	clientConfig clientcmd.ClientConfig
 }
 
-func NewConfig(kubeConfig string) *Config {
+func NewConfig(kubeconfig string, context string) *Config {
 	return &Config{
-		KubeConfig: kubeConfig,
+		kubeconfig: kubeconfig,
+		context:    context,
 	}
 }
 
@@ -49,8 +48,8 @@ func (c *Config) Contexts() []string {
 
 func (c *Config) CurrentContext() string {
 	currentContext := c.rawConfig.CurrentContext
-	if c.Context != "" {
-		currentContext = c.Context
+	if c.context != "" {
+		currentContext = c.context
 	}
 	_, ok := c.rawConfig.Contexts[currentContext]
 	if !ok {
@@ -60,11 +59,11 @@ func (c *Config) CurrentContext() string {
 }
 
 func (c *Config) GetContext() *clientcmdapi.Context {
-	currentContext := c.rawConfig.CurrentContext
-	if c.Context != "" {
-		currentContext = c.Context
-	}
-	ctx, ok := c.rawConfig.Contexts[currentContext]
+	/*currentContext := c.rawConfig.CurrentContext
+	if c.context != "" {
+		currentContext = c.context
+	}*/
+	ctx, ok := c.rawConfig.Contexts[c.CurrentContext()]
 	if !ok {
 		return nil
 	}
@@ -84,15 +83,15 @@ func (c *Config) ClientConfig() (clientcmd.ClientConfig, error) {
 func (c *Config) toConfigLoader() clientcmd.ClientConfig {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
-	if c.KubeConfig != "" {
-		loadingRules.ExplicitPath = c.KubeConfig
+	if c.kubeconfig != "" {
+		loadingRules.ExplicitPath = c.kubeconfig
 	}
 
 	overrides := &clientcmd.ConfigOverrides{
 		ClusterDefaults: clientcmd.ClusterDefaults,
 	}
-	if c.Context != "" {
-		overrides.CurrentContext = c.Context
+	if c.context != "" {
+		overrides.CurrentContext = c.context
 	}
 
 	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
