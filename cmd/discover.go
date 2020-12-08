@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"os"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -36,12 +38,23 @@ func NewDiscoverCmd(cli Cli) *cobra.Command {
 		Example: discoverExample,
 	}
 	flags := cmd.Flags()
+
 	flags.StringVarP(&opts.Format, "format", "f", "", "Output format (json, yaml, go-template..)")
+
+	flags.BoolVar(&opts.PrintCLIs, "printclis", false, "Additional CLI commands to run for each instance")
+	flags.BoolVar(&opts.IsNsm, "nsm", false, "Assume NSM VPP deployments.")
+	flags.BoolVar(&opts.IPsecAgg, "ipsec-agg", false, "aggregate IPSec info")
+	flags.StringSliceVar(&opts.ExtraCLIs, "extraclis", nil, "Additional CLI commands to run for each instance")
+
 	return cmd
 }
 
 type DiscoverOptions struct {
 	Format string
+	ExtraCLIs []string
+	PrintCLIs bool
+	IsNsm bool
+	IPsecAgg bool
 }
 
 func RunDiscover(cli Cli, opts DiscoverOptions) error {
@@ -57,6 +70,8 @@ func RunDiscover(cli Cli, opts DiscoverOptions) error {
 
 	logrus.Debugf("discovered %d vpp instances", len(instances))
 
+	var vppInstances []*agent.Instance
+
 	for _, instance := range instances {
 		if instance.Agent() == nil {
 			logrus.Debugf("agent not found for instance %v", instance.ID())
@@ -69,6 +84,7 @@ func RunDiscover(cli Cli, opts DiscoverOptions) error {
 			logrus.Errorf("instance %v error: %v", instance.ID(), err)
 			continue
 		}
+		vppInstances = append(vppInstances, vpp)
 
 		if format := opts.Format; len(format) == 0 {
 			printDiscoverTable(cli.Out(), instance)
@@ -77,6 +93,11 @@ func RunDiscover(cli Cli, opts DiscoverOptions) error {
 				return err
 			}
 		}
+	}
+
+	if opts.IsNsm && opts.IPsecAgg {
+		logrus.Infof("Aggregating NSM IPSec info for instances")
+		agent.PrintCorrelatedNsmIpSec(os.Stdout, vppInstances)
 	}
 
 	return nil
