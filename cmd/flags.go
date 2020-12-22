@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
@@ -78,45 +79,68 @@ func SetupController(glob Flags) (*controller.Controller, error) {
 
 	logrus.Infof("Setting up %v provider env", env)
 
-	provider, err := SetupProvider(env, glob)
+	providers, err := SetupProvider(env, glob.ProviderFlags)
 	if err != nil {
 		return nil, err
 	}
 
-	logrus.Infof("%v provider %v connected", provider.Env(), provider.Name())
+	logrus.Infof("adding %v providers", len(providers))
 
-	return newController(provider), nil
+	return newController(providers...), nil
 }
 
-func SetupProvider(env probe.Env, glob Flags) (probe.Provider, error) {
+func newController(providers ...probe.Provider) *controller.Controller {
+	probectl := controller.NewController()
+
+	for _, provider := range providers {
+		if err := probectl.AddProvider(provider); err != nil {
+			logrus.Warnf("add provider failed: %v", err)
+			continue
+		}
+		logrus.Infof("%v provider %v connected", provider.Env(), provider.Name())
+	}
+
+	return probectl
+}
+
+func SetupProvider(env probe.Env, opt ProviderFlags) ([]probe.Provider, error) {
 	switch env {
 	case providers.Local:
-		return local.NewProvider()
+		provider, err := local.NewProvider()
+		if err != nil {
+			return nil, err
+		}
+		return []probe.Provider{provider}, nil
 	case providers.Kube:
-		provider, err := kube.NewProvider(glob.Kube.Kubeconfig, glob.Kube.Context)
+		provider, err := setupKubeProvides(opt.Kube.Kubeconfig, opt.Kube.Context)
 		if err != nil {
 			return nil, err
 		}
 		return provider, nil
 	case providers.Docker:
-		provider, err := docker.NewProvider(glob.Docker.Host)
+		provider, err := docker.NewProvider(opt.Docker.Host)
 		if err != nil {
 			return nil, err
 		}
-		return provider, nil
+		return []probe.Provider{provider}, nil
 	default:
 		return nil, fmt.Errorf("invalid env: %q", env)
 	}
 }
 
-func newController(providers ...probe.Provider) *controller.Controller {
-	probectl := controller.NewController()
-	for _, provider := range providers {
-		if err := probectl.AddProvider(provider); err != nil {
-			logrus.Warnf("add provider failed: %v", err)
+func setupKubeProvides(kubeconfig, context string) ([]probe.Provider, error) {
+	var providers []probe.Provider
+
+	contexts := strings.Split(context, ",")
+	for _, ctx := range contexts {
+		provider, err := kube.NewProvider(kubeconfig, ctx)
+		if err != nil {
+			return nil, err
 		}
+		providers = append(providers, provider)
 	}
-	return probectl
+
+	return providers, nil
 }
 
 func resolveEnv(glob Flags) (env providers.Env) {

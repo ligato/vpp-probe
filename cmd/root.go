@@ -65,7 +65,7 @@ func Init(glob Flags) {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
 	if glob.LogLevel != "" {
-		if lvl, err := logrus.ParseLevel(glob.LogLevel); err != nil {
+		if lvl, err := logrus.ParseLevel(glob.LogLevel); err == nil {
 			logrus.SetLevel(lvl)
 			if lvl == logrus.TraceLevel {
 				logrus2.DefaultLogger().SetLevel(logging.LogLevel(lvl))

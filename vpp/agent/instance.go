@@ -1,40 +1,53 @@
 package agent
 
 import (
+	"encoding/json"
+	"strings"
+
 	"github.com/sirupsen/logrus"
 	vpp_interfaces "go.ligato.io/vpp-agent/v3/proto/ligato/vpp/interfaces"
 
 	"go.ligato.io/vpp-probe/probe"
 )
 
+type ExtraCLIs map[string]string
+
+func (e ExtraCLIs) MarshalJSON() ([]byte, error) {
+	clis := map[string][]string{}
+	for k, v := range e {
+		clis[k] = strings.Split(v, "\n")
+	}
+	return json.Marshal(clis)
+}
+
 type Instance struct {
-	probe.Handler
-	cli probe.CliExecutor
+	*probe.Instance `json:"Instance"`
+	cli             probe.CliExecutor
 
 	Version string
-	Extra   map[string]string
+	Extra   ExtraCLIs `json:",omitempty"`
 
 	// Interfaces
 	VppInterfaces   []VppInterface
-	LinuxInterfaces []LinuxInterface
+	LinuxInterfaces []LinuxInterface `json:",omitempty"`
 
 	// L2XConn
-	L2XConnects []VppL2XConnect
+	L2XConnects []VppL2XConnect `json:",omitempty"`
 
 	// IPSec
-	IPSecTunProtects []VppIPSecTunProtect
-	IPSecSAs         []VppIPSecSA
+	IPSecTunProtects []VppIPSecTunProtect `json:",omitempty"`
+	IPSecSAs         []VppIPSecSA         `json:",omitempty"`
 }
 
-func NewInstance(handler probe.Handler) (*Instance, error) {
+func NewInstance(handler *probe.Instance) (*Instance, error) {
 	cli, err := handler.GetCLI()
 	if err != nil {
 		return nil, err
 	}
 	instance := &Instance{
-		Handler: handler,
-		Extra:   map[string]string{},
-		cli:     cli,
+		Instance: handler,
+		Extra:    map[string]string{},
+		cli:      cli,
 	}
 	if err := UpdateInstanceInfo(instance); err != nil {
 		return nil, err
@@ -47,6 +60,8 @@ func (vpp *Instance) RunCli(cmd string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	out = strings.ReplaceAll(out, "\r\r\n", "\n")
+	out = strings.ReplaceAll(out, "\r\n", "\n")
 	vpp.Extra[cmd] = out
 	return out, nil
 }

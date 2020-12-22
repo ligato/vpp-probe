@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
+	"time"
 
 	govppapi "git.fd.io/govpp.git/api"
 	"git.fd.io/govpp.git/proxy"
@@ -11,6 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"go.ligato.io/vpp-probe/probe"
+	"go.ligato.io/vpp-probe/providers"
 	vppcli "go.ligato.io/vpp-probe/vpp/cli"
 )
 
@@ -37,6 +39,16 @@ func (h *Handler) ID() string {
 		containerID = containerID[:7]
 	}
 	return fmt.Sprintf("%v-%v", containerName, containerID)
+}
+
+func (h *Handler) Metadata() map[string]string {
+	return map[string]string{
+		"env":       providers.Docker,
+		"container": h.container.Name,
+		"id":        h.container.ID,
+		"image":     h.container.Image,
+		"created":   h.container.Created.Format(time.UnixDate),
+	}
 }
 
 func (h *Handler) Close() error {

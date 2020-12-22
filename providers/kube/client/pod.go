@@ -3,13 +3,16 @@ package client
 import (
 	"fmt"
 	"time"
+
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // Pod is a pod returned from Client.
 type Pod struct {
+	UID       types.UID
+	Name      string
 	Cluster   string
 	Namespace string
-	Name      string
 	IP        string
 	Created   time.Time
 	URL       string

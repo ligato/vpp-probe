@@ -80,9 +80,10 @@ func (c *Controller) discoverInstances(provider probe.Provider, queryParams ...m
 
 	var instances []*vpp.Instance
 	for _, handler := range handlers {
-		instance := &probe.Probe{
-			Location: handler.ID(),
+		instance := &probe.Instance{
 			Provider: provider.Name(),
+			Location: handler.ID(),
+			Metadata: handler.Metadata(),
 			Handler:  handler,
 		}
 

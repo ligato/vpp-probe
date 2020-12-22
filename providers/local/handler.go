@@ -11,6 +11,7 @@ import (
 	govppcore "git.fd.io/govpp.git/core"
 
 	"go.ligato.io/vpp-probe/probe"
+	"go.ligato.io/vpp-probe/providers"
 	vppcli "go.ligato.io/vpp-probe/vpp/cli"
 )
 
@@ -52,6 +53,13 @@ func NewHandler(pid int, config HandlerConfig) *Handler {
 
 func (h *Handler) ID() string {
 	return fmt.Sprintf("pid-%d", h.pid)
+}
+
+func (h *Handler) Metadata() map[string]string {
+	return map[string]string{
+		"env": providers.Local,
+		"pid": fmt.Sprint(h.pid),
+	}
 }
 
 func (h *Handler) ExecCmd(cmd string, args ...string) (string, error) {

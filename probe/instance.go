@@ -1,22 +1,20 @@
 package probe
 
-import "fmt"
-
-// Env defines an environment for probe provider.
-type Env string
-
-type Probe struct {
+// Instance defines a single probe instance.
+type Instance struct {
 	Provider string
 	Location string
 
-	Handler
+	Metadata map[string]string
+
+	Handler `json:"-"`
 }
 
-func (i *Probe) String() string {
+/*func (i *Instance) String() string {
 	return fmt.Sprintf("%s", i.ID())
-}
+}*/
 
 // ID returns a string that identifies the instance.
-func (i *Probe) ID() string {
-	return i.Location
-}
+/*func (i *Instance) ID() string {
+	return i.Handler.ID()
+}*/

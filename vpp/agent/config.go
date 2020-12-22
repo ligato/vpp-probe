@@ -1,12 +1,8 @@
 package agent
 
 import (
-	"encoding/json"
-	"fmt"
 	"strings"
 
-	"github.com/sirupsen/logrus"
-	"go.ligato.io/vpp-agent/v3/pkg/models"
 	"go.ligato.io/vpp-agent/v3/plugins/kvscheduler/api"
 	linux_interfaces "go.ligato.io/vpp-agent/v3/proto/ligato/linux/interfaces"
 	vpp_interfaces "go.ligato.io/vpp-agent/v3/proto/ligato/vpp/interfaces"
@@ -17,12 +13,6 @@ import (
 )
 
 const defaultVppInterfaceLocal0 = "local0"
-
-type KVData struct {
-	Key      string
-	Metadata map[string]interface{}
-	Origin   api.ValueOrigin
-}
 
 type LinuxInterface struct {
 	KVData
@@ -49,29 +39,9 @@ type VppIPSecSA struct {
 	Value *vpp_ipsec.SecurityAssociation
 }
 
-func agentctlDumpData(handler probe.Host, format, model string) ([]byte, error) {
-	dump, err := handler.ExecCmd("agentctl", "dump", "-f ", format, model)
-	if err != nil {
-		return nil, fmt.Errorf("dumping %s (format: %s) failed: %w", model, format, err)
-	}
-	logrus.Debugf("dumped %q (%d bytes)", model, len(dump))
-	return []byte(dump), err
-}
-
-func agentctlDumpModel(handler probe.Host, model *models.KnownModel, v interface{}) error {
-	dump, err := agentctlDumpData(handler, "json", model.Name())
-	if err != nil {
-		return err
-	}
-	if err := json.Unmarshal(dump, v); err != nil {
-		return fmt.Errorf("unmarshaling %s dump (json) failed: %w", model, err)
-	}
-	return nil
-}
-
-func retrieveInterfacesVpp(handler probe.Handler) ([]VppInterface, error) {
+func retrieveInterfacesVpp(handler probe.Host) ([]VppInterface, error) {
 	var list []VppInterface
-	err := agentctlDumpModel(handler, vpp_interfaces.ModelInterface, &list)
+	err := listModelData(handler, vpp_interfaces.ModelInterface, &list)
 	if err != nil {
 		return nil, err
 	}
@@ -86,9 +56,9 @@ func retrieveInterfacesVpp(handler probe.Handler) ([]VppInterface, error) {
 	return ifaces, nil
 }
 
-func retrieveInterfacesLinux(handler probe.Handler) ([]LinuxInterface, error) {
+func retrieveInterfacesLinux(handler probe.Host) ([]LinuxInterface, error) {
 	var list []LinuxInterface
-	err := agentctlDumpModel(handler, linux_interfaces.ModelInterface, &list)
+	err := listModelData(handler, linux_interfaces.ModelInterface, &list)
 	if err != nil {
 		return nil, err
 	}
@@ -104,9 +74,9 @@ func retrieveInterfacesLinux(handler probe.Handler) ([]LinuxInterface, error) {
 	return ifaces, nil
 }
 
-func retrieveL2XConnects(handler probe.Handler) ([]VppL2XConnect, error) {
+func retrieveL2XConnects(handler probe.Host) ([]VppL2XConnect, error) {
 	var list []VppL2XConnect
-	err := agentctlDumpModel(handler, vpp_l2.ModelXConnectPair, &list)
+	err := listModelData(handler, vpp_l2.ModelXConnectPair, &list)
 	if err != nil {
 		return nil, err
 	}
@@ -114,10 +84,10 @@ func retrieveL2XConnects(handler probe.Handler) ([]VppL2XConnect, error) {
 	return list, nil
 }
 
-func retrieveIPSecTunProtects(handler probe.Handler) ([]VppIPSecTunProtect, error) {
+func retrieveIPSecTunProtects(handler probe.Host) ([]VppIPSecTunProtect, error) {
 	var list []VppIPSecTunProtect
 
-	err := agentctlDumpModel(handler, vpp_ipsec.ModelTunnelProtection, &list)
+	err := listModelData(handler, vpp_ipsec.ModelTunnelProtection, &list)
 	if err != nil {
 		return nil, err
 	}
@@ -125,9 +95,9 @@ func retrieveIPSecTunProtects(handler probe.Handler) ([]VppIPSecTunProtect, erro
 	return list, nil
 }
 
-func retrieveIPSecSAs(handler probe.Handler) ([]VppIPSecSA, error) {
+func retrieveIPSecSAs(handler probe.Host) ([]VppIPSecSA, error) {
 	var list []VppIPSecSA
-	err := agentctlDumpModel(handler, vpp_ipsec.ModelSecurityAssociation, &list)
+	err := listModelData(handler, vpp_ipsec.ModelSecurityAssociation, &list)
 	if err != nil {
 		return nil, err
 	}

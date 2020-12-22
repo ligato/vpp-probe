@@ -35,22 +35,25 @@ func NewTracerCmd(glob *Flags) *cobra.Command {
 	flags.DurationVarP(&opts.TraceDur, "tracedur", "d", opts.TraceDur, "Duration of tracing")
 	flags.StringVar(&opts.CustomCmd, "cmd", opts.CustomCmd, "Custom command to run during tracing")
 	flags.UintVar(&opts.NumPackets, "numpackets", opts.NumPackets, "Number of packets to vpptrace per node")
+	flags.BoolVar(&opts.PrintResult, "print", opts.PrintResult, "Print result to the stdout")
 	return cmd
 }
 
 var DefaultTracerOptions = TracerOptions{
-	ResultDir:  os.TempDir(),
-	TraceDur:   time.Second * 5,
-	TraceNodes: vpptrace.CommonNodes,
-	NumPackets: 10000,
+	ResultDir:   filepath.Join(os.TempDir(), "vppprobe-traces"),
+	TraceDur:    time.Second * 5,
+	TraceNodes:  vpptrace.CommonNodes,
+	NumPackets:  10000,
+	PrintResult: false,
 }
 
 type TracerOptions struct {
-	TraceNodes []string
-	NumPackets uint
-	TraceDur   time.Duration
-	CustomCmd  string
-	ResultDir  string
+	TraceNodes  []string
+	NumPackets  uint
+	TraceDur    time.Duration
+	CustomCmd   string
+	ResultDir   string
+	PrintResult bool
 }
 
 func runTracer(glob Flags, opts TracerOptions) error {
@@ -119,39 +122,58 @@ func runTracer(glob Flags, opts TracerOptions) error {
 			continue
 		}
 		result := traced.result
-		logrus.Infof("= instance %v: traced %d packets:", traced, len(result.Packets))
-		for _, packet := range result.Packets {
-			p := &packetNode{
-				packet: packet,
+		logrus.Infof("= instance %v: traced %d packets", traced, len(result.Packets))
+		if opts.PrintResult {
+			for _, packet := range result.Packets {
+				p := &packetNode{
+					packet: packet,
+				}
+				var capture string
+				for _, c := range packet.Captures {
+					capture += fmt.Sprintf(" - %v\n%v", color.Yellow.Sprint(c.Name), prefixString(c.Content))
+				}
+				fmt.Fprintf(os.Stdout, "# %v\n%v", p, capture)
 			}
-			var capture string
-			for _, c := range packet.Captures {
-				capture += fmt.Sprintf(" >>> %v\n%v\n", color.Yellow.Sprint(c.Name), c.Content)
-			}
-			logrus.Infof("  - %v\n%v", p, capture)
 		}
 	}
 
 	return nil
 }
 
+func prefixString(s string) string {
+	s = strings.TrimRight(s, "\n")
+	lines := strings.Split(s, "\n")
+	prefixed := strings.Join(lines, "\n\t")
+	return fmt.Sprintf("\t%s\n", prefixed)
+}
+
 func saveTraceData(traceDir string, instance *vpp.Instance, trace *vpptrace.Result) {
 	timestamp := time.Now()
 	host, _ := os.Hostname()
 
-	t := timestamp.Format("2015-Jan-25_11:06:39")
+	// file name
+	t := timestamp.Format("20060102T150405")
 	s := instance.ID()
 	s = strings.ReplaceAll(s, " ", "-")
 	s = strings.ReplaceAll(s, ":", "_")
-	name := fmt.Sprintf("vpptrace_%s_%s_%d-pkts.txt", strings.ToLower(s), t, len(trace.Packets))
+	s = strings.ReplaceAll(s, "/", "+")
+	name := fmt.Sprintf("vpptrace_%s_%s.txt", strings.ToLower(s), t)
 
+	if err := os.MkdirAll(traceDir, 0777); err != nil {
+		logrus.Warnf("failed to make trace directory %s: %v", traceDir, err)
+		return
+	}
 	path := filepath.Join(traceDir, name)
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0655)
+	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0777)
 	if err != nil {
 		logrus.Warnf("failed to save trace data to %s: %v", path, err)
 		return
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			logrus.Warnf("closing file %q failed: %v", file, err)
+		}
+	}()
 
 	logrus.Infof("storing trace results to %q", file.Name())
 
@@ -236,12 +258,12 @@ func (c *packetNode) String() string {
 		}
 	}
 	pktFields := []string{
-		fmt.Sprintf(color.Bold.Sprint("Packet")+" "+color.Blue.Sprint("%4v"), fmt.Sprintf("%03d", packet.ID)),
-		fmt.Sprintf("nodes "+color.Blue.Sprint("%2d"), len(packet.Captures)),
-		fmt.Sprintf("took "+color.Blue.Sprint("%9v"), took),
-		fmt.Sprintf(getNodeColor(first.Name).Sprint("%20s")+"  ￫  "+getNodeColor(last.Name).Sprint("%s"), first.Name, last.Name),
+		fmt.Sprintf(color.Yellow.Sprint("Packet")+" "+color.Blue.Sprint("%v"), fmt.Sprintf("%d", packet.ID)),
+		fmt.Sprintf("⏲  "+color.Blue.Sprint("%v"), formatDurTimestamp(start)),
+		fmt.Sprintf(getNodeColor(first.Name).Sprint("%s")+"  ￫  "+getNodeColor(last.Name).Sprint("%s"), first.Name, last.Name),
+		fmt.Sprintf("took "+color.Blue.Sprint("%v"), took),
+		fmt.Sprintf("nodes "+color.Blue.Sprint("%d"), len(packet.Captures)),
 	}
-	pktFields = append(pktFields, fmt.Sprintf("⏲  "+color.Blue.Sprint("%v"), formatDurTimestamp(start)))
 	return strings.Join(pktFields, " | ")
 }
 

@@ -43,11 +43,7 @@ type Client struct {
 
 // NewClient returns a new client loaded from configLoader with config overrides.
 func NewClient(config *Config) (*Client, error) {
-	clientConfig, err := config.ClientConfig()
-	if err != nil {
-		return nil, err
-	}
-	restConfig, err := clientConfig.ClientConfig()
+	restConfig, err := config.RESTConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +59,7 @@ func NewClient(config *Config) (*Client, error) {
 }
 
 func (k *Client) String() string {
-	return fmt.Sprintf("%v", k.config.CurrentContext())
+	return fmt.Sprintf("%v", k.Context())
 }
 
 // Clientset returns interface for kubernetes API.
@@ -72,21 +68,30 @@ func (k *Client) Clientset() kubernetes.Interface {
 }
 
 // Cluster returns the cluster name used for this client.
-func (k *Client) Cluster() string {
-	ctx := k.config.GetContext()
-	if ctx == nil {
+func (k *Client) Context() string {
+	context, err := k.config.CurrentContext()
+	if err != nil {
 		return ""
 	}
-	return ctx.Cluster
+	return context
+}
+
+// Cluster returns the cluster name used for this client.
+func (k *Client) Cluster() string {
+	cluster, err := k.config.CurrentCluster()
+	if err != nil {
+		return ""
+	}
+	return cluster
 }
 
 // Namespace returns the namspace name used for this client.
 func (k *Client) Namespace() string {
-	ctx := k.config.GetContext()
-	if ctx == nil {
+	ns, err := k.config.CurrentNamespace()
+	if err != nil {
 		return ""
 	}
-	return ctx.Namespace
+	return ns
 }
 
 func (k *Client) GetVersionInfo() (*version.Info, error) {
@@ -130,6 +135,7 @@ func (k *Client) ListPods(namespace string, labelSelector, fieldSelector string)
 
 func (k *Client) newPod(p *corev1.Pod) *Pod {
 	return &Pod{
+		UID:       p.UID,
 		Cluster:   k.Cluster(),
 		Name:      p.GetName(),
 		Namespace: p.GetNamespace(),

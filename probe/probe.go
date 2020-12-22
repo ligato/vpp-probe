@@ -5,6 +5,9 @@ import (
 	govppapi "git.fd.io/govpp.git/api"
 )
 
+// Env defines an environment for probe provider.
+type Env string
+
 // Provider provides ways to discover instances.
 type Provider interface {
 	Env() Env
@@ -24,6 +27,8 @@ type Handler interface {
 
 	// ID returns a string that identifies the instance.
 	ID() string
+	// Metadata returns a map of metadata for the instance handler.
+	Metadata() map[string]string
 	// Close closes open connections and frees resources used for this instance.
 	Close() error
 }

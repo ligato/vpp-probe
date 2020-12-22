@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	git.fd.io/govpp.git v0.3.6-0.20201104125301-2b743eede78b
+	github.com/docker/docker v0.0.0-20180620002508-3dfb26ab3cbf
 	github.com/fsouza/go-dockerclient v1.2.2
 	github.com/gdamore/tcell/v2 v2.0.1-0.20201019142633-1057d5591ed1
 	github.com/go-stack/stack v1.8.0

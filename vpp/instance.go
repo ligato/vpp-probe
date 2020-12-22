@@ -1,14 +1,13 @@
 package vpp
 
 import (
-	"context"
+	"encoding/gob"
 	"fmt"
 	"runtime/debug"
 	"strings"
 
 	govppapi "git.fd.io/govpp.git/api"
 	"github.com/sirupsen/logrus"
-	"go.ligato.io/vpp-agent/v3/plugins/govppmux/vppcalls"
 	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi"
 
 	"go.ligato.io/vpp-probe/probe"
@@ -18,7 +17,7 @@ import (
 
 // Instance handles access to a running VPP instance.
 type Instance struct {
-	probe *probe.Probe
+	probe *probe.Instance
 
 	vppClient *vppClient
 	cli       vppcli.Executor
@@ -30,7 +29,7 @@ type Instance struct {
 }
 
 // NewInstance tries to initialize probe and returns a new Instance on success.
-func NewInstance(probe *probe.Probe) (*Instance, error) {
+func NewInstance(probe *probe.Instance) (*Instance, error) {
 	h := &Instance{
 		probe:     probe,
 		vppClient: newVppClient(),
@@ -40,15 +39,14 @@ func NewInstance(probe *probe.Probe) (*Instance, error) {
 }
 
 func (v *Instance) ID() string {
-	//return v.probe.String()
-	return fmt.Sprintf("vpp::%s", v.probe.String())
+	return fmt.Sprintf("vpp::%s", v.probe.Location)
 }
 
 func (v *Instance) Status() *APIStatus {
 	return v.status
 }
 
-func (v *Instance) Probe() *probe.Probe {
+func (v *Instance) Probe() *probe.Instance {
 	return v.probe
 }
 
@@ -63,6 +61,8 @@ func (v *Instance) Init() (err error) {
 		v.status.LastErr = err
 		return err
 	}
+
+	v.vppClient.cli = v.cli
 
 	v.info, err = v.GetVersionInfo()
 	if err != nil {
@@ -145,17 +145,12 @@ func (v *Instance) initBinapi() (err error) {
 	}
 
 	// register binapi messages to gob package (required for proxy)
-	/*msgList, ok := binapi.Versions[v.vppClient.BinapiVersion()]
+	msgList, ok := binapi.Versions[v.vppClient.BinapiVersion()]
 	if !ok {
 		return fmt.Errorf("not found version %v", v.vppClient.BinapiVersion())
 	}
 	for _, msg := range msgList.AllMessages() {
 		gob.Register(msg)
-	}*/
-
-	v.vppClient.vpp, err = vppcalls.NewHandler(v.vppClient)
-	if err != nil {
-		return fmt.Errorf("no compatible VPP handler found: %v", err)
 	}
 
 	v.api = ch
@@ -176,10 +171,10 @@ func (v *Instance) initStats() error {
 }
 
 func (v *Instance) RunCli(cmd string) (string, error) {
-	return v.cli.RunCli(cmd)
-	if v.vppClient.vpp != nil {
+	//return v.cli.RunCli(cmd)
+	/*if v.vppClient.vpp != nil {
 		return v.vppClient.vpp.RunCli(context.Background(), cmd)
-	}
+	}*/
 	if v.cli == nil {
 		return "", ErrCLIUnavailable
 	}

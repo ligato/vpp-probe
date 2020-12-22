@@ -3,12 +3,14 @@ package kube
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	govppapi "git.fd.io/govpp.git/api"
 	"git.fd.io/govpp.git/proxy"
 	"github.com/sirupsen/logrus"
 
 	"go.ligato.io/vpp-probe/probe"
+	"go.ligato.io/vpp-probe/providers"
 	"go.ligato.io/vpp-probe/providers/kube/client"
 	vppcli "go.ligato.io/vpp-probe/vpp/cli"
 )
@@ -32,6 +34,18 @@ func NewHandler(pod *client.Pod) *Handler {
 
 func (h *Handler) ID() string {
 	return fmt.Sprintf("%s/%s/%s", h.pod.Cluster, h.pod.Namespace, h.pod.Name)
+}
+
+func (h *Handler) Metadata() map[string]string {
+	return map[string]string{
+		"env":       providers.Kube,
+		"pod":       h.pod.Name,
+		"namespace": h.pod.Namespace,
+		"cluster":   h.pod.Cluster,
+		"ip":        h.pod.IP,
+		"uid":       string(h.pod.UID),
+		"created":   h.pod.Created.Format(time.UnixDate),
+	}
 }
 
 func (h *Handler) ExecCmd(cmd string, args ...string) (string, error) {

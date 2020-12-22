@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/sirupsen/logrus"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	"go.ligato.io/vpp-probe/probe"
 	"go.ligato.io/vpp-probe/providers"
@@ -18,7 +19,15 @@ type Provider struct {
 }
 
 func NewProvider(kubeconfig string, context string) (*Provider, error) {
-	cfg := client.NewConfig(kubeconfig, context)
+	flags := genericclioptions.NewConfigFlags(true)
+	if kubeconfig != "" {
+		flags.KubeConfig = &kubeconfig
+	}
+	if context != "" {
+		flags.Context = &context
+	}
+
+	cfg := client.NewConfig(flags)
 
 	c, err := client.NewClient(cfg)
 	if err != nil {

@@ -62,8 +62,8 @@ func (p *Provider) Query(params ...map[string]string) ([]probe.Handler, error) {
 	return handlers, nil
 }
 
-func (p *Provider) Search(query ...interface{}) ([]*probe.Probe, error) {
-	var instances []*probe.Probe
+func (p *Provider) Search(query ...interface{}) ([]*probe.Instance, error) {
+	var instances []*probe.Instance
 
 	procs, err := ps.Processes()
 	if err != nil {
@@ -79,8 +79,8 @@ func (p *Provider) Search(query ...interface{}) ([]*probe.Probe, error) {
 		}
 		logrus.Infof("found local vpp process (pid %d)", proc.Pid())
 		handler := NewHandler(proc.Pid(), p.Config)
-		instance := &probe.Probe{
-			Location: handler.ID(),
+		instance := &probe.Instance{
+			//Location: handler.ID(),
 			Provider: p.Name(),
 			Handler:  handler,
 		}

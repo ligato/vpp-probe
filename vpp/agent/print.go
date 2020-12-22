@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"strings"
 	"text/tabwriter"
 
@@ -13,43 +12,44 @@ import (
 	vpp_interfaces "go.ligato.io/vpp-agent/v3/proto/ligato/vpp/interfaces"
 )
 
-func PrintInstance(instance *Instance) {
-	fmt.Println("----------")
-	fmt.Printf("= VPP Instance: %v\n", instance.ID())
-	fmt.Println("----------")
+func PrintInstance(out io.Writer, instance *Instance) {
+	fmt.Fprintln(out, "----------")
+	fmt.Fprintf(out, "= Instance: %+v\n", instance.Metadata)
+	fmt.Fprintln(out, "----------")
 
-	fmt.Printf(" Version: %s\n", color.FgLightBlue.Sprint(instance.Version))
-	fmt.Println()
+	fmt.Fprintf(out, " Version: %s\n", color.FgLightBlue.Sprint(instance.Version))
+	fmt.Fprintln(out)
 
-	PrintInterfacesTable(os.Stdout, instance)
-	fmt.Println()
-	fmt.Printf("%d vpp interfaces\n", len(instance.VppInterfaces))
+	PrintInterfacesTable(out, instance)
+	fmt.Fprintln(out)
+	fmt.Fprintf(out, "%d vpp interfaces\n", len(instance.VppInterfaces))
 
 	if len(instance.LinuxInterfaces) > 0 {
-		fmt.Println()
-		fmt.Printf("%d linux interfaces:\n", len(instance.LinuxInterfaces))
+		fmt.Fprintln(out)
+		fmt.Fprintf(out, "%d linux interfaces:\n", len(instance.LinuxInterfaces))
 		for _, v := range instance.LinuxInterfaces {
 			fmt.Printf(" - %v:\n", v.Value)
 		}
 	}
-	fmt.Printf("\n")
+	fmt.Fprintf(out, "\n")
 }
 
-func PrintCLIs(instance *Instance) {
+func PrintCLIs(out io.Writer, instance *Instance) {
 	for k, v := range instance.Extra {
 		val := color.FgLightBlue.Sprint(v)
 		val = "\t" + strings.ReplaceAll(val, "\n", "\n\t")
-		fmt.Printf("%s:\n\n%s\n", k, val)
-		fmt.Println()
+		fmt.Fprintf(out, "%s:\n\n%s\n", k, val)
+		fmt.Fprintln(out)
 	}
-	fmt.Println()
+	fmt.Fprintln(out)
 }
 
 func PrintInterfacesTable(out io.Writer, instance *Instance) {
-	var buf bytes.Buffer
 	ifaces := instance.VppInterfaces
 	xconns := instance.L2XConnects
 	tunprots := instance.IPSecTunProtects
+
+	var buf bytes.Buffer
 	w := tabwriter.NewWriter(&buf, 1, 8, 0, '\t', tabwriter.StripEscape)
 	fmt.Fprintf(w, "IDX\t%v\t%v\t%v\t%v\tVRF\t%s\tDETAILS\t\n",
 		escapeClr(color.LightWhite, "INTERFACE"), escapeClr(color.White, "TYPE"), escapeClr(color.White, "STATE"), escapeClr(color.White, "IP"), escapeClr(color.White, "MTU"))
@@ -98,19 +98,23 @@ func interfaceInfo(iface VppInterface) string {
 			info += fmt.Sprintf("master:%s ", escapeClr(color.LightYellow, memif.Master))
 		}
 		return info
+
 	case vpp_interfaces.Interface_VXLAN_TUNNEL:
 		vxlan := iface.Value.GetVxlan()
 		var info string
 		info += fmt.Sprintf("src:%s -> dst:%s (vni:%v)", escapeClr(color.LightYellow, vxlan.SrcAddress), escapeClr(color.LightYellow, vxlan.DstAddress), escapeClr(color.LightYellow, vxlan.Vni))
 		return info
+
 	case vpp_interfaces.Interface_TAP:
 		tap := iface.Value.GetTap()
 		return fmt.Sprintf("host_ifname:%s %v", escapeClr(color.LightYellow, iface.Metadata["TAPHostIfName"]), tap.String())
+
 	case vpp_interfaces.Interface_AF_PACKET:
 		afp := iface.Value.GetAfpacket()
 		var info string
 		info += fmt.Sprintf("host_if_name:%s", escapeClr(color.LightYellow, afp.HostIfName))
 		return info
+
 	case vpp_interfaces.Interface_IPIP_TUNNEL:
 		tun := iface.Value.GetIpip()
 		var info string
