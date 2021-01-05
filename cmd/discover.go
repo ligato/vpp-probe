@@ -12,10 +12,10 @@ import (
 )
 
 const discoverExample = `  # Discover VPP instances in Kubernetes pods with label "app=vpp""
-  vpp-probe discover --env=kube --query "label=app=vpp"
+  vpp-probe discover -e kube -q "label=app=vpp"
 
   # Discover VPP instances in Docker container with name "vpp1"
-  vpp-probe discover --env=docker --query  "name=vpp1"
+  vpp-probe discover -e docker -q  "name=vpp1"
 
   # Discover instances running locally
   vpp-probe discover`
@@ -25,18 +25,17 @@ func NewDiscoverCmd(glob *Flags) *cobra.Command {
 		opts DiscoverOptions
 	)
 	cmd := &cobra.Command{
-		Use:     "discover",
-		Aliases: []string{"discovery"},
-		Short:   "Discover running VPP instances",
+		Use:   "discover",
+		Short: "Discover running VPP instances",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return RunDiscover(*glob, opts)
 		},
 		Example: discoverExample,
 	}
 	flags := cmd.Flags()
+	flags.StringVarP(&opts.Format, "format", "f", "", "Output format.")
 	flags.BoolVar(&opts.PrintCLIs, "printclis", false, "Print output from CLI commands for each instance.")
 	flags.StringSliceVar(&opts.ExtraCLIs, "extraclis", nil, "Additional CLI commands to run for each instance.")
-	flags.StringVarP(&opts.Format, "format", "f", "", "Output format.")
 	return cmd
 }
 

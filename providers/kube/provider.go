@@ -64,14 +64,14 @@ func (p *Provider) Query(params ...map[string]string) ([]probe.Handler, error) {
 		return nil, err
 	}
 
-	logrus.Infof("-> query %q in %v (cluster %v)", params, p.client, p.client.Cluster())
+	logrus.Debugf("-> query %q in %v (cluster %v)", params, p.client, p.client.Cluster())
 
 	pods, err := queryPods(p.client, queries)
 	if err != nil {
 		return nil, fmt.Errorf("query pods error: %w", err)
 	}
 
-	logrus.Infof("found %d pods", len(pods))
+	logrus.Debugf("found %d pods", len(pods))
 
 	var handlers []probe.Handler
 	for _, pod := range pods {

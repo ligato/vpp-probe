@@ -15,7 +15,7 @@ import (
 	"github.com/sirupsen/logrus"
 	tview "gitlab.com/tslocum/cview"
 
-	"go.ligato.io/vpp-probe/controller"
+	"go.ligato.io/vpp-probe/probe/controller"
 )
 
 // App is a terminal UI app,

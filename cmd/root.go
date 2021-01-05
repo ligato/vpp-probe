@@ -42,22 +42,23 @@ func NewRootCmd() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			Init(glob)
+			initRoot(glob)
 		},
 	}
+
 	flags := cmd.PersistentFlags()
 	glob.AddFlags(flags)
 
 	cmd.AddCommand(
 		versionCmd(),
-		inspectorCmd(&glob),
+		NewInspectorCmd(&glob),
 		NewDiscoverCmd(&glob),
 		NewTracerCmd(&glob),
 	)
 	return cmd
 }
 
-func Init(glob Flags) {
+func initRoot(glob Flags) {
 	if os.Getenv("VPP_PROBE_DEBUG") != "" {
 		glob.Debug = true
 	}

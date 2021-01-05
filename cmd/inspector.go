@@ -8,7 +8,7 @@ import (
 	"go.ligato.io/vpp-probe/internal/ui"
 )
 
-func inspectorCmd(glob *Flags) *cobra.Command {
+func NewInspectorCmd(glob *Flags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "inspector",
 		Aliases: []string{"inspect"},

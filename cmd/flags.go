@@ -7,8 +7,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 
-	"go.ligato.io/vpp-probe/controller"
 	"go.ligato.io/vpp-probe/probe"
+	"go.ligato.io/vpp-probe/probe/controller"
 	"go.ligato.io/vpp-probe/providers"
 	"go.ligato.io/vpp-probe/providers/docker"
 	"go.ligato.io/vpp-probe/providers/kube"
@@ -34,7 +34,7 @@ type GlobalFlags struct {
 
 func (glob *GlobalFlags) AddFlags(flags *pflag.FlagSet) {
 	flags.BoolVarP(&glob.Debug, "debug", "D", false, "Enable debug mode")
-	flags.StringVar(&glob.LogLevel, "loglevel", "", "Set logging level")
+	flags.StringVarP(&glob.LogLevel, "loglevel", "L", "", "Set logging level")
 }
 
 type ProviderFlags struct {
@@ -58,15 +58,23 @@ type ProviderFlags struct {
 }
 
 func (f *ProviderFlags) AddFlags(flags *pflag.FlagSet) {
-	flags.StringVar(&f.Env, "env", "", "Environment type in which VPP is running (local, kube)")
-	flags.StringArrayVarP(&f.Queries, "query", "q", nil, "Query parameters")
+	flags.StringVarP(&f.Env, "env", "e", "",
+		`Environment type in which VPP is running. Supported environments are local, docker and kube,
+where VPP is running as a local process, as a Docker container or as a Kubernetes pod, respectivelly.
+`)
+	flags.StringArrayVarP(&f.Queries, "query", "q", nil,
+		`Selector query to filter VPP instances on, supports '=' (e.g --query key1=value1). 
+Multiple parameters in a single query (using AND logic) are separated by a comma (e.g. -q key1=val1,key2=val2) and 
+multiple queries (using OR logic) can be defined as additional flag options (e.g. -q k1=v1 -q k1=v2). 
+Parameter types depend on probe environment (defined with --env).
+`)
 
 	// vpp flags
 	flags.StringVar(&f.APISocket, "apisock", "/run/vpp/api.sock", "Path to VPP binary API socket file")
 	flags.StringVar(&f.StatsSocket, "statsock", "/run/vpp/stats.sock", "Path to VPP stats API socket file")
 
 	// docker flags
-	flags.StringVarP(&f.Docker.Host, "dockerhost", "H", "", "Daemon socket(s) to connect to\n")
+	flags.StringVar(&f.Docker.Host, "dockerhost", "", "Daemon socket(s) to connect to\n")
 
 	// kube flags
 	flags.StringVar(&f.Kube.Kubeconfig, "kubeconfig", "", "Path to kubeconfig, defaults to ~/.kube/config (or set via KUBECONFIG)")
@@ -77,14 +85,14 @@ func (f *ProviderFlags) AddFlags(flags *pflag.FlagSet) {
 func SetupController(glob Flags) (*controller.Controller, error) {
 	env := resolveEnv(glob)
 
-	logrus.Infof("Setting up %v provider env", env)
+	logrus.Debugf("Setting up %v provider env", env)
 
 	providers, err := SetupProvider(env, glob.ProviderFlags)
 	if err != nil {
 		return nil, err
 	}
 
-	logrus.Infof("adding %v providers", len(providers))
+	logrus.Debugf("adding %v providers", len(providers))
 
 	return newController(providers...), nil
 }
@@ -97,7 +105,7 @@ func newController(providers ...probe.Provider) *controller.Controller {
 			logrus.Warnf("add provider failed: %v", err)
 			continue
 		}
-		logrus.Infof("%v provider %v connected", provider.Env(), provider.Name())
+		logrus.Debugf("%v provider %v connected", provider.Env(), provider.Name())
 	}
 
 	return probectl

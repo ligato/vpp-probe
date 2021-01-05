@@ -61,14 +61,12 @@ func (c *Controller) DiscoverInstances(queries ...string) error {
 			logrus.Warnf("provider %q discover error: %v", p.Name(), err)
 			continue
 		}
-
 		c.instances = append(c.instances, instances...)
 	}
 
 	if len(c.instances) == 0 {
 		return fmt.Errorf("no VPP instances available")
 	}
-
 	return nil
 }
 
