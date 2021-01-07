@@ -87,14 +87,14 @@ func SetupController(glob Flags) (*controller.Controller, error) {
 
 	logrus.Debugf("Setting up %v provider env", env)
 
-	providers, err := SetupProvider(env, glob.ProviderFlags)
+	pvds, err := SetupProvider(env, glob.ProviderFlags)
 	if err != nil {
 		return nil, err
 	}
 
-	logrus.Debugf("adding %v providers", len(providers))
+	logrus.Debugf("adding %v providers", len(pvds))
 
-	return newController(providers...), nil
+	return newController(pvds...), nil
 }
 
 func newController(providers ...probe.Provider) *controller.Controller {
@@ -120,7 +120,7 @@ func SetupProvider(env probe.Env, opt ProviderFlags) ([]probe.Provider, error) {
 		}
 		return []probe.Provider{provider}, nil
 	case providers.Kube:
-		provider, err := setupKubeProvides(opt.Kube.Kubeconfig, opt.Kube.Context)
+		provider, err := setupKubeProviders(opt.Kube.Kubeconfig, opt.Kube.Context)
 		if err != nil {
 			return nil, err
 		}
@@ -136,8 +136,8 @@ func SetupProvider(env probe.Env, opt ProviderFlags) ([]probe.Provider, error) {
 	}
 }
 
-func setupKubeProvides(kubeconfig, context string) ([]probe.Provider, error) {
-	var providers []probe.Provider
+func setupKubeProviders(kubeconfig, context string) ([]probe.Provider, error) {
+	var pvds []probe.Provider
 
 	contexts := strings.Split(context, ",")
 	for _, ctx := range contexts {
@@ -145,10 +145,10 @@ func setupKubeProvides(kubeconfig, context string) ([]probe.Provider, error) {
 		if err != nil {
 			return nil, err
 		}
-		providers = append(providers, provider)
+		pvds = append(pvds, provider)
 	}
 
-	return providers, nil
+	return pvds, nil
 }
 
 func resolveEnv(glob Flags) (env providers.Env) {
