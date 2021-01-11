@@ -42,10 +42,15 @@ func (h *Handler) ID() string {
 }
 
 func (h *Handler) Metadata() map[string]string {
+	id := h.container.ID
+	if len(id) > 12 {
+		id = h.container.ID[:12]
+	}
 	return map[string]string{
 		"env":       providers.Docker,
+		"name":      h.container.Name,
 		"container": h.container.Name,
-		"id":        h.container.ID,
+		"id":        id,
 		"image":     h.container.Image,
 		"created":   h.container.Created.Format(time.UnixDate),
 	}

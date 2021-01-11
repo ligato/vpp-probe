@@ -51,13 +51,13 @@ func newProvider(c *docker.Client) (*Provider, error) {
 	return provider, nil
 }
 
-func (p *Provider) Env() probe.Env {
+func (p *Provider) Env() string {
 	return providers.Docker
 }
 
 func (p *Provider) Name() string {
 	endpoint := p.client.Endpoint()
-	return fmt.Sprintf("docker::%v@%v", endpoint, p.info.Name)
+	return fmt.Sprintf("%v@%v", endpoint, p.info.Name)
 }
 
 func (p *Provider) Query(params ...map[string]string) ([]probe.Handler, error) {
@@ -140,9 +140,13 @@ type ContainerQuery struct {
 }
 
 func newQuery(params map[string]string) ContainerQuery {
+	name := params["name"]
+	if pod, ok := params["container"]; ok && pod != "" {
+		name = pod
+	}
 	return ContainerQuery{
 		ID:    params["id"],
-		Name:  params["name"],
+		Name:  name,
 		Label: params["label"],
 	}
 }

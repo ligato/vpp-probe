@@ -31,7 +31,7 @@ func NewProvider(kubeconfig string, context string) (*Provider, error) {
 
 	c, err := client.NewClient(cfg)
 	if err != nil {
-		logrus.Warnf("loading clientl for context %v failed: %v", context, err)
+		logrus.Debugf("loading client for context %v failed: %v", context, err)
 		return nil, err
 	}
 
@@ -50,12 +50,12 @@ func NewProvider(kubeconfig string, context string) (*Provider, error) {
 	return provider, nil
 }
 
-func (p *Provider) Env() probe.Env {
+func (p *Provider) Env() string {
 	return providers.Kube
 }
 
 func (p *Provider) Name() string {
-	return fmt.Sprintf("kube::%v", p.client.String())
+	return fmt.Sprintf("%v", p.client.String())
 }
 
 func (p *Provider) Query(params ...map[string]string) ([]probe.Handler, error) {
@@ -136,8 +136,12 @@ type PodQuery struct {
 }
 
 func newPodQuery(params map[string]string) PodQuery {
+	name := params["name"]
+	if pod, ok := params["pod"]; ok && pod != "" {
+		name = pod
+	}
 	return PodQuery{
-		Name:          params["name"],
+		Name:          name,
 		Namespace:     params["namespace"],
 		LabelSelector: params["label"],
 		FieldSelector: params["field"],

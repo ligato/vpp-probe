@@ -40,9 +40,11 @@ func (h *Handler) Metadata() map[string]string {
 	return map[string]string{
 		"env":       providers.Kube,
 		"pod":       h.pod.Name,
+		"name":      h.pod.Name,
 		"namespace": h.pod.Namespace,
 		"cluster":   h.pod.Cluster,
 		"ip":        h.pod.IP,
+		"image":     h.pod.Image,
 		"uid":       string(h.pod.UID),
 		"created":   h.pod.Created.Format(time.UnixDate),
 	}

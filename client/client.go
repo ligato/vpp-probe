@@ -1,20 +1,13 @@
-package controller
+package client
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/sirupsen/logrus"
 
 	"go.ligato.io/vpp-probe/probe"
 	"go.ligato.io/vpp-probe/vpp"
 )
-
-// TODO:
-//  - run instance discovery in intervals
-//  - consider using list of providers instead of one
-//  - check if instances are still running periodically
-//  - stream events (new instance, instance unreachable..) via channel
 
 // Controller is a probe controller for VPP instances.
 type Controller struct {
@@ -50,9 +43,7 @@ func (c *Controller) Instances() []*vpp.Instance {
 
 // DiscoverInstances discovers running VPP instances via probe provider and
 // updates the list of instances with active instances from discovery.
-func (c *Controller) DiscoverInstances(queries ...string) error {
-	queryParams := parseQueries(queries)
-
+func (c *Controller) DiscoverInstances(queryParams ...map[string]string) error {
 	c.instances = nil
 
 	for _, p := range c.providers {
@@ -78,16 +69,9 @@ func (c *Controller) discoverInstances(provider probe.Provider, queryParams ...m
 
 	var instances []*vpp.Instance
 	for _, handler := range handlers {
-		instance := &probe.Instance{
-			Provider: provider.Name(),
-			Location: handler.ID(),
-			Metadata: handler.Metadata(),
-			Handler:  handler,
-		}
-
-		inst, err := vpp.NewInstance(instance)
+		inst, err := newInstance(handler)
 		if err != nil {
-			logrus.Warnf("instance %v init error: %v", instance.Location, err)
+			logrus.Warnf("instance %v init error: %v", inst.ID(), err)
 			continue
 		}
 
@@ -96,25 +80,12 @@ func (c *Controller) discoverInstances(provider probe.Provider, queryParams ...m
 	return instances, nil
 }
 
-func parseQueries(queries []string) []map[string]string {
-	const (
-		queryParamSeparator  = ";"
-		paramKeyValSeparator = "="
-	)
-	var queryParams []map[string]string
-	for _, q := range queries {
-		params := strings.Split(q, queryParamSeparator)
-		qp := map[string]string{}
-		for _, p := range params {
-			if i := strings.Index(p, paramKeyValSeparator); i > 0 {
-				key := p[:i]
-				val := p[i+1:]
-				qp[key] = val
-			} else {
-				qp[p] = ""
-			}
-		}
-		queryParams = append(queryParams, qp)
+func newInstance(handler probe.Handler) (*vpp.Instance, error) {
+	inst, err := vpp.NewInstance(handler)
+	if err != nil {
+		logrus.Warnf("instance %v init error: %v", handler.ID(), err)
+		return nil, err
 	}
-	return queryParams
+
+	return inst, nil
 }

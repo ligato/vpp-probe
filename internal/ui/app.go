@@ -15,7 +15,7 @@ import (
 	"github.com/sirupsen/logrus"
 	tview "gitlab.com/tslocum/cview"
 
-	"go.ligato.io/vpp-probe/probe/controller"
+	"go.ligato.io/vpp-probe/client"
 )
 
 // App is a terminal UI app,
@@ -26,7 +26,7 @@ type App struct {
 	cancel func()
 	wg     sync.WaitGroup
 
-	probectl  *controller.Controller
+	probectl  *client.Controller
 	instances []*VPP
 
 	navbar         *Navbar
@@ -41,7 +41,7 @@ type App struct {
 	logFile   *os.File
 }
 
-func NewApp(probectl *controller.Controller) *App {
+func NewApp(probectl *client.Controller) *App {
 	a := &App{
 		Application: tview.NewApplication(),
 		probectl:    probectl,
@@ -168,11 +168,11 @@ func (a *App) initSignals() {
 	}(sig)
 }
 
-func (a *App) RunDiscovery(queryParams ...string) {
+func (a *App) RunDiscovery(queryParams ...map[string]string) {
 	a.instances = nil
 	a.instanceList.Clear()
 
-	modalText := fmt.Sprintf("Discovering instances..\n\n%d providers\n\n%v", len(a.probectl.GetProviders()), a.probectl.GetProviders())
+	modalText := fmt.Sprintf("Discovering instances..\n\n%d providers", len(a.probectl.GetProviders()))
 
 	modal := tview.NewModal()
 	modal.SetTitle("Discovering instances..")

@@ -52,7 +52,7 @@ func NewHandler(pid int, config HandlerConfig) *Handler {
 }
 
 func (h *Handler) ID() string {
-	return fmt.Sprintf("pid-%d", h.pid)
+	return fmt.Sprintf("local-%d", h.pid)
 }
 
 func (h *Handler) Metadata() map[string]string {

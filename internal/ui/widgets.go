@@ -91,8 +91,8 @@ func (v *InfoPanel) SetInstance(vpp *VPP) {
 	v.Clear()
 	status := vpp.Status()
 	info := []string{
-		fmt.Sprintf("Location: [steelblue]%v[-]", vpp.Probe().Location),
-		fmt.Sprintf("Provider: [steelblue]%v[-]", vpp.Probe().Provider),
+		fmt.Sprintf("Instance: [steelblue]%v[-]", vpp.Handler().ID()),
+		"",
 		fmt.Sprintf("Status:   [%s]CLI %v[-] / [%s]API %v[-] / [%s]Stats %v[-]",
 			statusColor(status.CLI), status.CLI,
 			statusColor(status.BinAPI), status.BinAPI,
@@ -108,7 +108,7 @@ func (v *InfoPanel) SetInstance(vpp *VPP) {
 	var updated string
 	sinceUpdate := time.Since(vpp.LastUpdate)
 	if vpp.Updating {
-		updated = fmt.Sprintf("updating (last [%s]%v[-])", updatedColor(sinceUpdate), shortHumanDuration(sinceUpdate))
+		updated = fmt.Sprintf("updating now..")
 	} else {
 		updated = fmt.Sprintf("last update [%s]%v[-]", updatedColor(sinceUpdate), shortHumanDuration(sinceUpdate))
 	}

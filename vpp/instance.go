@@ -17,7 +17,7 @@ import (
 
 // Instance handles access to a running VPP instance.
 type Instance struct {
-	probe *probe.Instance
+	handler probe.Handler
 
 	vppClient *vppClient
 	cli       vppcli.Executor
@@ -29,9 +29,9 @@ type Instance struct {
 }
 
 // NewInstance tries to initialize probe and returns a new Instance on success.
-func NewInstance(probe *probe.Instance) (*Instance, error) {
+func NewInstance(probe probe.Handler) (*Instance, error) {
 	h := &Instance{
-		probe:     probe,
+		handler:   probe,
 		vppClient: newVppClient(),
 		status:    &APIStatus{},
 	}
@@ -39,15 +39,15 @@ func NewInstance(probe *probe.Instance) (*Instance, error) {
 }
 
 func (v *Instance) ID() string {
-	return fmt.Sprintf("vpp::%s", v.probe.Location)
+	return fmt.Sprintf("vpp::%s", v.handler.ID())
 }
 
 func (v *Instance) Status() *APIStatus {
 	return v.status
 }
 
-func (v *Instance) Probe() *probe.Instance {
-	return v.probe
+func (v *Instance) Handler() probe.Handler {
+	return v.handler
 }
 
 func (v *Instance) VersionInfo() *api.VersionInfo {
@@ -57,7 +57,7 @@ func (v *Instance) VersionInfo() *api.VersionInfo {
 func (v *Instance) Init() (err error) {
 	logrus.Debugf("init probe %v", v.ID())
 
-	if err = v.init(); err != nil {
+	if err = v.initVPP(); err != nil {
 		v.status.LastErr = err
 		return err
 	}
@@ -73,7 +73,7 @@ func (v *Instance) Init() (err error) {
 	return nil
 }
 
-func (v *Instance) init() (err error) {
+func (v *Instance) initVPP() (err error) {
 	if err = v.initCLI(); err != nil {
 		v.status.CLI.SetError(err)
 		logrus.Warnf("CLI init error: %v", err)
@@ -100,7 +100,7 @@ func (v *Instance) init() (err error) {
 }
 
 func (v *Instance) initCLI() error {
-	cli, err := v.probe.GetCLI()
+	cli, err := v.handler.GetCLI()
 	if err != nil {
 		return err
 	}
@@ -116,7 +116,7 @@ func (v *Instance) initBinapi() (err error) {
 		}
 	}()
 
-	ch, err := v.probe.GetAPI()
+	ch, err := v.handler.GetAPI()
 	if err != nil {
 		return err
 	}
@@ -158,7 +158,7 @@ func (v *Instance) initBinapi() (err error) {
 }
 
 func (v *Instance) initStats() error {
-	stats, err := v.probe.GetStats()
+	stats, err := v.handler.GetStats()
 	if err != nil {
 		return err
 	}

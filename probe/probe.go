@@ -5,12 +5,10 @@ import (
 	govppapi "git.fd.io/govpp.git/api"
 )
 
-// Env defines an environment for probe provider.
-type Env string
-
 // Provider provides ways to discover instances.
 type Provider interface {
-	Env() Env
+	// Env returns the environment type of the provider.
+	Env() string
 
 	// Name returns a name of the provider.
 	Name() string
@@ -27,8 +25,10 @@ type Handler interface {
 
 	// ID returns a string that identifies the instance.
 	ID() string
+
 	// Metadata returns a map of metadata for the instance handler.
 	Metadata() map[string]string
+
 	// Close closes open connections and frees resources used for this instance.
 	Close() error
 }
@@ -43,8 +43,10 @@ type Host interface {
 type VPP interface {
 	// GetCLI returns an executor for CLI commands.
 	GetCLI() (CliExecutor, error)
+
 	// GetAPI returns a channel for binary API requests.
 	GetAPI() (govppapi.Channel, error)
+
 	// GetStats returns a provider for stats data.
 	GetStats() (govppapi.StatsProvider, error)
 }

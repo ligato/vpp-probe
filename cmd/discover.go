@@ -3,15 +3,16 @@ package cmd
 import (
 	"fmt"
 	"io"
-	"os"
 
+	"github.com/gookit/color"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"go.ligato.io/vpp-probe/providers"
 	"go.ligato.io/vpp-probe/vpp/agent"
 )
 
-const discoverExample = `  # Discover VPP instances in Kubernetes pods with label "app=vpp""
+const discoverExample = `  # Discover VPP instances in Kubernetes pods with label "app=vpp"
   vpp-probe discover -e kube -q "label=app=vpp"
 
   # Discover VPP instances in Docker container with name "vpp1"
@@ -20,7 +21,7 @@ const discoverExample = `  # Discover VPP instances in Kubernetes pods with labe
   # Discover instances running locally
   vpp-probe discover`
 
-func NewDiscoverCmd(glob *Flags) *cobra.Command {
+func NewDiscoverCmd(cli *ProbeCli) *cobra.Command {
 	var (
 		opts DiscoverOptions
 	)
@@ -28,7 +29,7 @@ func NewDiscoverCmd(glob *Flags) *cobra.Command {
 		Use:   "discover",
 		Short: "Discover running VPP instances",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return RunDiscover(*glob, opts)
+			return RunDiscover(cli, opts)
 		},
 		Example: discoverExample,
 	}
@@ -45,27 +46,19 @@ type DiscoverOptions struct {
 	Format    string
 }
 
-func RunDiscover(glob Flags, opts DiscoverOptions) error {
-	output := os.Stdout
-	format := opts.Format
-
-	ctl, err := SetupController(glob)
-	if err != nil {
-		return fmt.Errorf("provider setup error: %w", err)
-	}
-
-	if err := ctl.DiscoverInstances(glob.Queries...); err != nil {
+func RunDiscover(cli *ProbeCli, opts DiscoverOptions) error {
+	if err := cli.Controller().DiscoverInstances(cli.Queries()...); err != nil {
 		return err
 	}
 
-	instances := ctl.Instances()
-	logrus.Infof("discovered %d vpp instances", len(instances))
+	instances := cli.Controller().Instances()
+	logrus.Debugf("discovered %d vpp instances", len(instances))
 
 	var agentInstances []*agent.Instance
 	for _, instance := range instances {
 		logrus.Debugf("- checking instance %+v: %v", instance.ID(), instance.Status())
 
-		vpp, err := agent.NewInstance(instance.Probe())
+		vpp, err := agent.NewInstance(instance.Handler())
 		if err != nil {
 			logrus.Errorf("instance %v error: %v", instance.ID(), err)
 			continue
@@ -78,10 +71,10 @@ func RunDiscover(glob Flags, opts DiscoverOptions) error {
 
 		agentInstances = append(agentInstances, vpp)
 
-		if len(format) == 0 {
-			printDiscoverTable(output, vpp, opts.PrintCLIs)
+		if format := opts.Format; len(format) == 0 {
+			printDiscoverTable(cli.Out(), vpp, opts.PrintCLIs)
 		} else {
-			if err := formatAsTemplate(output, format, vpp); err != nil {
+			if err := formatAsTemplate(cli.Out(), format, vpp); err != nil {
 				return err
 			}
 		}
@@ -90,9 +83,42 @@ func RunDiscover(glob Flags, opts DiscoverOptions) error {
 	return nil
 }
 
-func printDiscoverTable(output io.Writer, vpp *agent.Instance, printClis bool) {
-	agent.PrintInstance(output, vpp)
+func printDiscoverTable(out io.Writer, instance *agent.Instance, printClis bool) {
+	printInstanceHeader(out, instance)
+	agent.PrintInstance(out, instance)
 	if printClis {
-		agent.PrintCLIs(output, vpp)
+		agent.PrintCLIs(out, instance)
 	}
+}
+
+func printInstanceHeader(out io.Writer, instance *agent.Instance) {
+	header := "Instance"
+	metadata := instance.Handler.Metadata()
+
+	switch metadata["env"] {
+	case providers.Kube:
+		header = fmt.Sprintf("cluster: %s | pod: %s | namespace: %s | ip: %s | image: %s",
+			color.Yellow.Sprint(metadata["cluster"]),
+			color.Yellow.Sprint(metadata["pod"]),
+			color.Yellow.Sprint(metadata["namespace"]),
+			color.Yellow.Sprint(metadata["ip"]),
+			color.Yellow.Sprint(metadata["image"]),
+		)
+	case providers.Docker:
+		header = fmt.Sprintf("container: %s | id: %s | image: %s",
+			color.Yellow.Sprint(metadata["container"]),
+			color.Yellow.Sprint(metadata["id"]),
+			color.Yellow.Sprint(metadata["image"]),
+		)
+	case providers.Local:
+		header = fmt.Sprintf("pid: %s",
+			color.Yellow.Sprint(metadata["pid"]),
+		)
+	default:
+		header = fmt.Sprintf("%+v", metadata)
+	}
+
+	fmt.Fprintln(out, "--------------------------------------------------------------------------------------------------------")
+	fmt.Fprintf(out, " %s\n", header)
+	fmt.Fprintln(out, "--------------------------------------------------------------------------------------------------------")
 }

@@ -16,13 +16,14 @@ type Pod struct {
 	IP        string
 	Created   time.Time
 	URL       string
+	Image     string
 
 	client *Client
 }
 
 // Strings returns name for this pod prefixed with cluster name and namespace.
 func (p Pod) String() string {
-	return fmt.Sprintf("%s/%s", p.Namespace, p.Name)
+	return fmt.Sprintf("%s::%s", p.Namespace, p.Name)
 }
 
 // Age returns duration since the pod started.

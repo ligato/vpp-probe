@@ -8,36 +8,27 @@ import (
 	"go.ligato.io/vpp-probe/internal/ui"
 )
 
-func NewInspectorCmd(glob *Flags) *cobra.Command {
+func NewInspectorCmd(cli *ProbeCli) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "inspector",
-		Aliases: []string{"inspect"},
+		Aliases: []string{"inspect", "ui"},
 		Short:   "Inspect VPP instances using terminal UI browser",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runInspector(*glob)
+			return runInspector(cli)
 		},
 	}
 	return cmd
 }
 
-func runInspector(glob Flags) error {
+func runInspector(cli *ProbeCli) error {
 	defer func() {
 		if err := recover(); err != nil {
 			logrus.Errorf("PANIC: %+v\n%v", err, stack.Trace().String())
 		}
 	}()
 
-	logrus.Infof("🔭 Probe starting up..")
-
-	ctl, err := SetupController(glob)
-	if err != nil {
-		return err
-	}
-
-	logrus.Infof("✅ Probe ready! Opening UI app..")
-
-	app := ui.NewApp(ctl)
-	app.RunDiscovery(glob.Queries...)
+	app := ui.NewApp(cli.Controller())
+	app.RunDiscovery(cli.Queries()...)
 
 	if err := app.Run(); err != nil {
 		return err

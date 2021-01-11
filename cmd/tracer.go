@@ -20,7 +20,7 @@ const traceExample = `  # Trace packets while running ping
   # Trace packets for duration 3s
   trace --env kube -q label=app=vpp -d 5s`
 
-func NewTracerCmd(glob *Flags) *cobra.Command {
+func NewTracerCmd(cli *ProbeCli) *cobra.Command {
 	var (
 		opts = DefaultTracerOptions
 	)
@@ -35,7 +35,7 @@ func NewTracerCmd(glob *Flags) *cobra.Command {
 			if len(args) > 0 {
 				opts.CustomCmd = strings.Join(args, " ")
 			}
-			return runTracer(*glob, opts)
+			return RunTracer(cli, opts)
 		},
 	}
 	flags := cmd.Flags()
@@ -64,16 +64,11 @@ var DefaultTracerOptions = TracerOptions{
 	PrintResult: false,
 }
 
-func runTracer(glob Flags, opts TracerOptions) error {
-	ctl, err := SetupController(glob)
-	if err != nil {
+func RunTracer(cli Cli, opts TracerOptions) error {
+	if err := cli.Controller().DiscoverInstances(cli.Queries()...); err != nil {
 		return err
 	}
-
-	if err := ctl.DiscoverInstances(glob.Queries...); err != nil {
-		return err
-	}
-	instances := ctl.Instances()
+	instances := cli.Controller().Instances()
 
 	logrus.Debugf("running tracer with %d instances", len(instances))
 

@@ -69,11 +69,11 @@ func (k *Client) Clientset() kubernetes.Interface {
 
 // Cluster returns the cluster name used for this client.
 func (k *Client) Context() string {
-	context, err := k.config.CurrentContext()
+	ctx, err := k.config.CurrentContext()
 	if err != nil {
 		return ""
 	}
-	return context
+	return ctx
 }
 
 // Cluster returns the cluster name used for this client.
@@ -107,6 +107,9 @@ func (k *Client) GetPod(namespace string, name string) (*Pod, error) {
 	if namespace == "" {
 		namespace = k.Namespace()
 	}
+	if namespace == "" {
+		namespace = "default"
+	}
 	pod, err := k.client.CoreV1().Pods(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -134,26 +137,31 @@ func (k *Client) ListPods(namespace string, labelSelector, fieldSelector string)
 }
 
 func (k *Client) newPod(p *corev1.Pod) *Pod {
+	img := "?"
+	if len(p.Status.ContainerStatuses) > 0 {
+		img = p.Status.ContainerStatuses[0].Image
+	}
 	return &Pod{
-		UID:       p.UID,
+		client:    k,
 		Cluster:   k.Cluster(),
+		UID:       p.GetUID(),
 		Name:      p.GetName(),
 		Namespace: p.GetNamespace(),
 		IP:        p.Status.PodIP,
-		Created:   p.CreationTimestamp.Time,
+		Created:   p.GetCreationTimestamp().Time,
 		URL:       p.GetSelfLink(),
-		client:    k,
+		Image:     img,
 	}
 }
 
 // Exec calls the API to execute a command in a container of a pod.
 func (k *Client) Exec(namespace, pod, container, command string) (string, error) {
-	var out bytes.Buffer
-	err := execCmd(k.client, k.restConfig, namespace, pod, container, command, nil, &out, &out)
+	var stdout, stderr bytes.Buffer
+	err := execCmd(k.client, k.restConfig, namespace, pod, container, command, nil, &stdout, &stderr)
 	if err != nil {
-		return "", err
+		return stderr.String(), err
 	}
-	return out.String(), nil
+	return stdout.String(), nil
 }
 
 // ExecCmd exec command on specific pod and wait the command's output.
@@ -165,9 +173,9 @@ func execCmd(client kubernetes.Interface, config *restclient.Config, namespace, 
 		Container: container,
 		Command:   cmd,
 		Stdin:     stdin != nil,
-		Stdout:    true,
-		Stderr:    true,
-		TTY:       true,
+		Stdout:    stdout != nil,
+		Stderr:    stderr != nil,
+		TTY:       false,
 	}
 	req := client.CoreV1().RESTClient().Post().
 		Resource("pods").
@@ -185,7 +193,7 @@ func execCmd(client kubernetes.Interface, config *restclient.Config, namespace, 
 		Stdin:  stdin,
 		Stdout: stdout,
 		Stderr: stderr,
-		Tty:    true,
+		Tty:    false,
 	})
 	if err != nil {
 		return err
