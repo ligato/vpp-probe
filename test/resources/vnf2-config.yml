@@ -1,0 +1,21 @@
+vppConfig:
+  interfaces:
+    - name: "port1"
+      type: MEMIF
+      enabled: true
+      mtu: 1500
+      memif:
+        id: 3
+        socket_filename: "/tmp/memif.sock"
+    - name: "port2"
+      type: MEMIF
+      enabled: true
+      mtu: 1500
+      memif:
+        id: 1
+        socket_filename: "/tmp/memif.sock"
+  xconnect_pairs:
+    - receive_interface: "port1"
+      transmit_interface: "port2"
+    - receive_interface: "port2"
+      transmit_interface: "port1"
