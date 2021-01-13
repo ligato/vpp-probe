@@ -145,6 +145,7 @@ func (k *Client) newPod(p *corev1.Pod) *Pod {
 		client:    k,
 		Cluster:   k.Cluster(),
 		UID:       p.GetUID(),
+		Node:      p.Status.NominatedNodeName,
 		Name:      p.GetName(),
 		Namespace: p.GetNamespace(),
 		IP:        p.Status.PodIP,

@@ -8,7 +8,7 @@ import (
 	"go.ligato.io/vpp-probe/internal/ui"
 )
 
-func NewInspectorCmd(cli *ProbeCli) *cobra.Command {
+func NewInspectorCmd(cli Cli) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "inspector",
 		Aliases: []string{"inspect", "ui"},
@@ -20,7 +20,7 @@ func NewInspectorCmd(cli *ProbeCli) *cobra.Command {
 	return cmd
 }
 
-func runInspector(cli *ProbeCli) error {
+func runInspector(cli Cli) error {
 	defer func() {
 		if err := recover(); err != nil {
 			logrus.Errorf("PANIC: %+v\n%v", err, stack.Trace().String())

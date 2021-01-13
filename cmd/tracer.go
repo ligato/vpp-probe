@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gookit/color"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -20,7 +21,7 @@ const traceExample = `  # Trace packets while running ping
   # Trace packets for duration 3s
   trace --env kube -q label=app=vpp -d 5s`
 
-func NewTracerCmd(cli *ProbeCli) *cobra.Command {
+func NewTracerCmd(cli Cli) *cobra.Command {
 	var (
 		opts = DefaultTracerOptions
 	)
@@ -118,29 +119,33 @@ func RunTracer(cli Cli, opts TracerOptions) error {
 		done = append(done, traced)
 	}
 
-	logrus.Infof("trace results retrieved from %d instances", len(done))
+	logrus.Debugf("trace results retrieved from %d instances", len(done))
 
 	for _, traced := range done {
-		logrus.Infof("= instance %v", traced)
-
 		result := traced.TraceResult()
-		if result == nil {
-			logrus.Infof("  traced: N/A")
+		if result == nil || len(result.Packets) == 0 {
+			logrus.Infof("- %v:\t %v", color.Gray.Sprint(traced), color.FgDarkGray.Sprint("N/A"))
 			continue
 		} else {
-			logrus.Infof("  traced: %d packets", len(result.Packets))
-		}
+			logrus.Infof("+ %v:\t%v packets", color.Yellow.Sprint(traced), color.Cyan.Sprintf("%4d", len(result.Packets)))
 
+		}
 		if opts.ResultDir != "" {
 			filename, err := tracer.SaveTraceData(opts.ResultDir, traced)
 			if err != nil {
 				logrus.Warnf("  saving trace data failed: %v", err)
 			} else {
-				logrus.Infof("  trace data saved to: %v", filename)
+				logrus.Debugf("  trace data saved to: %v", filename)
 			}
 		}
+	}
 
-		if opts.PrintResult {
+	if opts.PrintResult {
+		for _, traced := range done {
+			result := traced.TraceResult()
+			if result == nil {
+				continue
+			}
 			tracer.PrintTraceResult(traced)
 		}
 	}

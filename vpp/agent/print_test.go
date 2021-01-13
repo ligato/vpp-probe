@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"bytes"
 	"strings"
 	"testing"
 
@@ -33,7 +32,7 @@ func Test_interfaceInfo(t *testing.T) {
 					},
 				},
 			}},
-			want: "socket:/tmp/memif.sock ID:1",
+			want: "socket:/tmp/memif.sock id:1",
 		},
 		{
 			name: "tap",
@@ -60,58 +59,6 @@ func Test_interfaceInfo(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := interfaceInfo(tt.args.iface); strings.TrimSpace(got) != tt.want {
 				t.Errorf("interfaceInfo() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestPrintInterfacesTable(t *testing.T) {
-	type args struct {
-		config *Config
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantOut string
-	}{
-		{
-			name: "typ1",
-			args: args{
-				/*config: &Config{
-					VPP: struct {
-						Interfaces       []VppInterface
-						L2XConnects      []VppL2XConnect
-						IPSecTunProtects []VppIPSecTunProtect
-						IPSecSAs         []VppIPSecSA
-						IPSecSPDs        []VppIPSecSPD
-					}{
-						Interfaces:       []VppInterface{
-							{
-								KVData: KVData{
-									Key:      "",
-									Metadata: nil,
-									Origin:   0,
-									Value:    nil,
-								},
-								Value:  nil,
-							},
-						},
-						L2XConnects:      nil,
-						IPSecTunProtects: nil,
-						IPSecSAs:         nil,
-						IPSecSPDs:        nil,
-					},
-				},*/
-			},
-			wantOut: "",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			out := &bytes.Buffer{}
-			PrintInterfacesTable(out, tt.args.config)
-			if gotOut := out.String(); gotOut != tt.wantOut {
-				t.Errorf("PrintInterfacesTable() = %v, want %v", gotOut, tt.wantOut)
 			}
 		})
 	}

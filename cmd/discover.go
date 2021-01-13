@@ -21,7 +21,7 @@ const discoverExample = `  # Discover VPP instances in Kubernetes pods with labe
   # Discover instances running locally
   vpp-probe discover`
 
-func NewDiscoverCmd(cli *ProbeCli) *cobra.Command {
+func NewDiscoverCmd(cli Cli) *cobra.Command {
 	var (
 		opts DiscoverOptions
 	)
@@ -46,7 +46,7 @@ type DiscoverOptions struct {
 	Format    string
 }
 
-func RunDiscover(cli *ProbeCli, opts DiscoverOptions) error {
+func RunDiscover(cli Cli, opts DiscoverOptions) error {
 	if err := cli.Controller().DiscoverInstances(cli.Queries()...); err != nil {
 		return err
 	}
@@ -97,18 +97,16 @@ func printInstanceHeader(out io.Writer, instance *agent.Instance) {
 
 	switch metadata["env"] {
 	case providers.Kube:
-		header = fmt.Sprintf("cluster: %s | pod: %s | namespace: %s | ip: %s | image: %s",
+		header = fmt.Sprintf("cluster: %s | pod: %s | namespace: %s | ip: %s",
 			color.Yellow.Sprint(metadata["cluster"]),
 			color.Yellow.Sprint(metadata["pod"]),
 			color.Yellow.Sprint(metadata["namespace"]),
 			color.Yellow.Sprint(metadata["ip"]),
-			color.Yellow.Sprint(metadata["image"]),
 		)
 	case providers.Docker:
-		header = fmt.Sprintf("container: %s | id: %s | image: %s",
+		header = fmt.Sprintf("container: %s | id: %s",
 			color.Yellow.Sprint(metadata["container"]),
 			color.Yellow.Sprint(metadata["id"]),
-			color.Yellow.Sprint(metadata["image"]),
 		)
 	case providers.Local:
 		header = fmt.Sprintf("pid: %s",

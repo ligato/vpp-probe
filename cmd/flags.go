@@ -11,7 +11,7 @@ type GlobalFlags struct {
 	// Config string
 }
 
-func (glob *GlobalFlags) AddFlags(flags *pflag.FlagSet) {
+func (glob *GlobalFlags) InstallFlags(flags *pflag.FlagSet) {
 	flags.BoolVarP(&glob.Debug, "debug", "D", false, "Enable debug mode")
 	flags.StringVarP(&glob.LogLevel, "loglevel", "L", "", "Set logging level")
 }
@@ -34,7 +34,7 @@ type ProviderFlags struct {
 	}
 }
 
-func (f *ProviderFlags) AddFlags(flags *pflag.FlagSet) {
+func (f *ProviderFlags) InstallFlags(flags *pflag.FlagSet) {
 	flags.StringVarP(&f.Env, "env", "e", "",
 		`Environment type in which VPP is running. Supported environments are local, docker and kube,
 where VPP is running as a local process, as a Docker container or as a Kubernetes pod, respectivelly.

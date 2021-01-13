@@ -22,59 +22,11 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// CLI is interface providing access to VPP CLI.
-type CLI interface {
-	RunCli(cmd string) (string, error)
-}
-
 // Result contains trace results.
 type Result struct {
-	// TraceTime is the actual time when the result was done
-	TraceTime time.Time
-	// Packets is a list of traced packets
-	Packets []Packet
-	// RawData is the raw trace data before parsing
-	RawData string
-}
-
-// Packet is a single packet from trace.
-type Packet struct {
-	// ID is a packet number
-	ID int
-	// Captures contains captured data for packet
-	Captures []Capture
-}
-
-// Start returns an uptime (elapsed time since boot) when packet started.
-func (p *Packet) Start() time.Duration {
-	if first := p.FirstCapture(); first != nil {
-		return first.Start
-	}
-	return 0
-}
-
-func (p *Packet) FirstCapture() *Capture {
-	if len(p.Captures) == 0 {
-		return nil
-	}
-	return &p.Captures[0]
-}
-
-func (p *Packet) LastCapture() *Capture {
-	if len(p.Captures) == 0 {
-		return nil
-	}
-	return &p.Captures[len(p.Captures)-1]
-}
-
-// Capture is a single capture from traced packet.
-type Capture struct {
-	// Name is name of capture node
-	Name string
-	// Start is elapsed time since packet started
-	Start time.Duration
-	// Content is raw capture data
-	Content string
+	TraceTime time.Time // TraceTime is the actual time of trace
+	Packets   []Packet  // Packets is a list of traced packets
+	RawData   string    // RawData is the raw trace data before parsing
 }
 
 const (
@@ -106,24 +58,27 @@ func (t *Tracer) SetNumPackets(numPackets int) {
 	t.numPackets = numPackets
 }
 
-// BeginTrace starts tracing packets for nodes.
+// BeginTrace clears the trace and starts tracing packets of nodes.
 func (t *Tracer) BeginTrace(nodes ...string) error {
 	if len(nodes) == 0 {
 		return fmt.Errorf("no nodes to trace")
 	}
+
+	numPackets := t.numPackets
+
 	cmds := []string{
 		"clear trace",
 	}
-	t.toRetrieve = 0
 	for _, node := range nodes {
-		cmd := fmt.Sprintf("trace add %s %d", node, t.numPackets)
-		cmds = append(cmds, cmd)
-		t.toRetrieve += t.numPackets
+		cmds = append(cmds, fmt.Sprintf("trace add %s %d", node, numPackets))
 	}
 	out, err := t.cli.RunCli(strings.Join(cmds, "\n"))
 	if err != nil {
 		return fmt.Errorf("trace command failed: %w\n%s", err, out)
 	}
+
+	t.toRetrieve = numPackets * len(nodes)
+
 	return nil
 }
 
@@ -163,8 +118,8 @@ func (t *Tracer) showTrace() (string, error) {
 	if count < t.numPackets {
 		count = t.numPackets
 	}
-	cmd := fmt.Sprintf("show trace max %d", count)
-	reply, err := t.cli.RunCli(cmd)
+
+	reply, err := t.cli.RunCli(fmt.Sprintf("show trace max %d", count))
 	if err != nil {
 		return "", err
 	}

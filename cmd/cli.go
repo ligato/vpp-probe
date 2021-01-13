@@ -17,15 +17,17 @@ import (
 )
 
 type Cli interface {
-	Controller() *client.Controller
+	Controller() *client.Client
 	Queries() []map[string]string
+
+	Initialize(flags ProviderFlags) error
 	Out() io.Writer
 	Err() io.Writer
 	In() io.ReadCloser
 }
 
 type ProbeCli struct {
-	ctl     *client.Controller
+	client  *client.Client
 	queries []map[string]string
 
 	in  io.ReadCloser
@@ -42,8 +44,8 @@ func NewProbeCli() *ProbeCli {
 	return opts
 }
 
-func (cli *ProbeCli) Controller() *client.Controller {
-	return cli.ctl
+func (cli *ProbeCli) Controller() *client.Client {
+	return cli.client
 }
 
 func (cli *ProbeCli) Queries() []map[string]string {
@@ -63,7 +65,7 @@ func (cli *ProbeCli) In() io.ReadCloser {
 }
 
 func (cli *ProbeCli) Initialize(opts ProviderFlags) (err error) {
-	cli.ctl, err = setupController(opts)
+	cli.client, err = setupController(opts)
 	if err != nil {
 		return fmt.Errorf("controller setup error: %w", err)
 	}
@@ -96,12 +98,12 @@ func parseQueries(queries []string) []map[string]string {
 	return queryParams
 }
 
-func setupController(opts ProviderFlags) (*client.Controller, error) {
+func setupController(opts ProviderFlags) (*client.Client, error) {
 	env := resolveEnv(opts)
 
 	logrus.Debugf("provider env: %v", env)
 
-	probectl := client.NewController()
+	probectl := client.NewClient()
 
 	pvds, err := setupProviders(env, opts)
 	if err != nil {
@@ -174,13 +176,7 @@ func setupLocalEnv(opt ProviderFlags) (probe.Provider, error) {
 	if opt.Local.CLISocket != "" {
 		cfg.CliAddr = opt.Local.CLISocket
 	}
-
-	provider, err := local.NewProvider(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	return provider, nil
+	return local.NewProvider(cfg), nil
 }
 
 func setupKubeEnv(kubeconfig, context string) ([]probe.Provider, error) {

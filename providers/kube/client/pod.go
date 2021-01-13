@@ -12,6 +12,7 @@ type Pod struct {
 	UID       types.UID
 	Name      string
 	Cluster   string
+	Node      string
 	Namespace string
 	IP        string
 	Created   time.Time

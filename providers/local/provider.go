@@ -19,11 +19,10 @@ type Provider struct {
 	Config HandlerConfig
 }
 
-func NewProvider(config HandlerConfig) (*Provider, error) {
-	provider := &Provider{
+func NewProvider(config HandlerConfig) *Provider {
+	return &Provider{
 		Config: config,
 	}
-	return provider, nil
 }
 
 func (p *Provider) Env() string {

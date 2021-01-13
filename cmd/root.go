@@ -32,7 +32,7 @@ func Execute() {
 }
 
 // NewRootCmd returns new root command
-func NewRootCmd(cli *ProbeCli) *cobra.Command {
+func NewRootCmd(cli Cli) *cobra.Command {
 	var (
 		glob GlobalFlags
 		opts ProviderFlags
@@ -51,19 +51,22 @@ func NewRootCmd(cli *ProbeCli) *cobra.Command {
 		},
 	}
 
+	cmd.SetIn(cli.In())
+	cmd.SetOut(cli.Out())
+	cmd.SetErr(cli.Err())
+
 	cmd.Flags().SortFlags = false
 	cmd.PersistentFlags().SortFlags = false
 
-	flags := cmd.PersistentFlags()
-	opts.AddFlags(flags)
-	glob.AddFlags(flags)
+	opts.InstallFlags(cmd.PersistentFlags())
+	glob.InstallFlags(cmd.PersistentFlags())
 
 	cmd.InitDefaultVersionFlag()
 	cmd.InitDefaultHelpFlag()
 	cmd.Flags().Lookup("help").Hidden = true
 
+	cmd.AddCommand(newVersionCmd())
 	cmd.AddCommand(
-		newVersionCmd(),
 		NewInspectorCmd(cli),
 		NewDiscoverCmd(cli),
 		NewTracerCmd(cli),

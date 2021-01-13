@@ -93,11 +93,11 @@ func (c *packetNode) String() string {
 		}
 	}
 	pktFields := []string{
-		fmt.Sprintf(color.Yellow.Sprint("Packet")+" "+color.Blue.Sprint("%v"), fmt.Sprintf("%d", packet.ID)),
-		fmt.Sprintf("⏲  "+color.Blue.Sprint("%v"), formatDurTimestamp(start)),
-		fmt.Sprintf(getNodeColor(first.Name).Sprint("%s")+"  ￫  "+getNodeColor(last.Name).Sprint("%s"), first.Name, last.Name),
-		fmt.Sprintf("took "+color.Blue.Sprint("%v"), took),
-		fmt.Sprintf("nodes "+color.Blue.Sprint("%d"), len(packet.Captures)),
+		fmt.Sprint(color.Yellow.Sprint("Packet") + " " + color.Blue.Sprint(packet.ID)),
+		fmt.Sprint("⏲  " + color.Blue.Sprint(formatDurTimestamp(start))),
+		fmt.Sprint(getNodeColor(first.Name).Sprint(first.Name) + "  ￫  " + getNodeColor(last.Name).Sprint(last.Name)),
+		fmt.Sprint("took " + color.Blue.Sprint(took)),
+		fmt.Sprint("nodes " + color.Blue.Sprint(len(packet.Captures))),
 	}
 	return strings.Join(pktFields, " | ")
 }
@@ -108,10 +108,10 @@ type captureNode struct {
 
 func (c *captureNode) String() string {
 	cptFields := []string{
-		color.Cyan.Sprintf("%s", c.capture.Name),
+		color.Cyan.Sprint(c.capture.Name),
 	}
 	if c.capture.Start > 0 {
-		cptFields = append(cptFields, fmt.Sprintf("⏲  "+color.Blue.Sprint("%v"), c.capture.Start))
+		cptFields = append(cptFields, "⏲  "+color.Blue.Sprint(c.capture.Start))
 	}
 	return strings.Join(cptFields, " | ")
 }
@@ -131,17 +131,17 @@ func PrintTraceResult(traced *Traced) {
 		}
 		var capture string
 		for _, c := range packet.Captures {
-			capture += fmt.Sprintf(" - %v\n%v", color.Yellow.Sprint(c.Name), prefixString(c.Content))
+			capture += fmt.Sprintf("- %v (%v)\n%v", color.Yellow.Sprint(c.Name), c.Start-packet.Start(), prefixString(c.Content, "\t"))
 		}
 		fmt.Fprintf(os.Stdout, "# %v\n%v", p, capture)
 	}
 }
 
-func prefixString(s string) string {
+func prefixString(s, prefix string) string {
 	s = strings.TrimRight(s, "\n")
 	lines := strings.Split(s, "\n")
-	prefixed := strings.Join(lines, "\n\t")
-	return fmt.Sprintf("\t%s\n", prefixed)
+	prefixed := strings.Join(lines, "\n"+prefix)
+	return fmt.Sprintf(prefix+"%s\n", prefixed)
 }
 
 func SaveTraceData(traceDir string, traced *Traced) (string, error) {

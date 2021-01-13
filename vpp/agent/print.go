@@ -10,6 +10,7 @@ import (
 
 	"github.com/gookit/color"
 	vpp_interfaces "go.ligato.io/vpp-agent/v3/proto/ligato/vpp/interfaces"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 func PrintInstance(out io.Writer, instance *Instance) {
@@ -67,7 +68,7 @@ func PrintInterfacesTable(out io.Writer, config *Config) {
 		}
 
 		idx := fmt.Sprintf("%3v", interfaceIndex(iface))
-		internal := colorTag(color.White, interfaceInternalName(iface))
+		internal := interfaceInternalName(iface)
 		name := colorTag(color.Yellow, iface.Value.Name)
 		typ := colorTag(color.Magenta, iface.Value.Type)
 		state := interfaceStatus(iface)
@@ -153,8 +154,12 @@ func otherInfo(conf *Config, iface VppInterface) string {
 }
 
 func interfaceInfo(iface VppInterface) string {
-	clr := color.LightMagenta
-	ipclr := color.Cyan
+	const (
+		valueColor = color.LightMagenta
+		ipColor    = color.Blue
+		pathColor  = color.Cyan
+		tunnelDir  = `🡒`
+	)
 
 	switch iface.Value.Type {
 	case vpp_interfaces.Interface_MEMIF:
@@ -162,43 +167,38 @@ func interfaceInfo(iface VppInterface) string {
 		var info string
 		socketParts := strings.Split(memif.GetSocketFilename(), "/")
 		for i, part := range socketParts {
-			socketParts[i] = colorTag(color.LightBlue, part)
+			socketParts[i] = colorTag(pathColor, part)
 		}
-		socket := strings.Join(socketParts, colorTag(color.FgDefault, "/"))
+		socket := strings.Join(socketParts, colorTag(color.OpReset, "/"))
 		info += fmt.Sprintf("socket:%s ", socket)
 		if memif.Id > 0 {
-			info += fmt.Sprintf("id:%v ", colorTag(clr, memif.Id))
+			info += fmt.Sprintf("id:%v ", colorTag(valueColor, memif.Id))
 		}
 		if memif.Master {
-			info += fmt.Sprintf("(%s)", colorTag(clr, "master"))
+			info += fmt.Sprintf("(%s)", colorTag(valueColor, "master"))
 		}
 		return info
 
 	case vpp_interfaces.Interface_VXLAN_TUNNEL:
 		vxlan := iface.Value.GetVxlan()
 		var info string
-		info += fmt.Sprintf("%s --> %s (vni:%v)", colorTag(ipclr, vxlan.SrcAddress), colorTag(ipclr, vxlan.DstAddress), colorTag(clr, vxlan.Vni))
+		info += fmt.Sprintf("%s %s %s (vni:%v)", colorTag(ipColor, vxlan.SrcAddress), tunnelDir, colorTag(ipColor, vxlan.DstAddress), colorTag(valueColor, vxlan.Vni))
 		return info
 
 	case vpp_interfaces.Interface_TAP:
 		tap := iface.Value.GetTap()
 		opt := []string{}
-		d := tap.ProtoReflect().Descriptor()
-		for i := 0; i < d.Fields().Len(); i++ {
-			fd := d.Fields().Get(i)
-			if tap.ProtoReflect().Has(fd) {
-				f := tap.ProtoReflect().Get(fd)
-				if f.IsValid() {
-					opt = append(opt, fmt.Sprintf("%s:%s", fd.Name(), colorTag(clr, f.String())))
-				}
-			}
+		pr := tap.ProtoReflect()
+		m := protoFieldsToMap(pr.Descriptor().Fields(), pr)
+		for k, v := range m {
+			opt = append(opt, fmt.Sprintf("%s:%s", k, colorTag(valueColor, v)))
 		}
-		return fmt.Sprintf("host_if_name:%s %v", colorTag(clr, iface.Metadata["TAPHostIfName"]), strings.Join(opt, " "))
+		return fmt.Sprintf("host_if_name:%s %v", colorTag(valueColor, iface.Metadata["TAPHostIfName"]), strings.Join(opt, " "))
 
 	case vpp_interfaces.Interface_IPIP_TUNNEL:
 		tun := iface.Value.GetIpip()
 		var info string
-		info += fmt.Sprintf("%s --> %s (mode:%v)", colorTag(ipclr, tun.SrcAddr), colorTag(ipclr, tun.DstAddr), colorTag(clr, tun.TunnelMode))
+		info += fmt.Sprintf("%s %s %s mode:%v", colorTag(ipColor, tun.SrcAddr), tunnelDir, colorTag(ipColor, tun.DstAddr), colorTag(valueColor, tun.TunnelMode))
 		return info
 	}
 
@@ -211,14 +211,23 @@ func interfaceInfo(iface VppInterface) string {
 	}
 	d := wd.Message()
 	link := ref.Get(wd).Message()
-	for i := 0; i < d.Fields().Len(); i++ {
-		fd := d.Fields().Get(i)
-		if link.Has(fd) {
-			f := link.Get(fd)
+	m := protoFieldsToMap(d.Fields(), link)
+	for k, v := range m {
+		opt = append(opt, fmt.Sprintf("%s:%s", k, colorTag(valueColor, v)))
+	}
+	return strings.Join(opt, " ")
+}
+
+func protoFieldsToMap(fields protoreflect.FieldDescriptors, pb protoreflect.Message) map[string]string {
+	m := map[string]string{}
+	for i := 0; i < fields.Len(); i++ {
+		fd := fields.Get(i)
+		if pb.Has(fd) {
+			f := pb.Get(fd)
 			if f.IsValid() {
-				opt = append(opt, fmt.Sprintf("%s:%s", fd.Name(), colorTag(clr, f.String())))
+				m[string(fd.Name())] = f.String()
 			}
 		}
 	}
-	return strings.Join(opt, " ")
+	return m
 }

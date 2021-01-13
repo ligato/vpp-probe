@@ -171,10 +171,6 @@ func (v *Instance) initStats() error {
 }
 
 func (v *Instance) RunCli(cmd string) (string, error) {
-	//return v.cli.RunCli(cmd)
-	/*if v.vppClient.vpp != nil {
-		return v.vppClient.vpp.RunCli(context.Background(), cmd)
-	}*/
 	if v.cli == nil {
 		return "", ErrCLIUnavailable
 	}
