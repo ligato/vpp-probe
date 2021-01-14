@@ -71,7 +71,7 @@ func PrintCorrelatedNsmIpSec(out io.Writer, instances []*Instance) {
 	var buf bytes.Buffer
 	w := tabwriter.NewWriter(&buf, 1, 8, 0, '\t', tabwriter.StripEscape)
 	fmt.Fprintf(w, "\nSecurityPolicy Correlation\n%v\t%v\t%v\t%v\t%v\t%v\t\n",
-		escapeClr(color.LightWhite, "SrcIP <-> DestIp"), escapeClr(color.White, "Peer?"), escapeClr(color.White, "SA"), escapeClr(color.White, "SPI"), escapeClr(color.White, "CRYPTO"),escapeClr(color.White, "INTEG") )
+		escapeClr(color.LightWhite, "inIP <-> outIp"), escapeClr(color.White, "Peer?"), escapeClr(color.White, "SA"), escapeClr(color.White, "SPI"), escapeClr(color.White, "CRYPTO"),escapeClr(color.White, "INTEG") )
 
 	// correlate data
 	for inSrcIp, inSpMap := range inSpSrcDestMap {
