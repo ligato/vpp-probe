@@ -41,10 +41,10 @@ func (h *Handler) Metadata() map[string]string {
 		"env":       providers.Kube,
 		"pod":       h.pod.Name,
 		"name":      h.pod.Name,
-		"node":      h.pod.Node,
 		"namespace": h.pod.Namespace,
 		"cluster":   h.pod.Cluster,
 		"ip":        h.pod.IP,
+		"host_ip":   h.pod.HostIP,
 		"image":     h.pod.Image,
 		"uid":       string(h.pod.UID),
 		"created":   h.pod.Created.Format(time.UnixDate),
@@ -64,9 +64,15 @@ func (h *Handler) podExec(cmd string) (string, error) {
 }
 
 func (h *Handler) GetCLI() (probe.CliExecutor, error) {
+	arg := ""
+	if _, err := h.podExec("ls /run/vpp/cli.sock"); err != nil {
+		logrus.Debugf("checking cli socket error: %v", err)
+		arg = "-s localhost:5002"
+		logrus.Debugf("using flag '%s' for vppctl", arg)
+	}
 	cli := vppcli.ExecutorFunc(func(cmd string) (string, error) {
 		pod := h.pod
-		command := `vppctl "` + cmd + `"`
+		command := `vppctl ` + arg + ` "` + cmd + `"`
 		out, err := pod.Exec(command)
 		if err != nil {
 			return "", fmt.Errorf("pod %v exec error: %v", pod.Name, err)

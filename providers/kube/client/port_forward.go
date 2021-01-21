@@ -15,8 +15,8 @@ import (
 type PortForwardOptions struct {
 	PodName      string
 	PodNamespace string
-	LocalPort    int
 	PodPort      int
+	LocalPort    int
 }
 
 type PortForwarder struct {
@@ -27,11 +27,7 @@ type PortForwarder struct {
 	stopCh  chan struct{}
 }
 
-func (k *Client) PortForward(opt PortForwardOptions) (*PortForwarder, error) {
-	path := fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/portforward",
-		opt.PodNamespace, opt.PodName)
-	hostIP := strings.TrimLeft(k.restConfig.Host, "htps:/")
-
+func PortForward(client *Client, opt PortForwardOptions) (*PortForwarder, error) {
 	var port string
 	if opt.LocalPort == 0 {
 		port = fmt.Sprintf(":%d", opt.PodPort)
@@ -39,7 +35,10 @@ func (k *Client) PortForward(opt PortForwardOptions) (*PortForwarder, error) {
 		port = fmt.Sprintf("%d:%d", opt.LocalPort, opt.PodPort)
 	}
 
-	transport, upgrader, err := spdy.RoundTripperFor(k.restConfig)
+	path := fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/portforward", opt.PodNamespace, opt.PodName)
+	hostIP := strings.TrimLeft(client.restConfig.Host, "htps:/")
+
+	transport, upgrader, err := spdy.RoundTripperFor(client.restConfig)
 	if err != nil {
 		return nil, err
 	}

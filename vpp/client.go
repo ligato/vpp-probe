@@ -8,7 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"go.ligato.io/vpp-agent/v3/plugins/vpp"
 
-	vppcli "go.ligato.io/vpp-probe/vpp/cli"
+	"go.ligato.io/vpp-probe/probe"
 )
 
 var (
@@ -18,7 +18,7 @@ var (
 )
 
 type vppClient struct {
-	cli     vppcli.Executor
+	cli     probe.CliExecutor
 	vppConn govppapi.Connection
 	ch      govppapi.Channel
 	stats   govppapi.StatsProvider

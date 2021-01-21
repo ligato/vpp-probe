@@ -12,7 +12,6 @@ import (
 
 	"go.ligato.io/vpp-probe/probe"
 	"go.ligato.io/vpp-probe/vpp/api"
-	vppcli "go.ligato.io/vpp-probe/vpp/cli"
 )
 
 // Instance handles access to a running VPP instance.
@@ -20,7 +19,7 @@ type Instance struct {
 	handler probe.Handler
 
 	vppClient *vppClient
-	cli       vppcli.Executor
+	cli       probe.CliExecutor
 	api       govppapi.Channel
 	stats     govppapi.StatsProvider
 
@@ -76,7 +75,7 @@ func (v *Instance) Init() (err error) {
 func (v *Instance) initVPP() (err error) {
 	if err = v.initCLI(); err != nil {
 		v.status.CLI.SetError(err)
-		logrus.Warnf("CLI init error: %v", err)
+		logrus.Debugf("CLI init error: %v", err)
 		return err
 	} else {
 		v.status.CLI.State = StateOK
@@ -104,6 +103,11 @@ func (v *Instance) initCLI() error {
 	if err != nil {
 		return err
 	}
+	out, err := cli.RunCli("show version verbose")
+	if err != nil {
+		return err
+	}
+	logrus.Debugf("VPP version:\n%v", out)
 	v.cli = cli
 	return nil
 }

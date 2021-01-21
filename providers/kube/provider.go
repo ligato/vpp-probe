@@ -64,6 +64,10 @@ func (p *Provider) Query(params ...map[string]string) ([]probe.Handler, error) {
 		return nil, err
 	}
 
+	if len(queries) == 0 {
+		queries = []PodQuery{{}}
+	}
+
 	logrus.Debugf("-> query %q in %v (cluster %v)", params, p.client, p.client.Cluster())
 
 	pods, err := queryPods(p.client, queries)
@@ -71,16 +75,15 @@ func (p *Provider) Query(params ...map[string]string) ([]probe.Handler, error) {
 		return nil, fmt.Errorf("query pods error: %w", err)
 	}
 
-	logrus.Debugf("found %d pods", len(pods))
+	if len(pods) == 0 {
+		return nil, fmt.Errorf("no pods queried")
+	}
+
+	logrus.Debugf("queried %d pods", len(pods))
 
 	var handlers []probe.Handler
 	for _, pod := range pods {
-		handler := NewHandler(pod)
-		handlers = append(handlers, handler)
-	}
-
-	if len(handlers) == 0 {
-		return nil, fmt.Errorf("no instances found")
+		handlers = append(handlers, NewHandler(pod))
 	}
 
 	return handlers, nil
@@ -97,7 +100,7 @@ func queryPods(kubectx *client.Client, queries []PodQuery) ([]*client.Pod, error
 				logrus.Warnf("GetPod failed: %v", err)
 				continue
 			}
-			logrus.Debugf("1 matching pod found")
+			logrus.Debugf("matching pod found")
 			list = append(list, pod)
 		} else {
 			pods, err := kubectx.ListPods(q.Namespace, q.LabelSelector, q.FieldSelector)

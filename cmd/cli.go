@@ -190,6 +190,11 @@ func setupKubeEnv(kubeconfig, context string) ([]probe.Provider, error) {
 		return false
 	}
 	contexts := strings.FieldsFunc(context, isSeparator)
+
+	if len(contexts) == 0 {
+		contexts = []string{""}
+	}
+
 	for _, ctx := range contexts {
 		provider, err := kube.NewProvider(kubeconfig, ctx)
 		if err != nil {
