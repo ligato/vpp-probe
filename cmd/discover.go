@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/gookit/color"
 	"github.com/sirupsen/logrus"
@@ -47,11 +48,11 @@ type DiscoverOptions struct {
 }
 
 func RunDiscover(cli Cli, opts DiscoverOptions) error {
-	if err := cli.Controller().DiscoverInstances(cli.Queries()...); err != nil {
+	if err := cli.Client().DiscoverInstances(cli.Queries()...); err != nil {
 		return err
 	}
 
-	instances := cli.Controller().Instances()
+	instances := cli.Client().Instances()
 	logrus.Debugf("discovered %d vpp instances", len(instances))
 
 	var agentInstances []*agent.Instance
@@ -85,9 +86,11 @@ func RunDiscover(cli Cli, opts DiscoverOptions) error {
 
 func printDiscoverTable(out io.Writer, instance *agent.Instance, printClis bool) {
 	printInstanceHeader(out, instance)
-	agent.PrintInstance(out, instance)
+
+	PrintInstance(out, instance)
+
 	if printClis {
-		agent.PrintCLIs(out, instance)
+		PrintCLIs(out, instance)
 	}
 }
 
@@ -119,4 +122,14 @@ func printInstanceHeader(out io.Writer, instance *agent.Instance) {
 	fmt.Fprintln(out, "--------------------------------------------------------------------------------------------------------")
 	fmt.Fprintf(out, " %s\n", header)
 	fmt.Fprintln(out, "--------------------------------------------------------------------------------------------------------")
+}
+
+func PrintCLIs(out io.Writer, instance *agent.Instance) {
+	for k, v := range instance.CliData {
+		val := color.FgLightBlue.Sprint(v)
+		val = "\t" + strings.ReplaceAll(val, "\n", "\n\t")
+		fmt.Fprintf(out, "%s:\n\n%s\n", k, val)
+		fmt.Fprintln(out)
+	}
+	fmt.Fprintln(out)
 }

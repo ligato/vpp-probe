@@ -60,19 +60,29 @@ func (c *Client) DiscoverInstances(queryParams ...map[string]string) error {
 
 	// reset list
 	c.instances = []*vpp.Instance{}
+	instanceChan := make(chan []*vpp.Instance)
 
 	for _, p := range c.providers {
-		instances, err := discoverInstances(p, queryParams...)
-		if err != nil {
-			logrus.Warnf("provider %q discover error: %v", p.Name(), err)
-			continue
+		go func(provider probe.Provider) {
+			instances, err := discoverInstances(provider, queryParams...)
+			if err != nil {
+				logrus.Warnf("provider %q discover error: %v", provider.Name(), err)
+			}
+			instanceChan <- instances
+		}(p)
+	}
+
+	for range c.providers {
+		instances := <-instanceChan
+		if len(instances) > 0 {
+			c.instances = append(c.instances, instances...)
 		}
-		c.instances = append(c.instances, instances...)
 	}
 
 	if len(c.instances) == 0 {
 		return fmt.Errorf("no instances discovered")
 	}
+
 	return nil
 }
 

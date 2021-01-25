@@ -66,10 +66,10 @@ var DefaultTracerOptions = TracerOptions{
 }
 
 func RunTracer(cli Cli, opts TracerOptions) error {
-	if err := cli.Controller().DiscoverInstances(cli.Queries()...); err != nil {
+	if err := cli.Client().DiscoverInstances(cli.Queries()...); err != nil {
 		return err
 	}
-	instances := cli.Controller().Instances()
+	instances := cli.Client().Instances()
 
 	logrus.Debugf("running tracer with %d instances", len(instances))
 

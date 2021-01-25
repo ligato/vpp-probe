@@ -1,17 +1,19 @@
-package agent
+package cmd
 
 import (
 	"strings"
 	"testing"
 
 	vpp_interfaces "go.ligato.io/vpp-agent/v3/proto/ligato/vpp/interfaces"
+
+	"go.ligato.io/vpp-probe/vpp/agent"
 )
 
 func Test_interfaceInfo(t *testing.T) {
-	coloredOutput = false
+	agent.coloredOutput = false
 
 	type args struct {
-		iface VppInterface
+		iface agent.VppInterface
 	}
 	tests := []struct {
 		name string
@@ -20,7 +22,7 @@ func Test_interfaceInfo(t *testing.T) {
 	}{
 		{
 			name: "memif",
-			args: args{iface: VppInterface{
+			args: args{iface: agent.VppInterface{
 				Value: &vpp_interfaces.Interface{
 					Name: "memif",
 					Type: vpp_interfaces.Interface_MEMIF,
@@ -36,8 +38,8 @@ func Test_interfaceInfo(t *testing.T) {
 		},
 		{
 			name: "tap",
-			args: args{iface: VppInterface{
-				KVData: KVData{
+			args: args{iface: agent.VppInterface{
+				kvdata: agent.kvdata{
 					Metadata: map[string]interface{}{
 						"TAPHostIfName": "tapx",
 					},
@@ -57,7 +59,7 @@ func Test_interfaceInfo(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := interfaceInfo(tt.args.iface); strings.TrimSpace(got) != tt.want {
+			if got := vppInterfaceInfo(tt.args.iface); strings.TrimSpace(got) != tt.want {
 				t.Errorf("interfaceInfo() = %v, want %v", got, tt.want)
 			}
 		})

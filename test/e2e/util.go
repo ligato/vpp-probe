@@ -8,30 +8,39 @@ import (
 	"time"
 )
 
+const (
+	waitCreateCluster = time.Minute
+)
+
+func kubectl(t *testing.T, context string, args ...string) {
+	args = append([]string{
+		"--context", context,
+	}, args...)
+	runCmd(t, "kubectl", args...)
+}
+
 func createCluster(name string) {
-	const waitDur = time.Minute
-	mustRun(nil, "kind", "create", "cluster", "--name", name, "--wait", waitDur.String())
+	runCmd(nil, "kind", "create", "cluster", "--name", name, "--wait", waitCreateCluster.String())
 }
 
 func deleteCluster(name string) {
-	mustRun(nil, "kind", "delete", "cluster", "--name", name)
+	runCmd(nil, "kind", "delete", "cluster", "--name", name)
 }
 
-func mustRun(t *testing.T, cmd string, args ...string) {
+func runCmd(t *testing.T, cmd string, args ...string) {
 	c := exec.Command(cmd, args...)
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
 	if t != nil {
-		t.Logf("RUN: %v\n", c)
+		t.Logf("[EXEC] %v", c)
 	} else {
-		log.Printf("RUN: %v\n", c)
+		log.Printf("[EXEC] %v", c)
 	}
-	err := c.Run()
-	if err != nil {
+	if err := c.Run(); err != nil {
 		if t == nil {
-			log.Fatalf("run failed: %v", err)
+			log.Fatalf("ERROR: %v", err)
 		} else {
-			t.Fatalf("run failed: %v", err)
+			t.Fatalf("ERROR: %v", err)
 		}
 	}
 }

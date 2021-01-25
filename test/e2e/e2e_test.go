@@ -5,12 +5,22 @@ import (
 	"log"
 	"os"
 	"testing"
+
+	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/suite"
 )
 
 var (
-	doSetup    = flag.Bool("setup", true, "Run setup of clusters")
-	noTeardown = flag.Bool("noteardown", false, "Skip teardown of clusters")
+	doSetup = flag.Bool("setup", true, "Setup clusters for tests")
 )
+
+func init() {
+	log.SetFlags(0)
+	logrus.SetFormatter(&logrus.TextFormatter{
+		ForceColors:               true,
+		EnvironmentOverrideColors: true,
+	})
+}
 
 func TestMain(m *testing.M) {
 	flag.Parse()
@@ -23,32 +33,33 @@ func TestMain(m *testing.M) {
 	os.Exit(RunTests(m.Run))
 }
 
-func RunTests(r func() int) int {
+func RunTests(run func() int) int {
 	if *doSetup {
 		Setup()
+		defer Teardown()
 	} else {
 		log.Println("# skipping setup of clusters")
 	}
 
-	if !*noTeardown {
-		defer Teardown()
-	} else {
-		defer log.Println("# skipping teardown of clusters")
-	}
-
-	return r()
+	return run()
 }
 
 func Setup() {
-	log.Println("======[ SETUP ]======")
+	log.Println("============== [ SETUP CLUSTERS ] ==============")
 	defer log.Println("---------------------")
 
 	createCluster("c1")
 }
 
 func Teardown() {
-	log.Println("-----[ TEARDOWN ]-----")
+	log.Println("-----[ TEARDOWN CLUSTERS ]-----")
 	defer log.Println("======================")
 
 	deleteCluster("c1")
+}
+
+type E2ETestSuite struct {
+	suite.Suite
+
+	kubectx string
 }

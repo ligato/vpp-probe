@@ -72,9 +72,9 @@ func (h *Handler) ExecCmd(cmd string, args ...string) (string, error) {
 }
 
 func (h *Handler) GetCLI() (probe.CliExecutor, error) {
-	var cli vppcli.Executor
-	if h.PreferVppctl || h.CliAddr == "" {
-		cli = vppcli.VppCtl
+	var cli probe.CliExecutor
+	if h.CliAddr == "" {
+		cli = vppcli.Local
 	} else {
 		cli = vppcli.VppCtlAddr(h.CliAddr)
 	}

@@ -3,6 +3,7 @@ package docker
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -68,8 +69,14 @@ func (h *Handler) ExecCmd(cmd string, args ...string) (string, error) {
 }
 
 func (h *Handler) GetCLI() (probe.CliExecutor, error) {
+	arg := ""
+	if _, err := h.ExecCmd("ls", "/run/vpp/cli.sock"); err != nil {
+		logrus.Debugf("checking cli socket error: %v", err)
+		arg = "-s localhost:5002"
+		logrus.Debugf("using flag '%s' for vppctl", arg)
+	}
 	cli := vppcli.ExecutorFunc(func(cmd string) (string, error) {
-		command := `vppctl "` + cmd + `"`
+		command := `vppctl ` + arg + ` "` + cmd + `"`
 		out, err := h.execCmd(h.container.ID, command, false)
 		if err != nil {
 			return "", err
@@ -79,11 +86,11 @@ func (h *Handler) GetCLI() (probe.CliExecutor, error) {
 	return cli, nil
 }
 
-func (h *Handler) execCmd(containerID string, command string, stderr bool) (string, error) {
+func (h *Handler) execCmd(containerID string, command string, withStderr bool) (string, error) {
 	createOpts := docker.CreateExecOptions{
 		AttachStdin:  false,
 		AttachStdout: true,
-		AttachStderr: stderr,
+		AttachStderr: true,
 		Tty:          false,
 		Env:          nil,
 		Cmd:          []string{"sh", "-c", command},
@@ -97,19 +104,19 @@ func (h *Handler) execCmd(containerID string, command string, stderr bool) (stri
 	if err != nil {
 		return "", err
 	}
-	var out bytes.Buffer
+	var stdout, stderr bytes.Buffer
 	startOpts := docker.StartExecOptions{
 		InputStream:  nil,
-		OutputStream: &out,
-		ErrorStream:  nil,
+		OutputStream: &stdout,
+		ErrorStream:  &stderr,
 		Detach:       false,
 		Tty:          false,
 		RawTerminal:  false,
 		Success:      nil,
 		Context:      nil,
 	}
-	if stderr {
-		startOpts.ErrorStream = &out
+	if withStderr {
+		startOpts.ErrorStream = io.MultiWriter(&stderr, &stdout)
 	}
 	if err := h.client.StartExec(exec.ID, startOpts); err != nil {
 		return "", err
@@ -119,9 +126,9 @@ func (h *Handler) execCmd(containerID string, command string, stderr bool) (stri
 		return "", err
 	}
 	if exe.ExitCode != 0 {
-		return out.String(), fmt.Errorf("exec cmd failed (exit code %d)", exe.ExitCode)
+		return stdout.String(), fmt.Errorf("docker exec cmd '%s' failed (exit code %d)\n%s", command, exe.ExitCode, stderr.String())
 	}
-	return out.String(), nil
+	return stdout.String(), nil
 }
 
 func (h *Handler) GetAPI() (govppapi.Channel, error) {

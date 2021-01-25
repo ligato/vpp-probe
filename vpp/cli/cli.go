@@ -20,13 +20,8 @@ import (
 
 var (
 	// Local provides default access to the VPP CLI via vppctl.
-	VppCtl = NewCmdExecutor("/usr/bin/vppctl")
+	Local = NewCmdExecutor("/usr/bin/vppctl")
 )
-
-// RunCli executes a CLI command via vppctl.
-func RunCli(cmd string) (string, error) {
-	return VppCtl.RunCli(cmd)
-}
 
 // VppCtlAddr returns vppctl handler that
 func VppCtlAddr(addr string) Executor {

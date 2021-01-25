@@ -12,7 +12,7 @@ func NewInspectorCmd(cli Cli) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "inspector",
 		Aliases: []string{"inspect", "ui"},
-		Short:   "Inspect VPP instances using terminal UI browser",
+		Short:   "Inspect VPP instances using terminal UI",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runInspector(cli)
 		},
@@ -27,7 +27,7 @@ func runInspector(cli Cli) error {
 		}
 	}()
 
-	app := ui.NewApp(cli.Controller())
+	app := ui.NewApp(cli.Client())
 	app.RunDiscovery(cli.Queries()...)
 
 	if err := app.Run(); err != nil {

@@ -17,10 +17,10 @@ import (
 )
 
 type Cli interface {
-	Controller() *client.Client
+	Initialize(flags ProviderFlags) error
+	Client() *client.Client
 	Queries() []map[string]string
 
-	Initialize(flags ProviderFlags) error
 	Out() io.Writer
 	Err() io.Writer
 	In() io.ReadCloser
@@ -30,38 +30,18 @@ type ProbeCli struct {
 	client  *client.Client
 	queries []map[string]string
 
-	in  io.ReadCloser
-	out io.Writer
-	err io.Writer
+	Stdin  io.ReadCloser
+	Stdout io.Writer
+	Stderr io.Writer
 }
 
 func NewProbeCli() *ProbeCli {
 	opts := &ProbeCli{
-		in:  os.Stdin,
-		out: os.Stdout,
-		err: os.Stderr,
+		Stdin:  os.Stdin,
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
 	}
 	return opts
-}
-
-func (cli *ProbeCli) Controller() *client.Client {
-	return cli.client
-}
-
-func (cli *ProbeCli) Queries() []map[string]string {
-	return cli.queries
-}
-
-func (cli *ProbeCli) Out() io.Writer {
-	return cli.out
-}
-
-func (cli *ProbeCli) Err() io.Writer {
-	return cli.err
-}
-
-func (cli *ProbeCli) In() io.ReadCloser {
-	return cli.in
 }
 
 func (cli *ProbeCli) Initialize(opts ProviderFlags) (err error) {
@@ -73,6 +53,26 @@ func (cli *ProbeCli) Initialize(opts ProviderFlags) (err error) {
 	cli.queries = parseQueries(opts.Queries)
 
 	return nil
+}
+
+func (cli *ProbeCli) Client() *client.Client {
+	return cli.client
+}
+
+func (cli *ProbeCli) Queries() []map[string]string {
+	return cli.queries
+}
+
+func (cli *ProbeCli) Out() io.Writer {
+	return cli.Stdout
+}
+
+func (cli *ProbeCli) Err() io.Writer {
+	return cli.Stderr
+}
+
+func (cli *ProbeCli) In() io.ReadCloser {
+	return cli.Stdin
 }
 
 func parseQueries(queries []string) []map[string]string {
@@ -140,7 +140,7 @@ func setupProviders(env providers.Env, opt ProviderFlags) ([]probe.Provider, err
 	case providers.Docker:
 		return setupDockerEnv(opt)
 	default:
-		return nil, fmt.Errorf("invalid env: %q", env)
+		return nil, fmt.Errorf("unknown env: %q", env)
 	}
 }
 
@@ -184,7 +184,7 @@ func setupKubeEnv(kubeconfig, context string) ([]probe.Provider, error) {
 
 	isSeparator := func(c rune) bool {
 		switch c {
-		case ',', ';', ':', ' ':
+		case ',', ';', ':':
 			return true
 		}
 		return false

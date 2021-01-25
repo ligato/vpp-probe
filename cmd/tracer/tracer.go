@@ -20,6 +20,34 @@ var (
 
 type Result = vpptrace.Result
 
+type Packet vpptrace.Packet
+
+// Start returns the elapsed time since boot until the first capture.
+func (p *Packet) Start() time.Duration {
+	if first := p.FirstCapture(); first != nil {
+		return first.Start
+	}
+	return 0
+}
+
+// FirstCapture returns the first capture of the packet
+// or nil if packet has no captures.
+func (p *Packet) FirstCapture() *vpptrace.Capture {
+	if len(p.Captures) == 0 {
+		return nil
+	}
+	return &p.Captures[0]
+}
+
+// LastCapture returns the last capture of the packet
+// or nil if packet has no captures.
+func (p *Packet) LastCapture() *vpptrace.Capture {
+	if len(p.Captures) == 0 {
+		return nil
+	}
+	return &p.Captures[len(p.Captures)-1]
+}
+
 type Traced struct {
 	instance   *vpp.Instance
 	traceNodes []string
@@ -71,7 +99,7 @@ func (t *Traced) TraceResult() *Result {
 }
 
 type packetNode struct {
-	packet vpptrace.Packet
+	packet Packet
 }
 
 func (c *packetNode) String() string {
@@ -124,14 +152,20 @@ func formatDurTimestamp(dur time.Duration) string {
 
 func PrintTraceResult(traced *Traced) {
 	result := traced.result
+
 	logrus.Infof("= instance %v: traced %d packets", traced, len(result.Packets))
+
 	for _, packet := range result.Packets {
 		p := &packetNode{
-			packet: packet,
+			packet: Packet(packet),
 		}
 		var capture string
 		for _, c := range packet.Captures {
-			capture += fmt.Sprintf("- %v (%v)\n%v", color.Yellow.Sprint(c.Name), c.Start-packet.Start(), prefixString(c.Content, "\t"))
+			cinfo := ""
+			if d := c.Start - p.packet.Start(); d > 0 {
+				cinfo = fmt.Sprintf(" (+%v)", d)
+			}
+			capture += fmt.Sprintf("- %v\n%v", color.Yellow.Sprint(c.Name)+cinfo, prefixString(c.Content, "\t"))
 		}
 		fmt.Fprintf(os.Stdout, "# %v\n%v", p, capture)
 	}

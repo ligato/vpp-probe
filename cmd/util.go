@@ -1,4 +1,4 @@
-package agent
+package cmd
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/pkg/term"
 	"github.com/gookit/color"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 var coloredOutput bool
@@ -78,4 +79,30 @@ func prefixString(s, prefix string) string {
 	lines := strings.Split(s, "\n")
 	prefixed := strings.Join(lines, "\n"+prefix)
 	return fmt.Sprintf(prefix+"%s\n", prefixed)
+}
+
+func mapKeyValString(m map[string]string, f func(k string, v string) string) string {
+	ss := make([]string, 0, len(m))
+	for k, v := range m {
+		s := f(k, v)
+		if s == "" {
+			continue
+		}
+		ss = append(ss, s)
+	}
+	return strings.Join(ss, " ")
+}
+
+func protoFieldsToMap(fields protoreflect.FieldDescriptors, pb protoreflect.Message) map[string]string {
+	m := map[string]string{}
+	for i := 0; i < fields.Len(); i++ {
+		fd := fields.Get(i)
+		if pb.Has(fd) {
+			f := pb.Get(fd)
+			if f.IsValid() {
+				m[string(fd.Name())] = f.String()
+			}
+		}
+	}
+	return m
 }
