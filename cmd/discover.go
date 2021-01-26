@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"strings"
@@ -87,7 +88,9 @@ func RunDiscover(cli Cli, opts DiscoverOptions) error {
 func printDiscoverTable(out io.Writer, instance *agent.Instance, printClis bool) {
 	printInstanceHeader(out, instance)
 
-	PrintInstance(out, instance)
+	var buf bytes.Buffer
+	PrintInstance(&buf, instance)
+	fmt.Fprint(out, prefixString(buf.String(), "  "))
 
 	if printClis {
 		PrintCLIs(out, instance)
@@ -95,33 +98,43 @@ func printDiscoverTable(out io.Writer, instance *agent.Instance, printClis bool)
 }
 
 func printInstanceHeader(out io.Writer, instance *agent.Instance) {
-	header := "Instance"
 	metadata := instance.Handler.Metadata()
+
+	metaKey := func(k string) string {
+		v := metadata[k]
+		return fmt.Sprintf("%s: %v", k, color.Yellow.Sprint(v))
+	}
+
+	var header []string
 
 	switch metadata["env"] {
 	case providers.Kube:
-		header = fmt.Sprintf("cluster: %s | pod: %s | namespace: %s | ip: %s",
-			color.Yellow.Sprint(metadata["cluster"]),
-			color.Yellow.Sprint(metadata["pod"]),
-			color.Yellow.Sprint(metadata["namespace"]),
-			color.Yellow.Sprint(metadata["ip"]),
-		)
+		header = []string{
+			metaKey("pod"),
+			metaKey("namespace"),
+			metaKey("node"),
+			metaKey("cluster"),
+			metaKey("ip"),
+		}
 	case providers.Docker:
-		header = fmt.Sprintf("container: %s | id: %s",
-			color.Yellow.Sprint(metadata["container"]),
-			color.Yellow.Sprint(metadata["id"]),
-		)
+		header = []string{
+			metaKey("container"),
+			metaKey("id"),
+		}
 	case providers.Local:
-		header = fmt.Sprintf("pid: %s",
-			color.Yellow.Sprint(metadata["pid"]),
-		)
+		header = []string{
+			metaKey("pid"),
+			metaKey("id"),
+		}
 	default:
-		header = fmt.Sprintf("%+v", metadata)
+		for k := range metadata {
+			header = append(header, metaKey(k))
+		}
 	}
 
-	fmt.Fprintln(out, "--------------------------------------------------------------------------------------------------------")
-	fmt.Fprintf(out, " %s\n", header)
-	fmt.Fprintln(out, "--------------------------------------------------------------------------------------------------------")
+	fmt.Fprintln(out, "----------------------------------------------------------------------------------------------------------------------------------")
+	fmt.Fprintln(out, strings.Join(header, " | "))
+	fmt.Fprintln(out, "----------------------------------------------------------------------------------------------------------------------------------")
 }
 
 func PrintCLIs(out io.Writer, instance *agent.Instance) {

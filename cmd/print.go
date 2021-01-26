@@ -9,6 +9,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/gookit/color"
+	"github.com/sirupsen/logrus"
 	linux_namespace "go.ligato.io/vpp-agent/v3/proto/ligato/linux/namespace"
 	vpp_interfaces "go.ligato.io/vpp-agent/v3/proto/ligato/vpp/interfaces"
 
@@ -19,32 +20,55 @@ const (
 	valueColor          = color.LightMagenta
 	ipAddressColor      = color.Blue
 	filePathColor       = color.Cyan
+	interfaceColor      = color.Yellow
+	statusUpColor       = color.Green
+	statusDownColor     = color.Red
 	tunnelDirectionChar = `🡒`
+	defaultPrefix       = "  "
+)
+
+var (
+	headerColor       = color.New(color.FgLightWhite, color.OpBold)
+	nonAvailableColor = color.New(color.FgDarkGray)
+	noteColor         = color.New(color.FgLightBlue)
 )
 
 func PrintInstance(out io.Writer, instance *agent.Instance) {
 	var buf bytes.Buffer
 
 	// info
-	fmt.Fprintf(&buf, "VPP version: %s\n", color.FgLightBlue.Sprint(instance.Version))
-	fmt.Fprintln(&buf)
-
-	// interfaces
-	if len(instance.Config.VPP.Interfaces) > 0 {
-		PrintVPPInterfacesTable(&buf, instance.Config)
-	} else {
-		fmt.Fprintln(&buf, "No VPP interfaces configured")
+	{
+		fmt.Fprintf(&buf, "VPP version: %s\n", noteColor.Sprint(instance.Version))
 	}
 	fmt.Fprintln(&buf)
 
-	if len(instance.Config.Linux.Interfaces) > 0 {
-		PrintLinuxInterfacesTable(&buf, instance.Config)
-	} else {
-		fmt.Fprintln(&buf, "No Linux interfaces configured")
+	// VPP interfaces
+	fmt.Fprintln(&buf, headerColor.Sprint("VPP interfaces"))
+	{
+		w := prefixWriter(&buf, defaultPrefix)
+		if len(instance.Config.VPP.Interfaces) > 0 {
+			PrintVPPInterfacesTable(w, instance.Config)
+		} else {
+			fmt.Fprintln(w, nonAvailableColor.Sprint("No interfaces configured"))
+		}
 	}
 	fmt.Fprintln(&buf)
 
-	fmt.Fprintln(out, prefixString(buf.String(), "  "))
+	// Linux interfaces
+	fmt.Fprintln(&buf, headerColor.Sprint("Linux interfaces"))
+	{
+		w := prefixWriter(&buf, defaultPrefix)
+		if len(instance.Config.Linux.Interfaces) > 0 {
+			PrintLinuxInterfacesTable(w, instance.Config)
+		} else {
+			fmt.Fprintln(w, nonAvailableColor.Sprint("No interfaces configured"))
+		}
+	}
+	fmt.Fprintln(&buf)
+
+	if _, err := buf.WriteTo(out); err != nil {
+		logrus.Warnf("writing to output failed: %v", err)
+	}
 }
 
 const (
@@ -57,7 +81,7 @@ func PrintVPPInterfacesTable(out io.Writer, config *agent.Config) {
 
 	// header
 	header := []string{
-		"Idx", "Internal", "Interface", "Type", "State", "IP", "MTU", "Config", "Attached",
+		"Idx", "Internal", "Interface", "Type", "State", "IP", " MTU", "Config", "Related",
 	}
 	for i, h := range header {
 		if h != "" {
@@ -74,11 +98,11 @@ func PrintVPPInterfacesTable(out io.Writer, config *agent.Config) {
 
 		idx := fmt.Sprintf("%3v", vppInterfaceIndex(iface))
 		internal := interfaceInternalName(iface)
-		name := colorTag(color.Yellow, iface.Value.Name)
+		name := colorTag(interfaceColor, iface.Value.Name)
 		typ := colorTag(color.Magenta, iface.Value.Type)
 		state := interfaceStatus(iface)
 		ips := interfaceIPs(iface.Value.IpAddresses, iface.Value.Vrf)
-		mtu := interfaceMTU(iface)
+		mtu := interfaceMTU(iface.Value.Mtu)
 		info := vppInterfaceInfo(iface)
 		other := otherInfo(config, iface)
 
@@ -100,7 +124,7 @@ func PrintLinuxInterfacesTable(out io.Writer, config *agent.Config) {
 
 	// header
 	header := []string{
-		"Idx", "Internal", "Interface", "Type", "State", "IP", "MTU", "Config", "Namespace",
+		"Idx", "Internal", "Interface", "Type", "State", "IP", " MTU", "Config", "Namespace",
 	}
 	for i, h := range header {
 		if h != "" {
@@ -114,11 +138,11 @@ func PrintLinuxInterfacesTable(out io.Writer, config *agent.Config) {
 
 		idx := fmt.Sprintf("%3v", linuxInterfaceIndex(v))
 		internal := iface.HostIfName
-		name := colorTag(color.Yellow, iface.Name)
+		name := colorTag(interfaceColor, iface.Name)
 		typ := colorTag(color.Magenta, v.Value.Type)
 		state := linuxInterfaceStatus(v)
 		ips := interfaceIPs(iface.IpAddresses, 0)
-		mtu := fmt.Sprint(iface.Mtu)
+		mtu := interfaceMTU(iface.Mtu)
 		config := linuxInterfaceInfo(v)
 		namespace := linuxIfaceNamespace(iface.Namespace)
 
@@ -141,12 +165,8 @@ func linuxIfaceNamespace(namespace *linux_namespace.NetNamespace) string {
 	return fmt.Sprintf("%v: %v", colorTag(valueColor, namespace.Type), colorTag(color.Cyan, namespace.Reference))
 }
 
-func interfaceMTU(iface agent.VppInterface) string {
-	mtu := "0"
-	if iface.Value.Mtu > 0 {
-		mtu = fmt.Sprint(iface.Value.Mtu)
-	}
-	return mtu
+func interfaceMTU(mtu uint32) string {
+	return fmt.Sprintf("%4d", mtu)
 }
 
 func interfaceIPs(ips []string, vrf uint32) string {
@@ -187,16 +207,16 @@ func linuxInterfaceIndex(iface agent.LinuxInterface) string {
 
 func linuxInterfaceStatus(iface agent.LinuxInterface) string {
 	if iface.Value.Enabled {
-		return colorTag(color.Green, "up")
+		return colorTag(statusUpColor, "up")
 	}
-	return colorTag(color.Red, "down")
+	return colorTag(statusDownColor, "down")
 }
 
 func interfaceStatus(iface agent.VppInterface) string {
 	if iface.Value.Enabled {
-		return colorTag(color.Green, "up")
+		return colorTag(statusUpColor, "up")
 	}
-	return colorTag(color.Red, "down")
+	return colorTag(statusDownColor, "down")
 }
 
 func otherInfo(conf *agent.Config, iface agent.VppInterface) string {
@@ -208,7 +228,7 @@ func otherInfo(conf *agent.Config, iface agent.VppInterface) string {
 		if iface.Value.Name == xconn.Value.ReceiveInterface {
 			toIface = xconn.Value.TransmitInterface
 		}
-		info = append(info, fmt.Sprintf("l2xc to %v", colorTag(color.Yellow, toIface)))
+		info = append(info, fmt.Sprintf("l2xc to %v", colorTag(interfaceColor, toIface)))
 	}
 
 	// IPSec
