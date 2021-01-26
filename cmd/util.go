@@ -2,11 +2,13 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
 	"github.com/docker/docker/pkg/term"
 	"github.com/gookit/color"
+	"github.com/segmentio/textio"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
@@ -74,11 +76,23 @@ func colorTag(x Colorer, s interface{}) string {
 	return color.WrapTag(fmt.Sprint(s), tag)
 }
 
+func prefixWriter(w io.Writer, prefix string) *textio.PrefixWriter {
+	return textio.NewPrefixWriter(w, prefix)
+}
+
 func prefixString(s, prefix string) string {
+	n := 0
+	for i := len(s) - 1; i >= 0; i-- {
+		if s[i] == '\n' {
+			n++
+		} else {
+			break
+		}
+	}
 	s = strings.TrimRight(s, "\n")
 	lines := strings.Split(s, "\n")
 	prefixed := strings.Join(lines, "\n"+prefix)
-	return fmt.Sprintf(prefix+"%s\n", prefixed)
+	return fmt.Sprintf(prefix+"%s"+strings.Repeat("\n", n), prefixed)
 }
 
 func mapKeyValString(m map[string]string, f func(k string, v string) string) string {
