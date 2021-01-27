@@ -2,14 +2,14 @@ package local
 
 import (
 	"fmt"
-	"os/exec"
-	"strings"
+	stdexec "os/exec"
 
 	"git.fd.io/govpp.git"
 	"git.fd.io/govpp.git/adapter/statsclient"
 	govppapi "git.fd.io/govpp.git/api"
 	govppcore "git.fd.io/govpp.git/core"
 
+	"go.ligato.io/vpp-probe/internal/exec"
 	"go.ligato.io/vpp-probe/probe"
 	"go.ligato.io/vpp-probe/providers"
 	vppcli "go.ligato.io/vpp-probe/vpp/cli"
@@ -17,23 +17,21 @@ import (
 
 // HandlerConfig defines config parameters for Handler.
 type HandlerConfig struct {
-	PreferVppctl bool
-	CliAddr      string
-	BinapiAddr   string
-	StatsAddr    string
+	CliAddr    string
+	BinapiAddr string
+	StatsAddr  string
 }
 
 // DefaultConfig returns config set to default values.
 func DefaultConfig() HandlerConfig {
 	return HandlerConfig{
-		PreferVppctl: false,
-		CliAddr:      "/run/vpp/cli.sock",
-		BinapiAddr:   "/run/vpp/api.sock",
-		StatsAddr:    "/run/vpp/stats.sock",
+		CliAddr:    "/run/vpp/cli.sock",
+		BinapiAddr: "/run/vpp/api.sock",
+		StatsAddr:  "/run/vpp/stats.sock",
 	}
 }
 
-// NewHandler returns a new handler for a local instance.
+// Handler is a handler for local instance.
 type Handler struct {
 	HandlerConfig
 
@@ -43,7 +41,7 @@ type Handler struct {
 	statsConn  *govppcore.StatsConnection
 }
 
-// NewHandler returns a new handler for a local instance.
+// NewHandler returns a new handler for a local instance specified by PID.
 func NewHandler(pid int, config HandlerConfig) *Handler {
 	return &Handler{
 		pid:           pid,
@@ -62,22 +60,33 @@ func (h *Handler) Metadata() map[string]string {
 	}
 }
 
-func (h *Handler) ExecCmd(cmd string, args ...string) (string, error) {
-	c := exec.Command(cmd, args...)
-	out, err := c.Output()
-	if err != nil {
-		return string(out), err
+func (h *Handler) ExecCmd(command string, args ...string) (string, error) {
+	cmd := h.Command(command, args...)
+	out, err := cmd.Output()
+	return string(out), err
+}
+
+func (h *Handler) Command(command string, args ...string) exec.Cmd {
+	return &Cmd{
+		Cmd: stdexec.Command(command, args...),
 	}
-	return strings.TrimSpace(string(out)), err
 }
 
 func (h *Handler) GetCLI() (probe.CliExecutor, error) {
-	var cli probe.CliExecutor
+	wrapper := exec.Wrap(h, "/usr/bin/vppctl", "-s", h.CliAddr)
+	cli := vppcli.ExecutorFunc(func(cmd string) (string, error) {
+		out, err := wrapper.Command(cmd).Output()
+		if err != nil {
+			return "", err
+		}
+		return string(out), nil
+	})
+	/*var cli probe.CliExecutor
 	if h.CliAddr == "" {
-		cli = vppcli.Local
+		cli = vppcli.NewCmdExecutor("/usr/bin/vppctl")
 	} else {
-		cli = vppcli.VppCtlAddr(h.CliAddr)
-	}
+		cli = vppcli.NewCmdExecutor("/usr/bin/vppctl", "-s", h.CliAddr)
+	}*/
 	return cli, nil
 }
 

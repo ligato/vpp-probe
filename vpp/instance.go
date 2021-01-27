@@ -101,13 +101,15 @@ func (v *Instance) initVPP() (err error) {
 func (v *Instance) initCLI() error {
 	cli, err := v.handler.GetCLI()
 	if err != nil {
-		return err
+		return fmt.Errorf("CLI handler failed: %w", err)
 	}
+
 	out, err := cli.RunCli("show version verbose")
 	if err != nil {
-		return err
+		return fmt.Errorf("CLI check failed: %w", err)
 	}
 	logrus.Debugf("VPP version:\n%v", out)
+
 	v.cli = cli
 	return nil
 }

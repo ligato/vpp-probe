@@ -51,8 +51,9 @@ func (p *Provider) Query(params ...map[string]string) ([]probe.Handler, error) {
 
 		logrus.Infof("found local vpp process (pid %d)", proc.Pid())
 
-		handler := NewHandler(proc.Pid(), p.Config)
-		handlers = append(handlers, handler)
+		h := NewHandler(proc.Pid(), p.Config)
+
+		handlers = append(handlers, h)
 	}
 
 	if len(handlers) == 0 {

@@ -1,15 +1,13 @@
 package client
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/deprecated/scheme"
-	"k8s.io/client-go/tools/remotecommand"
+
+	"go.ligato.io/vpp-probe/internal/exec"
 )
 
 // Pod is a pod returned from Client.
@@ -25,26 +23,24 @@ type Pod struct {
 	URL       string
 	Image     string
 
+	pod    *corev1.Pod
 	client *Client
 }
 
-func newPod(k *Client, p *corev1.Pod) *Pod {
-	img := ""
-	if len(p.Status.ContainerStatuses) > 0 {
-		img = p.Status.ContainerStatuses[0].Image
-	}
+func newPod(client *Client, pod *corev1.Pod) *Pod {
 	return &Pod{
-		client:    k,
-		Cluster:   k.Cluster(),
-		UID:       p.GetUID(),
-		Name:      p.GetName(),
-		NodeName:  p.Spec.NodeName,
-		Namespace: p.GetNamespace(),
-		IP:        p.Status.PodIP,
-		HostIP:    p.Status.HostIP,
-		Created:   p.GetCreationTimestamp().Time,
-		URL:       p.GetSelfLink(),
-		Image:     img,
+		Cluster:   client.Cluster(),
+		UID:       pod.GetUID(),
+		Name:      pod.GetName(),
+		NodeName:  pod.Spec.NodeName,
+		Namespace: pod.GetNamespace(),
+		IP:        pod.Status.PodIP,
+		HostIP:    pod.Status.HostIP,
+		Created:   pod.GetCreationTimestamp().Time,
+		URL:       pod.GetSelfLink(),
+		Image:     getPodFirstContainer(pod).Image,
+		pod:       pod,
+		client:    client,
 	}
 }
 
@@ -73,51 +69,29 @@ func (p Pod) PortForward(podPort int) (*PortForwarder, error) {
 
 // Exec executes a command in the pod.
 func (p Pod) Exec(command string) (string, error) {
-	return p.ExecContainer("", command)
+	container := getPodFirstContainer(p.pod).Name
+	return p.ExecContainer(container, command)
 }
 
 // ExecContainer executes a command in a container of the pod.
-func (p Pod) ExecContainer(container, command string) (string, error) {
-	var stdout, stderr bytes.Buffer
-	err := podExec(p.client, p.Namespace, p.Name, container, command, nil, &stdout, &stderr)
-	if err != nil {
-		return stderr.String(), err
-	}
-	return stdout.String(), nil
+func (p Pod) ExecContainer(container, command string, args ...string) (string, error) {
+	cmd := p.Command(command, args...)
+	out, err := cmd.Output()
+	return string(out), err
 }
 
-// podExec exec command on specific pod and wait the command's output.
-func podExec(client *Client, namespace, podName, container string,
-	command string, stdin io.Reader, stdout io.Writer, stderr io.Writer,
-) error {
-	podExecOpts := &corev1.PodExecOptions{
-		Container: container,
-		Command:   []string{"sh", "-c", command},
-		Stdin:     stdin != nil,
-		Stdout:    stdout != nil,
-		Stderr:    stderr != nil,
-		TTY:       false,
+func (p Pod) Command(cmd string, args ...string) exec.Cmd {
+	c := &Cmd{
+		Cmd:  cmd,
+		Args: args,
+		pod:  &p,
 	}
-	req := client.client.CoreV1().RESTClient().Post().
-		Resource("pods").
-		Name(podName).
-		Namespace(namespace).
-		SubResource("exec").
-		Param("container", container).
-		VersionedParams(podExecOpts, scheme.ParameterCodec)
+	return c
+}
 
-	exec, err := remotecommand.NewSPDYExecutor(client.restConfig, "POST", req.URL())
-	if err != nil {
-		return err
+func getPodFirstContainer(pod *corev1.Pod) corev1.Container {
+	if len(pod.Spec.Containers) == 0 {
+		return corev1.Container{}
 	}
-	err = exec.Stream(remotecommand.StreamOptions{
-		Stdin:  stdin,
-		Stdout: stdout,
-		Stderr: stderr,
-		Tty:    false,
-	})
-	if err != nil {
-		return err
-	}
-	return nil
+	return pod.Spec.Containers[0]
 }

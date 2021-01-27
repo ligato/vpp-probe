@@ -44,6 +44,12 @@ func RunTests(run func() int) int {
 	return run()
 }
 
+type E2ETestSuite struct {
+	suite.Suite
+
+	kubectx string
+}
+
 func Setup() {
 	log.Println("============== [ SETUP CLUSTERS ] ==============")
 	defer log.Println("---------------------")
@@ -56,10 +62,4 @@ func Teardown() {
 	defer log.Println("======================")
 
 	deleteCluster("c1")
-}
-
-type E2ETestSuite struct {
-	suite.Suite
-
-	kubectx string
 }

@@ -3,13 +3,13 @@ package cmd
 import (
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
+	"github.com/docker/cli/cli/streams"
+	"github.com/moby/term"
 	"github.com/sirupsen/logrus"
 
 	"go.ligato.io/vpp-probe/client"
-	"go.ligato.io/vpp-probe/probe"
 	"go.ligato.io/vpp-probe/providers"
 	"go.ligato.io/vpp-probe/providers/docker"
 	"go.ligato.io/vpp-probe/providers/kube"
@@ -17,41 +17,62 @@ import (
 )
 
 type Cli interface {
-	Initialize(flags ProviderFlags) error
+	Initialize(opts ProbeOptions) error
 	Client() *client.Client
 	Queries() []map[string]string
 
 	Out() io.Writer
 	Err() io.Writer
 	In() io.ReadCloser
+	Apply(...CliOption) error
 }
 
 type ProbeCli struct {
-	client  *client.Client
 	queries []map[string]string
+	client  *client.Client
 
-	Stdin  io.ReadCloser
-	Stdout io.Writer
-	Stderr io.Writer
+	in  io.ReadCloser
+	out io.Writer
+	err io.Writer
 }
 
-func NewProbeCli() *ProbeCli {
-	opts := &ProbeCli{
-		Stdin:  os.Stdin,
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
+func NewProbeCli(opt ...CliOption) (*ProbeCli, error) {
+	cli := new(ProbeCli)
+	if err := cli.Apply(opt...); err != nil {
+		return nil, err
 	}
-	return opts
+	if cli.out == nil || cli.in == nil || cli.err == nil {
+		stdin, stdout, stderr := term.StdStreams()
+		if cli.in == nil {
+			cli.in = streams.NewIn(stdin)
+		}
+		if cli.out == nil {
+			cli.out = streams.NewOut(stdout)
+		}
+		if cli.err == nil {
+			cli.err = stderr
+		}
+	}
+	return cli, nil
 }
 
-func (cli *ProbeCli) Initialize(opts ProviderFlags) (err error) {
-	cli.client, err = setupController(opts)
+func (cli *ProbeCli) Initialize(opts ProbeOptions) (err error) {
+	cli.client, err = initClient(opts)
 	if err != nil {
 		return fmt.Errorf("controller setup error: %w", err)
 	}
 
 	cli.queries = parseQueries(opts.Queries)
 
+	return nil
+}
+
+func (cli *ProbeCli) Apply(opt ...CliOption) error {
+	for _, o := range opt {
+		if err := o(cli); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -64,15 +85,15 @@ func (cli *ProbeCli) Queries() []map[string]string {
 }
 
 func (cli *ProbeCli) Out() io.Writer {
-	return cli.Stdout
+	return cli.out
 }
 
 func (cli *ProbeCli) Err() io.Writer {
-	return cli.Stderr
+	return cli.err
 }
 
 func (cli *ProbeCli) In() io.ReadCloser {
-	return cli.Stdin
+	return cli.in
 }
 
 func parseQueries(queries []string) []map[string]string {
@@ -98,12 +119,15 @@ func parseQueries(queries []string) []map[string]string {
 	return queryParams
 }
 
-func setupController(opts ProviderFlags) (*client.Client, error) {
+func initClient(opts ProbeOptions) (*client.Client, error) {
 	env := resolveEnv(opts)
 
-	logrus.Debugf("provider env: %v", env)
+	logrus.Debugf("resolved env: %v", env)
 
-	probectl := client.NewClient()
+	probeClient, err := client.NewClient()
+	if err != nil {
+		return nil, err
+	}
 
 	pvds, err := setupProviders(env, opts)
 	if err != nil {
@@ -113,24 +137,24 @@ func setupController(opts ProviderFlags) (*client.Client, error) {
 	logrus.Debugf("adding %v providers", len(pvds))
 
 	for _, provider := range pvds {
-		if err := probectl.AddProvider(provider); err != nil {
+		if err := probeClient.AddProvider(provider); err != nil {
 			logrus.Warnf("add provider failed: %v", err)
 			continue
 		}
 		logrus.Debugf("%v provider %v connected", provider.Env(), provider.Name())
 	}
 
-	return probectl, nil
+	return probeClient, nil
 }
 
-func setupProviders(env providers.Env, opt ProviderFlags) ([]probe.Provider, error) {
+func setupProviders(env providers.Env, opt ProbeOptions) ([]providers.Provider, error) {
 	switch env {
 	case providers.Local:
 		prov, err := setupLocalEnv(opt)
 		if err != nil {
 			return nil, err
 		}
-		return []probe.Provider{prov}, nil
+		return []providers.Provider{prov}, nil
 	case providers.Kube:
 		provs, err := setupKubeEnv(opt.Kube.Kubeconfig, opt.Kube.Context)
 		if err != nil {
@@ -144,7 +168,7 @@ func setupProviders(env providers.Env, opt ProviderFlags) ([]probe.Provider, err
 	}
 }
 
-func resolveEnv(opts ProviderFlags) (env providers.Env) {
+func resolveEnv(opts ProbeOptions) providers.Env {
 	if opts.Env != "" {
 		return providers.Env(opts.Env)
 	}
@@ -157,15 +181,15 @@ func resolveEnv(opts ProviderFlags) (env providers.Env) {
 	return providers.Local
 }
 
-func setupDockerEnv(opt ProviderFlags) ([]probe.Provider, error) {
+func setupDockerEnv(opt ProbeOptions) ([]providers.Provider, error) {
 	provider, err := docker.NewProvider(opt.Docker.Host)
 	if err != nil {
 		return nil, err
 	}
-	return []probe.Provider{provider}, nil
+	return []providers.Provider{provider}, nil
 }
 
-func setupLocalEnv(opt ProviderFlags) (probe.Provider, error) {
+func setupLocalEnv(opt ProbeOptions) (providers.Provider, error) {
 	cfg := local.DefaultConfig()
 	if opt.Local.APISocket != "" {
 		cfg.BinapiAddr = opt.Local.APISocket
@@ -179,8 +203,8 @@ func setupLocalEnv(opt ProviderFlags) (probe.Provider, error) {
 	return local.NewProvider(cfg), nil
 }
 
-func setupKubeEnv(kubeconfig, context string) ([]probe.Provider, error) {
-	var pvds []probe.Provider
+func setupKubeEnv(kubeconfig, context string) ([]providers.Provider, error) {
+	var pvds []providers.Provider
 
 	isSeparator := func(c rune) bool {
 		switch c {

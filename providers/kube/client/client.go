@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/kr/pretty"
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
@@ -112,6 +113,8 @@ func (k *Client) GetPod(namespace string, name string) (*Pod, error) {
 	return newPod(k, pod), nil
 }
 
+const kubeSystemNamespace = "kube-system"
+
 // ListPods calls the API to lists all pods with namespace and label selector.
 func (k *Client) ListPods(namespace string, labelSelector, fieldSelector string) (list []*Pod, err error) {
 	if namespace == "" {
@@ -125,12 +128,11 @@ func (k *Client) ListPods(namespace string, labelSelector, fieldSelector string)
 		return nil, err
 	}
 	for _, p := range pods.Items {
-		if p.Namespace == "kube-system" {
-			// ignore internal kubernetes pods
-			continue
+		if p.Namespace == kubeSystemNamespace {
+			continue // ignore kubernetes internal pods
 		}
-		logrus.Tracef("pod %v:\n%+v", p.Name, p)
-		pod := newPod(k, &p)
+		logrus.Tracef("pod %v:\n%v", p.Name, pretty.Sprint(p))
+		pod := newPod(k, p.DeepCopy())
 		list = append(list, pod)
 	}
 	return list, nil

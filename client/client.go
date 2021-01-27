@@ -5,24 +5,35 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"go.ligato.io/vpp-probe/probe"
-	"go.ligato.io/vpp-probe/providers/local"
+	"go.ligato.io/vpp-probe/providers"
 	"go.ligato.io/vpp-probe/vpp"
 )
 
 // Client is a client for managing providers and instances.
 type Client struct {
-	providers []probe.Provider
+	providers []providers.Provider
 	instances []*vpp.Instance
 }
 
-// NewClient returns a new client with default options.
-func NewClient() *Client {
-	return &Client{}
+// NewClient returns a new client using given options.
+func NewClient(opt ...Opt) (*Client, error) {
+	c := &Client{}
+	for _, o := range opt {
+		if err := o(c); err != nil {
+			return nil, err
+		}
+	}
+	return c, nil
 }
 
-// GetProviders returns all probe providers.
-func (c *Client) GetProviders() []probe.Provider {
+// Close releases used resources.
+func (c *Client) Close() error {
+	// TODO: close connections gracefully and free resources
+	return nil
+}
+
+// GetProviders returns all providers.
+func (c *Client) GetProviders() []providers.Provider {
 	return c.providers
 }
 
@@ -32,11 +43,10 @@ func (c *Client) Instances() []*vpp.Instance {
 }
 
 // AddProvider adds provider to the client or returns error if the provided
-// was already added. In case the provider is nil, local provider with default
-// config is used.
-func (c *Client) AddProvider(provider probe.Provider) error {
+// was already added.
+func (c *Client) AddProvider(provider providers.Provider) error {
 	if provider == nil {
-		provider = local.NewProvider(local.DefaultConfig())
+		panic("provider is nil")
 	}
 
 	// check duplicate
@@ -58,13 +68,12 @@ func (c *Client) DiscoverInstances(queryParams ...map[string]string) error {
 		return fmt.Errorf("no providers available")
 	}
 
-	// reset list
-	c.instances = []*vpp.Instance{}
-	instanceChan := make(chan []*vpp.Instance)
+	var instanceList []*vpp.Instance
 
+	instanceChan := make(chan []*vpp.Instance)
 	for _, p := range c.providers {
-		go func(provider probe.Provider) {
-			instances, err := discoverInstances(provider, queryParams...)
+		go func(provider providers.Provider) {
+			instances, err := queryInstances(provider, queryParams...)
 			if err != nil {
 				logrus.Warnf("provider %q discover error: %v", provider.Name(), err)
 			}
@@ -75,10 +84,11 @@ func (c *Client) DiscoverInstances(queryParams ...map[string]string) error {
 	for range c.providers {
 		instances := <-instanceChan
 		if len(instances) > 0 {
-			c.instances = append(c.instances, instances...)
+			instanceList = append(instanceList, instances...)
 		}
 	}
 
+	c.instances = instanceList
 	if len(c.instances) == 0 {
 		return fmt.Errorf("no instances discovered")
 	}
@@ -86,7 +96,7 @@ func (c *Client) DiscoverInstances(queryParams ...map[string]string) error {
 	return nil
 }
 
-func discoverInstances(provider probe.Provider, queryParams ...map[string]string) ([]*vpp.Instance, error) {
+func queryInstances(provider providers.Provider, queryParams ...map[string]string) ([]*vpp.Instance, error) {
 	handlers, err := provider.Query(queryParams...)
 	if err != nil {
 		return nil, err
@@ -96,7 +106,7 @@ func discoverInstances(provider probe.Provider, queryParams ...map[string]string
 	for _, handler := range handlers {
 		inst, err := vpp.NewInstance(handler)
 		if err != nil {
-			logrus.Warnf("vpp instance %v init failed: %v", handler.ID(), err)
+			logrus.Debugf("vpp instance %v init failed: %v", handler.ID(), err)
 			continue
 		}
 

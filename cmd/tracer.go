@@ -16,17 +16,17 @@ import (
 )
 
 const traceExample = `  # Trace packets while running ping
-  trace --env kube -q label=app=vpp -- ping 10.10.1.1
+  trace --env kube -- ping 10.10.1.1
 
   # Trace packets for duration 3s
-  trace --env kube -q label=app=vpp -d 5s`
+  trace --env kube -d 3s`
 
 func NewTracerCmd(cli Cli) *cobra.Command {
 	var (
 		opts = DefaultTracerOptions
 	)
 	cmd := &cobra.Command{
-		Use:     "tracer [flags] -- [command]",
+		Use:     "tracer [options] -- [command]",
 		Aliases: []string{"trace"},
 		Short:   "Trace packets from VPP instances",
 		Long:    "Trace packets from selected VPP instances during execution of custom command (usually ping), or for a specified duration.",

@@ -1,9 +1,7 @@
 package docker
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"strings"
 	"time"
 
@@ -12,13 +10,14 @@ import (
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/sirupsen/logrus"
 
+	"go.ligato.io/vpp-probe/internal/exec"
 	"go.ligato.io/vpp-probe/probe"
 	"go.ligato.io/vpp-probe/providers"
 	vppcli "go.ligato.io/vpp-probe/vpp/cli"
 )
 
-// Handler is used to manage an instance running in Docker.
-type Handler struct {
+// ContainerHandler is used to manage an instance running in Docker.
+type ContainerHandler struct {
 	client    *docker.Client
 	container *docker.Container
 
@@ -26,112 +25,83 @@ type Handler struct {
 }
 
 // NewHandler returns a new handler for an instance running in a pod.
-func NewHandler(client *docker.Client, container *docker.Container) *Handler {
-	return &Handler{
+func NewHandler(client *docker.Client, container *docker.Container) *ContainerHandler {
+	return &ContainerHandler{
 		client:    client,
 		container: container,
 	}
 }
 
-func (h *Handler) ID() string {
-	containerName := strings.TrimPrefix(h.container.Name, "/")
+func (h *ContainerHandler) ID() string {
 	containerID := h.container.ID
 	if len(containerID) > 7 {
 		containerID = containerID[:7]
 	}
-	return fmt.Sprintf("%v-%v", containerName, containerID)
+	return fmt.Sprintf("%v-%v", getContainerName(h.container), containerID)
 }
 
-func (h *Handler) Metadata() map[string]string {
-	id := h.container.ID
-	if len(id) > 12 {
-		id = h.container.ID[:12]
-	}
+func (h *ContainerHandler) Metadata() map[string]string {
+	name := getContainerName(h.container)
+	id := getContainerID(h.container)
 	return map[string]string{
 		"env":       providers.Docker,
-		"name":      h.container.Name,
-		"container": h.container.Name,
+		"name":      name,
+		"container": name,
 		"id":        id,
-		"image":     h.container.Image,
+		"image":     h.container.Config.Image,
 		"created":   h.container.Created.Format(time.UnixDate),
 	}
 }
 
-func (h *Handler) Close() error {
+func getContainerName(container *docker.Container) string {
+	return strings.TrimPrefix(container.Name, "/")
+}
+
+func getContainerID(container *docker.Container) string {
+	if len(container.ID) > 12 {
+		return container.ID[:12]
+	}
+	return container.ID
+}
+
+func (h *ContainerHandler) Close() error {
 	logrus.Debugf("closing handler %v", h.ID())
 	h.vppProxy = nil
 	return nil
 }
 
-func (h *Handler) ExecCmd(cmd string, args ...string) (string, error) {
-	command := cmd + " " + strings.Join(args, " ")
-	return h.execCmd(h.container.ID, command, false)
+func (h *ContainerHandler) ExecCmd(command string, args ...string) (string, error) {
+	cmd := h.Command(command, args...)
+	out, err := cmd.Output()
+	return string(out), err
 }
 
-func (h *Handler) GetCLI() (probe.CliExecutor, error) {
-	arg := ""
-	if _, err := h.ExecCmd("ls", "/run/vpp/cli.sock"); err != nil {
-		logrus.Debugf("checking cli socket error: %v", err)
-		arg = "-s localhost:5002"
-		logrus.Debugf("using flag '%s' for vppctl", arg)
+func (h *ContainerHandler) GetCLI() (probe.CliExecutor, error) {
+	var args []string
+	if err := h.Command("ls", "/run/vpp/cli.sock").Run(); err != nil {
+		args = append(args, "-s", "localhost:5002")
+		logrus.Tracef("checking cli socket error: %v, using flag '%s' for vppctl", err, args)
 	}
+	wrapper := exec.Wrap(h, "/usr/bin/vppctl", args...)
 	cli := vppcli.ExecutorFunc(func(cmd string) (string, error) {
-		command := `vppctl ` + arg + ` "` + cmd + `"`
-		out, err := h.execCmd(h.container.ID, command, false)
+		out, err := wrapper.Command(cmd).Output()
 		if err != nil {
 			return "", err
 		}
-		return strings.TrimSpace(out), nil
+		return string(out), nil
 	})
 	return cli, nil
 }
 
-func (h *Handler) execCmd(containerID string, command string, withStderr bool) (string, error) {
-	createOpts := docker.CreateExecOptions{
-		AttachStdin:  false,
-		AttachStdout: true,
-		AttachStderr: true,
-		Tty:          false,
-		Env:          nil,
-		Cmd:          []string{"sh", "-c", command},
-		Container:    containerID,
-		User:         "",
-		WorkingDir:   "",
-		Context:      nil,
-		Privileged:   false,
+func (h *ContainerHandler) Command(cmd string, args ...string) exec.Cmd {
+	return &Cmd{
+		Cmd:       cmd,
+		Args:      args,
+		container: h,
 	}
-	exec, err := h.client.CreateExec(createOpts)
-	if err != nil {
-		return "", err
-	}
-	var stdout, stderr bytes.Buffer
-	startOpts := docker.StartExecOptions{
-		InputStream:  nil,
-		OutputStream: &stdout,
-		ErrorStream:  &stderr,
-		Detach:       false,
-		Tty:          false,
-		RawTerminal:  false,
-		Success:      nil,
-		Context:      nil,
-	}
-	if withStderr {
-		startOpts.ErrorStream = io.MultiWriter(&stderr, &stdout)
-	}
-	if err := h.client.StartExec(exec.ID, startOpts); err != nil {
-		return "", err
-	}
-	exe, err := h.client.InspectExec(exec.ID)
-	if err != nil {
-		return "", err
-	}
-	if exe.ExitCode != 0 {
-		return stdout.String(), fmt.Errorf("docker exec cmd '%s' failed (exit code %d)\n%s", command, exe.ExitCode, stderr.String())
-	}
-	return stdout.String(), nil
 }
 
-func (h *Handler) GetAPI() (govppapi.Channel, error) {
+func (h *ContainerHandler) GetAPI() (govppapi.Channel, error) {
 	if err := h.connectProxy(); err != nil {
 		return nil, err
 	}
@@ -139,7 +109,7 @@ func (h *Handler) GetAPI() (govppapi.Channel, error) {
 	return proxyBinapi(h.vppProxy)
 }
 
-func (h *Handler) GetStats() (govppapi.StatsProvider, error) {
+func (h *ContainerHandler) GetStats() (govppapi.StatsProvider, error) {
 	if err := h.connectProxy(); err != nil {
 		return nil, err
 	}
@@ -147,7 +117,7 @@ func (h *Handler) GetStats() (govppapi.StatsProvider, error) {
 	return proxyStats(h.vppProxy)
 }
 
-func (h *Handler) connectProxy() error {
+func (h *ContainerHandler) connectProxy() error {
 	if h.vppProxy != nil {
 		return nil
 	}

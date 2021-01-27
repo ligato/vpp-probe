@@ -9,7 +9,6 @@ import (
 	"text/tabwriter"
 
 	"github.com/gookit/color"
-	"github.com/sirupsen/logrus"
 	linux_namespace "go.ligato.io/vpp-agent/v3/proto/ligato/linux/namespace"
 	vpp_interfaces "go.ligato.io/vpp-agent/v3/proto/ligato/vpp/interfaces"
 
@@ -17,59 +16,22 @@ import (
 )
 
 const (
-	valueColor          = color.LightMagenta
-	ipAddressColor      = color.Blue
-	filePathColor       = color.Cyan
-	interfaceColor      = color.Yellow
-	statusUpColor       = color.Green
-	statusDownColor     = color.Red
 	tunnelDirectionChar = `🡒`
 	defaultPrefix       = "  "
 )
 
 var (
-	headerColor       = color.New(color.FgLightWhite, color.OpBold)
-	nonAvailableColor = color.New(color.FgDarkGray)
-	noteColor         = color.New(color.FgLightBlue)
+	valueColor          = color.Magenta
+	ipAddressColor      = color.LightBlue
+	filePathColor       = color.Cyan
+	interfaceColor      = color.Yellow
+	statusUpColor       = color.Green
+	statusDownColor     = color.Red
+	headerColor         = color.New(color.FgLightWhite, color.OpBold)
+	nonAvailableColor   = color.New(color.FgDarkGray)
+	noteColor           = color.New(color.FgLightBlue)
+	instanceHeaderColor = color.New(color.FgLightCyan, color.OpBold)
 )
-
-func PrintInstance(out io.Writer, instance *agent.Instance) {
-	var buf bytes.Buffer
-
-	// info
-	{
-		fmt.Fprintf(&buf, "VPP version: %s\n", noteColor.Sprint(instance.Version))
-	}
-	fmt.Fprintln(&buf)
-
-	// VPP interfaces
-	fmt.Fprintln(&buf, headerColor.Sprint("VPP interfaces"))
-	{
-		w := prefixWriter(&buf, defaultPrefix)
-		if len(instance.Config.VPP.Interfaces) > 0 {
-			PrintVPPInterfacesTable(w, instance.Config)
-		} else {
-			fmt.Fprintln(w, nonAvailableColor.Sprint("No interfaces configured"))
-		}
-	}
-	fmt.Fprintln(&buf)
-
-	// Linux interfaces
-	fmt.Fprintln(&buf, headerColor.Sprint("Linux interfaces"))
-	{
-		w := prefixWriter(&buf, defaultPrefix)
-		if len(instance.Config.Linux.Interfaces) > 0 {
-			PrintLinuxInterfacesTable(w, instance.Config)
-		} else {
-			fmt.Fprintln(w, nonAvailableColor.Sprint("No interfaces configured"))
-		}
-	}
-	fmt.Fprintln(&buf)
-
-	if _, err := buf.WriteTo(out); err != nil {
-		logrus.Warnf("writing to output failed: %v", err)
-	}
-}
 
 const (
 	defaultVppInterfaceName = "local0"
@@ -85,7 +47,7 @@ func PrintVPPInterfacesTable(out io.Writer, config *agent.Config) {
 	}
 	for i, h := range header {
 		if h != "" {
-			header[i] = colorTag(color.Bold, h)
+			header[i] = colorize(color.Bold, h)
 		}
 	}
 	fmt.Fprintln(w, strings.Join(header, "\t"))
@@ -97,9 +59,9 @@ func PrintVPPInterfacesTable(out io.Writer, config *agent.Config) {
 		}
 
 		idx := fmt.Sprintf("%3v", vppInterfaceIndex(iface))
-		internal := interfaceInternalName(iface)
-		name := colorTag(interfaceColor, iface.Value.Name)
-		typ := colorTag(color.Magenta, iface.Value.Type)
+		internal := colorize(color.White, interfaceInternalName(iface))
+		name := colorize(interfaceColor, iface.Value.Name)
+		typ := vppInterfaceType(iface)
 		state := interfaceStatus(iface)
 		ips := interfaceIPs(iface.Value.IpAddresses, iface.Value.Vrf)
 		mtu := interfaceMTU(iface.Value.Mtu)
@@ -128,7 +90,7 @@ func PrintLinuxInterfacesTable(out io.Writer, config *agent.Config) {
 	}
 	for i, h := range header {
 		if h != "" {
-			header[i] = colorTag(color.Bold, h)
+			header[i] = colorize(color.Bold, h)
 		}
 	}
 	fmt.Fprintln(w, strings.Join(header, "\t"))
@@ -137,9 +99,9 @@ func PrintLinuxInterfacesTable(out io.Writer, config *agent.Config) {
 		iface := v.Value
 
 		idx := fmt.Sprintf("%3v", linuxInterfaceIndex(v))
-		internal := iface.HostIfName
-		name := colorTag(interfaceColor, iface.Name)
-		typ := colorTag(color.Magenta, v.Value.Type)
+		internal := colorize(color.White, iface.HostIfName)
+		name := colorize(interfaceColor, iface.Name)
+		typ := linuxInterfaceType(v)
 		state := linuxInterfaceStatus(v)
 		ips := interfaceIPs(iface.IpAddresses, 0)
 		mtu := interfaceMTU(iface.Mtu)
@@ -158,11 +120,19 @@ func PrintLinuxInterfacesTable(out io.Writer, config *agent.Config) {
 	fmt.Fprint(out, color.ReplaceTag(buf.String()))
 }
 
+func linuxInterfaceType(iface agent.LinuxInterface) string {
+	return iface.Value.Type.String()
+}
+
+func vppInterfaceType(iface agent.VppInterface) string {
+	return iface.Value.Type.String()
+}
+
 func linuxIfaceNamespace(namespace *linux_namespace.NetNamespace) string {
 	if namespace == nil {
 		return "-"
 	}
-	return fmt.Sprintf("%v: %v", colorTag(valueColor, namespace.Type), colorTag(color.Cyan, namespace.Reference))
+	return fmt.Sprintf("%v: %v", colorize(valueColor, namespace.Type), colorize(color.Cyan, namespace.Reference))
 }
 
 func interfaceMTU(mtu uint32) string {
@@ -174,12 +144,12 @@ func interfaceIPs(ips []string, vrf uint32) string {
 	if len(ips) > 0 {
 		ipsclr := []string{}
 		for _, ipaddr := range ips {
-			ipsclr = append(ipsclr, colorTag(ipAddressColor, ipaddr))
+			ipsclr = append(ipsclr, colorize(ipAddressColor, ipaddr))
 		}
 		ip = strings.Join(ipsclr, ", ")
 	}
 	if vrf > 0 {
-		ip += fmt.Sprintf(" (VRF %v)", colorTag(color.Cyan, vrf))
+		ip += fmt.Sprintf(" (VRF %v)", colorize(color.Cyan, vrf))
 	}
 	return ip
 }
@@ -207,16 +177,16 @@ func linuxInterfaceIndex(iface agent.LinuxInterface) string {
 
 func linuxInterfaceStatus(iface agent.LinuxInterface) string {
 	if iface.Value.Enabled {
-		return colorTag(statusUpColor, "up")
+		return colorize(statusUpColor, "up")
 	}
-	return colorTag(statusDownColor, "down")
+	return colorize(statusDownColor, "down")
 }
 
 func interfaceStatus(iface agent.VppInterface) string {
 	if iface.Value.Enabled {
-		return colorTag(statusUpColor, "up")
+		return colorize(statusUpColor, "up")
 	}
-	return colorTag(statusDownColor, "down")
+	return colorize(statusDownColor, "down")
 }
 
 func otherInfo(conf *agent.Config, iface agent.VppInterface) string {
@@ -228,12 +198,12 @@ func otherInfo(conf *agent.Config, iface agent.VppInterface) string {
 		if iface.Value.Name == xconn.Value.ReceiveInterface {
 			toIface = xconn.Value.TransmitInterface
 		}
-		info = append(info, fmt.Sprintf("l2xc to %v", colorTag(interfaceColor, toIface)))
+		info = append(info, fmt.Sprintf("l2xc to %v", colorize(interfaceColor, toIface)))
 	}
 
 	// IPSec
 	if tp := agent.FindIPSecTunProtectFor(iface.Value.Name, conf.VPP.IPSecTunProtects); tp != nil {
-		info = append(info, fmt.Sprintf("ipsec-sa in:%v out:%v", colorTag(color.Cyan, tp.Value.SaIn), colorTag(color.Cyan, tp.Value.SaOut)))
+		info = append(info, fmt.Sprintf("ipsec-sa in:%v out:%v", colorize(color.Cyan, tp.Value.SaIn), colorize(color.Cyan, tp.Value.SaOut)))
 	}
 
 	return strings.Join(info, ", ")
@@ -247,22 +217,22 @@ func vppInterfaceInfo(iface agent.VppInterface) string {
 		var info string
 		socketParts := strings.Split(memif.GetSocketFilename(), "/")
 		for i, part := range socketParts {
-			socketParts[i] = colorTag(filePathColor, part)
+			socketParts[i] = colorize(filePathColor, part)
 		}
-		socket := strings.Join(socketParts, colorTag(color.OpReset, "/"))
+		socket := strings.Join(socketParts, colorize(color.OpReset, "/"))
 		info += fmt.Sprintf("socket:%s ", socket)
 		if memif.Id > 0 {
-			info += fmt.Sprintf("id:%v ", colorTag(valueColor, memif.Id))
+			info += fmt.Sprintf("id:%v ", colorize(valueColor, memif.Id))
 		}
 		if memif.Master {
-			info += fmt.Sprintf("(%s)", colorTag(valueColor, "master"))
+			info += fmt.Sprintf("(%s)", colorize(valueColor, "master"))
 		}
 		return info
 
 	case vpp_interfaces.Interface_VXLAN_TUNNEL:
 		vxlan := iface.Value.GetVxlan()
 		var info string
-		info += fmt.Sprintf("%s %s %s (vni:%v)", colorTag(ipAddressColor, vxlan.SrcAddress), tunnelDirectionChar, colorTag(ipAddressColor, vxlan.DstAddress), colorTag(valueColor, vxlan.Vni))
+		info += fmt.Sprintf("%s %s %s (vni:%v)", colorize(ipAddressColor, vxlan.SrcAddress), tunnelDirectionChar, colorize(ipAddressColor, vxlan.DstAddress), colorize(valueColor, vxlan.Vni))
 		return info
 
 	case vpp_interfaces.Interface_TAP:
@@ -270,14 +240,14 @@ func vppInterfaceInfo(iface agent.VppInterface) string {
 		pr := tap.ProtoReflect()
 		m := protoFieldsToMap(pr.Descriptor().Fields(), pr)
 		fieldsStr := mapKeyValString(m, func(k string, v string) string {
-			return fmt.Sprintf("%s:%s", k, colorTag(valueColor, v))
+			return fmt.Sprintf("%s:%s", k, colorize(valueColor, v))
 		})
-		return fmt.Sprintf("host_if_name:%s %v", colorTag(valueColor, iface.Metadata["TAPHostIfName"]), fieldsStr)
+		return fmt.Sprintf("host_if_name:%s %v", colorize(valueColor, iface.Metadata["TAPHostIfName"]), fieldsStr)
 
 	case vpp_interfaces.Interface_IPIP_TUNNEL:
 		tun := iface.Value.GetIpip()
 		var info string
-		info += fmt.Sprintf("%s %s %s mode:%v", colorTag(ipAddressColor, tun.SrcAddr), tunnelDirectionChar, colorTag(ipAddressColor, tun.DstAddr), colorTag(valueColor, tun.TunnelMode))
+		info += fmt.Sprintf("%s %s %s mode:%v", colorize(ipAddressColor, tun.SrcAddr), tunnelDirectionChar, colorize(ipAddressColor, tun.DstAddr), colorize(valueColor, tun.TunnelMode))
 		return info
 	}
 
@@ -292,7 +262,7 @@ func vppInterfaceInfo(iface agent.VppInterface) string {
 
 	m := protoFieldsToMap(d.Fields(), link)
 	return mapKeyValString(m, func(k string, v string) string {
-		return fmt.Sprintf("%s:%s", k, colorTag(valueColor, v))
+		return fmt.Sprintf("%s:%s", k, colorize(valueColor, v))
 	})
 }
 
@@ -308,6 +278,6 @@ func linuxInterfaceInfo(iface agent.LinuxInterface) string {
 
 	m := protoFieldsToMap(d.Fields(), link)
 	return mapKeyValString(m, func(k string, v string) string {
-		return fmt.Sprintf("%s:%s", k, colorTag(valueColor, v))
+		return fmt.Sprintf("%s:%s", k, colorize(valueColor, v))
 	})
 }

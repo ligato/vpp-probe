@@ -64,6 +64,7 @@ func (p *Provider) Query(params ...map[string]string) ([]probe.Handler, error) {
 		return nil, err
 	}
 
+	// force single empty query by default
 	if len(queries) == 0 {
 		queries = []PodQuery{{}}
 	}
@@ -101,6 +102,7 @@ func queryPods(kubectx *client.Client, queries []PodQuery) ([]*client.Pod, error
 				continue
 			}
 			logrus.Debugf("matching pod found")
+
 			list = append(list, pod)
 		} else {
 			pods, err := kubectx.ListPods(q.Namespace, q.LabelSelector, q.FieldSelector)
@@ -113,6 +115,7 @@ func queryPods(kubectx *client.Client, queries []PodQuery) ([]*client.Pod, error
 				continue
 			}
 			logrus.Debugf("%d matching pods found", len(pods))
+
 			list = append(list, pods...)
 		}
 	}

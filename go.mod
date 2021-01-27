@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	git.fd.io/govpp.git v0.3.6-0.20201104125301-2b743eede78b
+	github.com/docker/cli v0.0.0-20190822175708-578ab52ece34
 	github.com/docker/docker v0.0.0-20180620002508-3dfb26ab3cbf
 	github.com/fsouza/go-dockerclient v1.2.2
 	github.com/gdamore/tcell/v2 v2.0.1-0.20201019142633-1057d5591ed1
@@ -13,7 +14,9 @@ require (
 	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
 	github.com/k0kubun/pp v3.0.1+incompatible
+	github.com/kr/pretty v0.1.0
 	github.com/mitchellh/go-ps v0.0.0-20170309133038-4fdf99ab2936
+	github.com/moby/term v0.0.0-20201216013528-df9cb8a40635
 	github.com/segmentio/textio v1.2.0
 	github.com/sirupsen/logrus v1.6.0
 	github.com/spf13/cobra v1.0.0

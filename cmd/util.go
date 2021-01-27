@@ -24,13 +24,15 @@ type Colorer interface {
 	Code() string
 }
 
-func colorTag(x Colorer, s interface{}) string {
+func colorize(x Colorer, v interface{}) string {
 	if !coloredOutput || x == nil {
-		return fmt.Sprint(s)
+		return fmt.Sprint(v)
 	}
 
-	fg := ""
-	op := ""
+	var (
+		fg string
+		op string
+	)
 
 	check := func(c Colorer) {
 		for name, clr := range color.FgColors {
@@ -62,7 +64,8 @@ func colorTag(x Colorer, s interface{}) string {
 		check(x)
 	}
 
-	tag := ""
+	var tag string
+
 	if fg != "" {
 		tag = fmt.Sprintf("fg=%s", fg)
 	}
@@ -73,26 +76,11 @@ func colorTag(x Colorer, s interface{}) string {
 		tag += fmt.Sprintf("op=%s", op)
 	}
 
-	return color.WrapTag(fmt.Sprint(s), tag)
+	return color.WrapTag(fmt.Sprint(v), tag)
 }
 
 func prefixWriter(w io.Writer, prefix string) *textio.PrefixWriter {
 	return textio.NewPrefixWriter(w, prefix)
-}
-
-func prefixString(s, prefix string) string {
-	n := 0
-	for i := len(s) - 1; i >= 0; i-- {
-		if s[i] == '\n' {
-			n++
-		} else {
-			break
-		}
-	}
-	s = strings.TrimRight(s, "\n")
-	lines := strings.Split(s, "\n")
-	prefixed := strings.Join(lines, "\n"+prefix)
-	return fmt.Sprintf(prefix+"%s"+strings.Repeat("\n", n), prefixed)
 }
 
 func mapKeyValString(m map[string]string, f func(k string, v string) string) string {

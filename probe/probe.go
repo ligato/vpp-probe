@@ -3,20 +3,9 @@ package probe
 
 import (
 	govppapi "git.fd.io/govpp.git/api"
+
+	"go.ligato.io/vpp-probe/internal/exec"
 )
-
-// Provider provides ways to discover instances.
-type Provider interface {
-	// Env returns the environment type of the provider.
-	Env() string
-
-	// Name returns a name of the provider.
-	Name() string
-
-	// Query runs query with list of parameters used as filters and returns a list
-	// of Handler for
-	Query(params ...map[string]string) ([]Handler, error)
-}
 
 // Handler handles a running instance.
 type Handler interface {
@@ -35,8 +24,11 @@ type Handler interface {
 
 // Host is a common interface to interact host system (OS).
 type Host interface {
-	// ExecCmd executes a command in the OS where the instance is running.
-	ExecCmd(cmd string, args ...string) (string, error)
+	// Command returns command to be executed on the host OS where the instance is running.
+	//ExecCmd(cmd string, args ...string) (string, error)
+	Command(cmd string, args ...string) exec.Cmd
+
+	//exec.Interface
 }
 
 // VPP is a common interface to access VPP APIs.

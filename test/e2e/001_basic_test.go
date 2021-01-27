@@ -9,6 +9,7 @@ import (
 
 	"go.ligato.io/vpp-probe/client"
 	"go.ligato.io/vpp-probe/cmd"
+	"go.ligato.io/vpp-probe/probe"
 	"go.ligato.io/vpp-probe/providers/kube"
 	"go.ligato.io/vpp-probe/vpp"
 )
@@ -57,33 +58,53 @@ func (s *BasicTestSuite) TestDiscover() {
 		t.Fatal(err)
 	}
 
-	c := client.NewClient()
+	c, err := client.NewClient()
+	s.NoError(err)
 	if err := c.AddProvider(p); err != nil {
 		t.Fatal(err)
 	}
 
-	handlers, err := p.Query(map[string]string{"label": "app=vpp"})
-	s.NoError(err)
-	s.Equal(3, len(handlers))
+	s.Run("empty query", func() {
+		handlers, err := p.Query()
+		if s.NoError(err) {
+			s.Len(handlers, 3)
+		}
+	})
 
-	for _, h := range handlers {
-		t.Logf("- %v: %+v", h.ID(), h.Metadata())
-		instance, err := vpp.NewInstance(h)
-		s.NoError(err)
-		t.Logf("instance: %+v", instance)
-	}
+	var handlers []probe.Handler
+	s.Run("query label", func() {
+		handlers, err = p.Query(map[string]string{"label": "app=vpp"})
+		if s.NoError(err) {
+			s.Len(handlers, 3)
+		}
+	})
+
+	s.Run("init instances", func() {
+		for _, h := range handlers {
+			t.Logf("- %v: %+v", h.ID(), h.Metadata())
+			instance, err := vpp.NewInstance(h)
+			s.NoError(err)
+			t.Logf("instance: %+v", instance)
+		}
+	})
 }
 
 func (s *BasicTestSuite) TestTracer() {
-	var opts cmd.ProviderFlags
+	cli, err := cmd.NewProbeCli()
+	s.NoError(err)
+
+	var opts cmd.ProbeOptions
 	opts.Kube.Context = s.kubectx
 	opts.Queries = []string{"label=app=vpp"}
-	cli := cmd.NewProbeCli()
-	err := cli.Initialize(opts)
+
+	err = cli.Initialize(opts)
 	s.NoError(err)
 
 	tracerOpts := cmd.DefaultTracerOptions
-	tracerOpts.CustomCmd = fmt.Sprintf("kubectl --context=%s exec -i vpp-vswitch -- ping -c 1 192.168.23.2", s.kubectx)
+	tracerOpts.CustomCmd = fmt.Sprintf(
+		"kubectl --context=%s exec -i %s -- ping -c 1 %s", s.kubectx, "vpp-vswitch", "192.168.23.2",
+	)
+
 	err = cmd.RunTracer(cli, tracerOpts)
 	s.NoError(err)
 }

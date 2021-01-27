@@ -66,7 +66,7 @@ type kvdata struct {
 }
 
 func retrieveConfig(handler probe.Handler) (*Config, error) {
-	dump, err := runAgentctlCmd(handler, "dump", "-f ", "json", "--view ", "SB", "all")
+	dump, err := runAgentctlCmd(handler, "dump", "--format", "json", "--view ", "SB", "all")
 	if err != nil {
 		return nil, fmt.Errorf("dumping all failed: %w", err)
 	}
@@ -185,10 +185,10 @@ func HasAnyIPSecConfig(config *Config) bool {
 	return false
 }
 
-func runAgentctlCmd(host probe.Host, args ...string) ([]byte, error) {
-	dump, err := host.ExecCmd("agentctl", args...)
+func runAgentctlCmd(h probe.Handler, args ...string) ([]byte, error) {
+	out, err := h.Command("agentctl", args...).Output()
 	if err != nil {
 		return nil, err
 	}
-	return []byte(dump), err
+	return out, err
 }

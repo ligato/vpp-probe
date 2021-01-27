@@ -67,6 +67,11 @@ func (p *Provider) Query(params ...map[string]string) ([]probe.Handler, error) {
 	}
 	logrus.Debugf("-> %d queries to run", len(queries))
 
+	// force single empty query by default
+	if len(queries) == 0 {
+		queries = []ContainerQuery{{}}
+	}
+
 	var all []*docker.Container
 	for _, q := range queries {
 		logrus.Debugf("running query: %+v", q)
@@ -88,8 +93,7 @@ func (p *Provider) Query(params ...map[string]string) ([]probe.Handler, error) {
 
 	var handlers []probe.Handler
 	for _, container := range all {
-		handler := NewHandler(p.client, container)
-		handlers = append(handlers, handler)
+		handlers = append(handlers, NewHandler(p.client, container))
 	}
 
 	if len(handlers) == 0 {
@@ -127,8 +131,7 @@ func parseQueryParams(listParams []map[string]string) ([]ContainerQuery, error) 
 		if params == nil {
 			return nil, fmt.Errorf("invalid params: %q", params)
 		}
-		query := newQuery(params)
-		queries = append(queries, query)
+		queries = append(queries, newQuery(params))
 	}
 	return queries, nil
 }
@@ -141,8 +144,8 @@ type ContainerQuery struct {
 
 func newQuery(params map[string]string) ContainerQuery {
 	name := params["name"]
-	if pod, ok := params["container"]; ok && pod != "" {
-		name = pod
+	if container, ok := params["container"]; ok && container != "" {
+		name = container
 	}
 	return ContainerQuery{
 		ID:    params["id"],
@@ -157,28 +160,26 @@ func (q ContainerQuery) String() string {
 		s = fmt.Sprintf("ID=%q ", q.ID)
 	} else if q.Name != "" {
 		s = fmt.Sprintf("Name=%q ", q.Name)
-	} else {
-		if q.Label != "" {
-			s += fmt.Sprintf("Label=%q ", q.Label)
-		}
+	} else if q.Label != "" {
+		s += fmt.Sprintf("Label=%q ", q.Label)
 	}
 	return s
 }
 
 func (q ContainerQuery) ListContainerOptions() docker.ListContainersOptions {
-	listOpts := docker.ListContainersOptions{}
+	opts := docker.ListContainersOptions{}
 	if q.ID != "" {
-		listOpts.Filters = map[string][]string{
+		opts.Filters = map[string][]string{
 			"id": {q.ID},
 		}
 	} else if q.Name != "" {
-		listOpts.Filters = map[string][]string{
+		opts.Filters = map[string][]string{
 			"name": {q.Name},
 		}
-	} else {
-		listOpts.Filters = map[string][]string{
+	} else if q.Label != "" {
+		opts.Filters = map[string][]string{
 			"label": {q.Label},
 		}
 	}
-	return listOpts
+	return opts
 }

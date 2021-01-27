@@ -4,19 +4,19 @@ import (
 	"github.com/spf13/pflag"
 )
 
-type GlobalFlags struct {
+type GlobalOptions struct {
 	Debug    bool
 	LogLevel string
 	// TODO: support config file
 	// Config string
 }
 
-func (glob *GlobalFlags) InstallFlags(flags *pflag.FlagSet) {
+func (glob *GlobalOptions) InstallFlags(flags *pflag.FlagSet) {
 	flags.BoolVarP(&glob.Debug, "debug", "D", false, "Enable debug mode")
 	flags.StringVarP(&glob.LogLevel, "loglevel", "L", "", "Set logging level")
 }
 
-type ProviderFlags struct {
+type ProbeOptions struct {
 	Env     string
 	Queries []string
 
@@ -34,7 +34,7 @@ type ProviderFlags struct {
 	}
 }
 
-func (f *ProviderFlags) InstallFlags(flags *pflag.FlagSet) {
+func (f *ProbeOptions) InstallFlags(flags *pflag.FlagSet) {
 	flags.StringVarP(&f.Env, "env", "e", "",
 		`Environment type in which VPP is running. Supported environments are local, docker and kube,
 where VPP is running as a local process, as a Docker container or as a Kubernetes pod, respectivelly.

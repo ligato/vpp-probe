@@ -6,21 +6,24 @@ import (
 	"io"
 	"strings"
 
-	"github.com/gookit/color"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"go.ligato.io/vpp-probe/probe"
 	"go.ligato.io/vpp-probe/providers"
 	"go.ligato.io/vpp-probe/vpp/agent"
 )
 
-const discoverExample = `  # Discover VPP instances in Kubernetes pods with label "app=vpp"
-  vpp-probe discover -e kube -q "label=app=vpp"
+const discoverExample = `  # Discover VPP instances in Kubernetes pods
+  vpp-probe discover -e kube
 
-  # Discover VPP instances in Docker container with name "vpp1"
-  vpp-probe discover -e docker -q  "name=vpp1"
+  # Discover VPP instances from multiple kubeconfig contexts in single run 
+  vpp-probe discover -e kube --kubecontext="demo1,demo2"
 
-  # Discover instances running locally
+  # Discover VPP instances in Docker containers
+  vpp-probe discover -e docker
+
+  # Discover local VPP instance
   vpp-probe discover`
 
 func NewDiscoverCmd(cli Cli) *cobra.Command {
@@ -28,7 +31,7 @@ func NewDiscoverCmd(cli Cli) *cobra.Command {
 		opts DiscoverOptions
 	)
 	cmd := &cobra.Command{
-		Use:   "discover",
+		Use:   "discover [options]",
 		Short: "Discover running VPP instances",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return RunDiscover(cli, opts)
@@ -36,16 +39,12 @@ func NewDiscoverCmd(cli Cli) *cobra.Command {
 		Example: discoverExample,
 	}
 	flags := cmd.Flags()
-	flags.StringVarP(&opts.Format, "format", "f", "", "Output format.")
-	flags.BoolVar(&opts.PrintCLIs, "printclis", false, "Print output from CLI commands for each instance.")
-	flags.StringSliceVar(&opts.ExtraCLIs, "extraclis", nil, "Additional CLI commands to run for each instance.")
+	flags.StringVarP(&opts.Format, "format", "f", "", "Output format (json, yaml, go-template..)")
 	return cmd
 }
 
 type DiscoverOptions struct {
-	ExtraCLIs []string
-	PrintCLIs bool
-	Format    string
+	Format string
 }
 
 func RunDiscover(cli Cli, opts DiscoverOptions) error {
@@ -67,14 +66,11 @@ func RunDiscover(cli Cli, opts DiscoverOptions) error {
 		}
 
 		vpp.Version = instance.VersionInfo().Version
-		if opts.PrintCLIs {
-			agent.RunCLIs(vpp, opts.ExtraCLIs)
-		}
 
 		agentInstances = append(agentInstances, vpp)
 
 		if format := opts.Format; len(format) == 0 {
-			printDiscoverTable(cli.Out(), vpp, opts.PrintCLIs)
+			printDiscoverTable(cli.Out(), vpp)
 		} else {
 			if err := formatAsTemplate(cli.Out(), format, vpp); err != nil {
 				return err
@@ -85,24 +81,19 @@ func RunDiscover(cli Cli, opts DiscoverOptions) error {
 	return nil
 }
 
-func printDiscoverTable(out io.Writer, instance *agent.Instance, printClis bool) {
-	printInstanceHeader(out, instance)
+func printDiscoverTable(out io.Writer, instance *agent.Instance) {
+	printInstanceHeader(out, instance.Handler)
 
-	var buf bytes.Buffer
-	PrintInstance(&buf, instance)
-	fmt.Fprint(out, prefixString(buf.String(), "  "))
-
-	if printClis {
-		PrintCLIs(out, instance)
-	}
+	w := prefixWriter(out, defaultPrefix)
+	PrintInstance(w, instance)
 }
 
-func printInstanceHeader(out io.Writer, instance *agent.Instance) {
-	metadata := instance.Handler.Metadata()
+func printInstanceHeader(out io.Writer, handler probe.Handler) {
+	metadata := handler.Metadata()
 
 	metaKey := func(k string) string {
 		v := metadata[k]
-		return fmt.Sprintf("%s: %v", k, color.Yellow.Sprint(v))
+		return fmt.Sprintf("%s: %v", k, instanceHeaderColor.Sprint(v))
 	}
 
 	var header []string
@@ -119,6 +110,7 @@ func printInstanceHeader(out io.Writer, instance *agent.Instance) {
 	case providers.Docker:
 		header = []string{
 			metaKey("container"),
+			metaKey("image"),
 			metaKey("id"),
 		}
 	case providers.Local:
@@ -133,16 +125,44 @@ func printInstanceHeader(out io.Writer, instance *agent.Instance) {
 	}
 
 	fmt.Fprintln(out, "----------------------------------------------------------------------------------------------------------------------------------")
-	fmt.Fprintln(out, strings.Join(header, " | "))
+	fmt.Fprintf(out, " %s\n", strings.Join(header, " | "))
 	fmt.Fprintln(out, "----------------------------------------------------------------------------------------------------------------------------------")
 }
 
-func PrintCLIs(out io.Writer, instance *agent.Instance) {
-	for k, v := range instance.CliData {
-		val := color.FgLightBlue.Sprint(v)
-		val = "\t" + strings.ReplaceAll(val, "\n", "\n\t")
-		fmt.Fprintf(out, "%s:\n\n%s\n", k, val)
-		fmt.Fprintln(out)
+func PrintInstance(out io.Writer, instance *agent.Instance) {
+	var buf bytes.Buffer
+
+	// info
+	{
+		fmt.Fprintf(&buf, "VPP version: %s\n", noteColor.Sprint(instance.Version))
 	}
-	fmt.Fprintln(out)
+	fmt.Fprintln(&buf)
+
+	// VPP interfaces
+	fmt.Fprintln(&buf, headerColor.Sprint("VPP interfaces"))
+	{
+		w := prefixWriter(&buf, defaultPrefix)
+		if len(instance.Config.VPP.Interfaces) > 0 {
+			PrintVPPInterfacesTable(w, instance.Config)
+		} else {
+			fmt.Fprintln(w, nonAvailableColor.Sprint("No interfaces configured"))
+		}
+	}
+	fmt.Fprintln(&buf)
+
+	// Linux interfaces
+	fmt.Fprintln(&buf, headerColor.Sprint("Linux interfaces"))
+	{
+		w := prefixWriter(&buf, defaultPrefix)
+		if len(instance.Config.Linux.Interfaces) > 0 {
+			PrintLinuxInterfacesTable(w, instance.Config)
+		} else {
+			fmt.Fprintln(w, nonAvailableColor.Sprint("No interfaces configured"))
+		}
+	}
+	fmt.Fprintln(&buf)
+
+	if _, err := buf.WriteTo(out); err != nil {
+		logrus.Warnf("writing to output failed: %v", err)
+	}
 }

@@ -3,6 +3,9 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -23,10 +26,14 @@ const logo = `
 
 // Execute executes a root command using default behavior
 func Execute() {
-	cli := NewProbeCli()
-	cmd := NewRootCmd(cli)
+	cli, err := NewProbeCli()
+	if err != nil {
+		logrus.Fatal("ERROR: %v", err)
+	}
 
-	if err := cmd.Execute(); err != nil {
+	root := NewRootCmd(cli)
+
+	if err := root.Execute(); err != nil {
 		logrus.Fatalf("ERROR: %v", err)
 	}
 }
@@ -34,11 +41,11 @@ func Execute() {
 // NewRootCmd returns new root command
 func NewRootCmd(cli Cli) *cobra.Command {
 	var (
-		glob GlobalFlags
-		opts ProviderFlags
+		glob GlobalOptions
+		opts ProbeOptions
 	)
 	cmd := &cobra.Command{
-		Use:           "vpp-probe [flags] [command]",
+		Use:           "vpp-probe [options] [command]",
 		Short:         "vpp-probe is a tool for inspecting VPP instances",
 		Long:          fmt.Sprintf(logo, version.Short(), version.BuildTime(), version.BuiltBy()),
 		Version:       version.String(),
@@ -82,7 +89,7 @@ func NewRootCmd(cli Cli) *cobra.Command {
 	return cmd
 }
 
-func initOptions(opts GlobalFlags) {
+func initOptions(opts GlobalOptions) {
 	if os.Getenv("VPP_PROBE_DEBUG") != "" {
 		opts.Debug = true
 	}
@@ -92,7 +99,7 @@ func initOptions(opts GlobalFlags) {
 	if opts.LogLevel != "" {
 		if lvl, err := logrus.ParseLevel(opts.LogLevel); err == nil {
 			logrus.SetLevel(lvl)
-			if lvl == logrus.TraceLevel {
+			if lvl >= logrus.TraceLevel {
 				logrus.SetReportCaller(true)
 				logrus2.DefaultLogger().SetLevel(logging.LogLevel(lvl))
 			}
@@ -103,4 +110,18 @@ func initOptions(opts GlobalFlags) {
 		logrus.SetLevel(logrus.InfoLevel)
 		logrus2.DefaultLogger().SetLevel(logging.ErrorLevel)
 	}
+}
+
+func init() {
+	logrus.SetFormatter(&logrus.TextFormatter{
+		EnvironmentOverrideColors: true,
+		CallerPrettyfier: func(frame *runtime.Frame) (function string, file string) {
+			const modulePath = "go.ligato.io/vpp-probe"
+			call := strings.TrimPrefix(frame.Function, modulePath)
+			function = fmt.Sprintf("%s()", strings.TrimPrefix(call, "/"))
+			_, file = filepath.Split(frame.File)
+			file = fmt.Sprintf("%s:%d", file, frame.Line)
+			return
+		},
+	})
 }
