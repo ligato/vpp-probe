@@ -21,16 +21,17 @@ const (
 )
 
 var (
-	valueColor          = color.Magenta
-	ipAddressColor      = color.LightBlue
-	filePathColor       = color.Cyan
-	interfaceColor      = color.Yellow
-	statusUpColor       = color.Green
-	statusDownColor     = color.Red
-	headerColor         = color.New(color.FgLightWhite, color.OpBold)
+	valueColor          = color.New(color.Magenta)
+	ipAddressColor      = color.New(color.LightBlue)
+	highlightColor      = color.New(color.LightWhite)
+	filePathColor       = color.New(color.Cyan)
+	interfaceColor      = color.New(color.Yellow)
+	statusUpColor       = color.New(color.Green)
+	statusDownColor     = color.New(color.Red)
+	headerColor         = color.New(color.LightWhite, color.OpBold)
 	nonAvailableColor   = color.New(color.FgDarkGray)
-	noteColor           = color.New(color.FgLightBlue)
-	instanceHeaderColor = color.New(color.FgLightCyan, color.OpBold)
+	noteColor           = color.New(color.LightBlue)
+	instanceHeaderColor = color.New(color.LightYellow, color.OpBold)
 )
 
 const (
@@ -41,7 +42,6 @@ func PrintVPPInterfacesTable(out io.Writer, config *agent.Config) {
 	var buf bytes.Buffer
 	w := tabwriter.NewWriter(&buf, 0, 8, 1, '\t', tabwriter.StripEscape|tabwriter.FilterHTML|tabwriter.DiscardEmptyColumns)
 
-	// header
 	header := []string{
 		"Idx", "Internal", "Interface", "Type", "State", "IP", " MTU", "Config", "Related",
 	}
@@ -52,21 +52,21 @@ func PrintVPPInterfacesTable(out io.Writer, config *agent.Config) {
 	}
 	fmt.Fprintln(w, strings.Join(header, "\t"))
 
-	// interfaces
-	for _, iface := range config.VPP.Interfaces {
-		if iface.Metadata["InternalName"] == defaultVppInterfaceName {
+	for _, v := range config.VPP.Interfaces {
+		if v.Metadata["InternalName"] == defaultVppInterfaceName {
 			continue
 		}
+		iface := v.Value
 
-		idx := fmt.Sprintf("%3v", vppInterfaceIndex(iface))
-		internal := colorize(color.White, interfaceInternalName(iface))
-		name := colorize(interfaceColor, iface.Value.Name)
-		typ := vppInterfaceType(iface)
-		state := interfaceStatus(iface)
-		ips := interfaceIPs(iface.Value.IpAddresses, iface.Value.Vrf)
-		mtu := interfaceMTU(iface.Value.Mtu)
-		info := vppInterfaceInfo(iface)
-		other := otherInfo(config, iface)
+		idx := fmt.Sprintf("%3v", vppInterfaceIndex(v))
+		internal := colorize(highlightColor, interfaceInternalName(v))
+		name := colorize(interfaceColor, iface.Name)
+		typ := vppInterfaceType(v)
+		state := interfaceStatus(v)
+		ips := interfaceIPs(iface.IpAddresses, iface.Vrf)
+		mtu := interfaceMTU(iface.Mtu)
+		info := vppInterfaceInfo(v)
+		other := otherInfo(config, v)
 
 		cols := []string{idx, internal, name, typ, state, ips, mtu, info, other}
 		fmt.Fprintln(w, strings.Join(cols, "\t"))
@@ -77,14 +77,13 @@ func PrintVPPInterfacesTable(out io.Writer, config *agent.Config) {
 		return
 	}
 
-	fmt.Fprint(out, color.ReplaceTag(buf.String()))
+	fmt.Fprint(out, buf.String())
 }
 
 func PrintLinuxInterfacesTable(out io.Writer, config *agent.Config) {
 	var buf bytes.Buffer
 	w := tabwriter.NewWriter(&buf, 0, 8, 1, '\t', tabwriter.StripEscape|tabwriter.FilterHTML|tabwriter.DiscardEmptyColumns)
 
-	// header
 	header := []string{
 		"Idx", "Internal", "Interface", "Type", "State", "IP", " MTU", "Config", "Namespace",
 	}
@@ -99,7 +98,7 @@ func PrintLinuxInterfacesTable(out io.Writer, config *agent.Config) {
 		iface := v.Value
 
 		idx := fmt.Sprintf("%3v", linuxInterfaceIndex(v))
-		internal := colorize(color.White, iface.HostIfName)
+		internal := colorize(highlightColor, iface.HostIfName)
 		name := colorize(interfaceColor, iface.Name)
 		typ := linuxInterfaceType(v)
 		state := linuxInterfaceStatus(v)
@@ -117,7 +116,7 @@ func PrintLinuxInterfacesTable(out io.Writer, config *agent.Config) {
 		return
 	}
 
-	fmt.Fprint(out, color.ReplaceTag(buf.String()))
+	fmt.Fprint(out, buf.String())
 }
 
 func linuxInterfaceType(iface agent.LinuxInterface) string {

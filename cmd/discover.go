@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/gookit/color"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -132,37 +133,35 @@ func printInstanceHeader(out io.Writer, handler probe.Handler) {
 func PrintInstance(out io.Writer, instance *agent.Instance) {
 	var buf bytes.Buffer
 
-	// info
+	// Info
 	{
 		fmt.Fprintf(&buf, "VPP version: %s\n", noteColor.Sprint(instance.Version))
 	}
 	fmt.Fprintln(&buf)
 
 	// VPP interfaces
-	fmt.Fprintln(&buf, headerColor.Sprint("VPP interfaces"))
 	{
-		w := prefixWriter(&buf, defaultPrefix)
 		if len(instance.Config.VPP.Interfaces) > 0 {
+			fmt.Fprintln(&buf, headerColor.Sprint("VPP"))
+			w := prefixWriter(&buf, defaultPrefix)
 			PrintVPPInterfacesTable(w, instance.Config)
 		} else {
-			fmt.Fprintln(w, nonAvailableColor.Sprint("No interfaces configured"))
+			fmt.Fprintln(&buf, nonAvailableColor.Sprint("No VPP interfaces configured"))
 		}
 	}
 	fmt.Fprintln(&buf)
 
 	// Linux interfaces
-	fmt.Fprintln(&buf, headerColor.Sprint("Linux interfaces"))
 	{
-		w := prefixWriter(&buf, defaultPrefix)
 		if len(instance.Config.Linux.Interfaces) > 0 {
+			fmt.Fprintln(&buf, headerColor.Sprint("Linux"))
+			w := prefixWriter(&buf, defaultPrefix)
 			PrintLinuxInterfacesTable(w, instance.Config)
 		} else {
-			fmt.Fprintln(w, nonAvailableColor.Sprint("No interfaces configured"))
+			fmt.Fprintln(&buf, nonAvailableColor.Sprint("No linux interfaces configured"))
 		}
 	}
 	fmt.Fprintln(&buf)
 
-	if _, err := buf.WriteTo(out); err != nil {
-		logrus.Warnf("writing to output failed: %v", err)
-	}
+	fmt.Fprint(out, color.ReplaceTag(buf.String()))
 }
