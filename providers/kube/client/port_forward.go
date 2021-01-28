@@ -79,6 +79,12 @@ func PortForward(client *Client, opt PortForwardOptions) (*PortForwarder, error)
 		}
 	}
 
+	logrus.WithFields(map[string]interface{}{
+		"pod":       opt.PodName,
+		"namespace": opt.PodNamespace,
+		"cluster":   client.Cluster(),
+	}).Debugf("forwarding ports: %+v", ports)
+
 	return &PortForwarder{
 		Streams: streams,
 		portFwd: fw,

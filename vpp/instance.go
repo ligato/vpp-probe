@@ -54,7 +54,7 @@ func (v *Instance) VersionInfo() *api.VersionInfo {
 }
 
 func (v *Instance) Init() (err error) {
-	logrus.Debugf("init probe %v", v.ID())
+	logrus.Tracef("init instance %v", v.ID())
 
 	if err = v.initVPP(); err != nil {
 		v.status.LastErr = err
@@ -75,7 +75,6 @@ func (v *Instance) Init() (err error) {
 func (v *Instance) initVPP() (err error) {
 	if err = v.initCLI(); err != nil {
 		v.status.CLI.SetError(err)
-		logrus.Debugf("CLI init error: %v", err)
 		return err
 	} else {
 		v.status.CLI.State = StateOK
@@ -83,14 +82,14 @@ func (v *Instance) initVPP() (err error) {
 
 	if err := v.initBinapi(); err != nil {
 		v.status.BinAPI.SetError(err)
-		logrus.Warnf("Binary API init error: %v", err)
+		logrus.Debugf("Binary API init error: %v", err)
 	} else {
 		v.status.BinAPI.State = StateOK
 	}
 
 	if err := v.initStats(); err != nil {
 		v.status.StatsAPI.SetError(err)
-		logrus.Warnf("Stats API init error: %v", err)
+		logrus.Debugf("Stats API init error: %v", err)
 	} else {
 		v.status.StatsAPI.State = StateOK
 	}
@@ -101,14 +100,14 @@ func (v *Instance) initVPP() (err error) {
 func (v *Instance) initCLI() error {
 	cli, err := v.handler.GetCLI()
 	if err != nil {
-		return fmt.Errorf("CLI handler failed: %w", err)
+		return fmt.Errorf("CLI handler: %w", err)
 	}
 
 	out, err := cli.RunCli("show version verbose")
 	if err != nil {
-		return fmt.Errorf("CLI check failed: %w", err)
+		return fmt.Errorf("CLI version check: %w", err)
 	}
-	logrus.Debugf("VPP version:\n%v", out)
+	logrus.Tracef("VPP version:\n%v", out)
 
 	v.cli = cli
 	return nil
@@ -136,14 +135,18 @@ func (v *Instance) initBinapi() (err error) {
 	info, err := v.GetVersionInfo()
 	if err != nil {
 		logrus.Warnf("GetVersionInfo error: %v", err)
+	} else {
+		logrus.WithField("instance", v.ID()).Debugf("version info: %+v", info)
 	}
+	vppVersion := info.Version
+
 	for version := range binapi.Versions {
-		ver := version
+		ver := string(version)
 		if len(ver) > 5 {
 			ver = ver[:5]
 		}
-		logrus.Debugf("checking version %v in %q", ver, info.Version)
-		if strings.Contains(info.Version, string(ver)) {
+		logrus.Tracef("checking version %v in %q", ver, info.Version)
+		if strings.Contains(vppVersion, ver) {
 			v.vppClient.version = version
 			logrus.Debugf("found version %v in %q", ver, info.Version)
 			break

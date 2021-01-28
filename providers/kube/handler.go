@@ -112,7 +112,7 @@ func (h *PodHandler) Close() error {
 
 func (h *PodHandler) connectProxy() error {
 	if h.vppProxy != nil {
-		return nil
+		return nil // proxy already running
 	}
 
 	logrus.Debugf("forwarding ports for pod %v", h.pod)

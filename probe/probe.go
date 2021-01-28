@@ -7,33 +7,30 @@ import (
 	"go.ligato.io/vpp-probe/internal/exec"
 )
 
-// Handler handles a running instance.
+// Handler is an interface for handling a running instance.
 type Handler interface {
 	Host
 	VPP
 
-	// ID returns a string that identifies the instance.
+	// ID returns a string that identifies the handler.
 	ID() string
 
-	// Metadata returns a map of metadata for the instance handler.
+	// Metadata returns a metadata for the handler.
 	Metadata() map[string]string
 
 	// Close closes open connections and frees resources used for this instance.
 	Close() error
 }
 
-// Host is a common interface to interact host system (OS).
+// Host is an interface for interacting with a host system where the instance is running.
 type Host interface {
-	// Command returns command to be executed on the host OS where the instance is running.
-	//ExecCmd(cmd string, args ...string) (string, error)
+	// Command returns a command to be exectured on the host.
 	Command(cmd string, args ...string) exec.Cmd
-
-	//exec.Interface
 }
 
-// VPP is a common interface to access VPP APIs.
+// VPP is an interface for interacting with a VPP instance.
 type VPP interface {
-	// GetCLI returns an executor for CLI commands.
+	// GetCLI returns an executor for executing CLI commands.
 	GetCLI() (CliExecutor, error)
 
 	// GetAPI returns a channel for binary API requests.

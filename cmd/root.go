@@ -10,7 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"go.ligato.io/cn-infra/v2/logging"
-	logrus2 "go.ligato.io/cn-infra/v2/logging/logrus"
+	infralogrus "go.ligato.io/cn-infra/v2/logging/logrus"
 
 	"go.ligato.io/vpp-probe/internal/version"
 )
@@ -102,14 +102,14 @@ func initOptions(opts GlobalOptions) {
 			logrus.SetLevel(lvl)
 			if lvl >= logrus.TraceLevel {
 				logrus.SetReportCaller(true)
-				logrus2.DefaultLogger().SetLevel(logging.LogLevel(lvl))
+				infralogrus.DefaultLogger().SetLevel(logging.LogLevel(lvl))
 			}
 		} else {
-			logrus.Warnf("log level invalid: %v", err)
+			logrus.Fatalf("log level invalid: %v", err)
 		}
 	} else if !opts.Debug {
 		logrus.SetLevel(logrus.InfoLevel)
-		logrus2.DefaultLogger().SetLevel(logging.ErrorLevel)
+		infralogrus.DefaultLogger().SetLevel(logging.ErrorLevel)
 	}
 }
 

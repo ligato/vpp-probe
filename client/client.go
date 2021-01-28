@@ -106,7 +106,8 @@ func queryInstances(provider providers.Provider, queryParams ...map[string]strin
 	for _, handler := range handlers {
 		inst, err := vpp.NewInstance(handler)
 		if err != nil {
-			logrus.Debugf("vpp instance %v init failed: %v", handler.ID(), err)
+			logrus.WithField("instance", handler.ID()).
+				Debugf("vpp instance init failed: %v", err)
 			continue
 		}
 

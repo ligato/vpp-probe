@@ -50,9 +50,11 @@ func RunExec(cli Cli, opts ExecOptions) error {
 	}
 	instances := cli.Client().Instances()
 
-	logrus.Debugf("running exec on %d vpp instances", len(instances))
+	logrus.Debugf("running exec for %d instances", len(instances))
 
 	for _, instance := range instances {
+		logrus.Debugf("executing %d commands on instance %v", len(opts.Commands), instance.ID())
+
 		clidata, err := runCommands(instance.Handler(), opts.Commands)
 		if err != nil {
 			logrus.Warnf("exec on instance %v failed: %v", instance, err)
