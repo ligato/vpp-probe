@@ -108,17 +108,9 @@ func execCommand(handler probe.Handler, cmd string) (string, error) {
 }
 
 func printCliData(out io.Writer, clidata map[string]string, keys []string) {
-	/*keys := make([]string, 0, len(clidata))
-	for k := range clidata {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)*/
-
 	for _, k := range keys {
 		v := clidata[k]
 		fmt.Fprintf(out, "# %s\n\n", color.Yellow.Sprint(k))
 		fmt.Fprintln(prefixWriter(out, defaultPrefix), v)
 	}
-
-	fmt.Fprintln(out)
 }

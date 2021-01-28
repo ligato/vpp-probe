@@ -115,7 +115,7 @@ func (h *PodHandler) connectProxy() error {
 		return nil // proxy already running
 	}
 
-	logrus.Debugf("forwarding ports for pod %v", h.pod)
+	logrus.Debugf("connecting to VPP proxy on pod %v", h.pod)
 
 	// start port forwarding to HTTP server on agent
 	portFwder, err := h.pod.PortForward(defaultHttpPort)
@@ -123,7 +123,6 @@ func (h *PodHandler) connectProxy() error {
 		return fmt.Errorf("port forwarding failed: %v", err)
 	}
 	h.portFwder = portFwder
-	logrus.Debugf("forwarded local port: %+v", portFwder.LocalPort())
 
 	addr := fmt.Sprintf(":%d", portFwder.LocalPort())
 	logrus.Debugf("connecting to proxy %v", addr)
