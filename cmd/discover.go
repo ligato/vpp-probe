@@ -12,7 +12,7 @@ import (
 
 	"go.ligato.io/vpp-probe/probe"
 	"go.ligato.io/vpp-probe/providers"
-	"go.ligato.io/vpp-probe/vpp/agent"
+	"go.ligato.io/vpp-probe/vpp"
 )
 
 const discoverExample = `  # Discover VPP instances in Kubernetes pods
@@ -56,24 +56,23 @@ func RunDiscover(cli Cli, opts DiscoverOptions) error {
 	instances := cli.Client().Instances()
 	logrus.Debugf("discovered %d vpp instances", len(instances))
 
-	var agentInstances []*agent.Instance
 	for _, instance := range instances {
-		logrus.Debugf("- checking instance %+v: %v", instance.ID(), instance.Status())
+		if instance.Agent() == nil {
+			logrus.Debugf("agent not found for instance %v", instance.ID())
+			continue
+		}
+		logrus.Debugf("- updating vpp info %+v: %v", instance.ID(), instance.Status())
 
-		vpp, err := agent.NewInstance(instance.Handler())
+		err := instance.Agent().UpdateInstanceInfo()
 		if err != nil {
 			logrus.Errorf("instance %v error: %v", instance.ID(), err)
 			continue
 		}
 
-		vpp.Version = instance.VersionInfo().Version
-
-		agentInstances = append(agentInstances, vpp)
-
 		if format := opts.Format; len(format) == 0 {
-			printDiscoverTable(cli.Out(), vpp)
+			printDiscoverTable(cli.Out(), instance)
 		} else {
-			if err := formatAsTemplate(cli.Out(), format, vpp); err != nil {
+			if err := formatAsTemplate(cli.Out(), format, instance); err != nil {
 				return err
 			}
 		}
@@ -82,8 +81,8 @@ func RunDiscover(cli Cli, opts DiscoverOptions) error {
 	return nil
 }
 
-func printDiscoverTable(out io.Writer, instance *agent.Instance) {
-	printInstanceHeader(out, instance.Handler)
+func printDiscoverTable(out io.Writer, instance *vpp.Instance) {
+	printInstanceHeader(out, instance.Handler())
 
 	w := prefixWriter(out, defaultPrefix)
 	PrintInstance(w, instance)
@@ -130,33 +129,35 @@ func printInstanceHeader(out io.Writer, handler probe.Handler) {
 	fmt.Fprintln(out, "----------------------------------------------------------------------------------------------------------------------------------")
 }
 
-func PrintInstance(out io.Writer, instance *agent.Instance) {
+func PrintInstance(out io.Writer, instance *vpp.Instance) {
 	var buf bytes.Buffer
+
+	config := instance.Agent().Config
 
 	// Info
 	{
-		fmt.Fprintf(&buf, "VPP version: %s\n", noteColor.Sprint(instance.Version))
+		fmt.Fprintf(&buf, "VPP version: %s\n", noteColor.Sprint(instance.VersionInfo().Version))
 	}
 	fmt.Fprintln(&buf)
 
-	// VPP interfaces
+	// VPP
 	{
-		if len(instance.Config.VPP.Interfaces) > 0 {
+		if len(config.VPP.Interfaces) > 0 {
 			fmt.Fprintln(&buf, headerColor.Sprint("VPP"))
 			w := prefixWriter(&buf, defaultPrefix)
-			PrintVPPInterfacesTable(w, instance.Config)
+			PrintVPPInterfacesTable(w, config)
 		} else {
 			fmt.Fprintln(&buf, nonAvailableColor.Sprint("No VPP interfaces configured"))
 		}
 	}
 	fmt.Fprintln(&buf)
 
-	// Linux interfaces
+	// Linux
 	{
-		if len(instance.Config.Linux.Interfaces) > 0 {
+		if len(config.Linux.Interfaces) > 0 {
 			fmt.Fprintln(&buf, headerColor.Sprint("Linux"))
 			w := prefixWriter(&buf, defaultPrefix)
-			PrintLinuxInterfacesTable(w, instance.Config)
+			PrintLinuxInterfacesTable(w, config)
 		} else {
 			fmt.Fprintln(&buf, nonAvailableColor.Sprint("No linux interfaces configured"))
 		}

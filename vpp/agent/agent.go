@@ -3,37 +3,42 @@ package agent
 import (
 	"fmt"
 
+	"github.com/sirupsen/logrus"
 	"go.ligato.io/vpp-probe/probe"
 )
 
 type Instance struct {
 	probe.Handler `json:"Handler"`
 
-	cli probe.CliExecutor
-
-	Config  *Config
-	Version string
+	Config *Config
 }
 
 func NewInstance(handler probe.Handler) (*Instance, error) {
-	cli, err := handler.GetCLI()
-	if err != nil {
-		return nil, fmt.Errorf("CLI handler error: %w", err)
-	}
 	instance := &Instance{
 		Handler: handler,
-		cli:     cli,
 	}
-	if err := instance.UpdateInstanceInfo(); err != nil {
+	if err := instance.Init(); err != nil {
 		return nil, err
 	}
 	return instance, nil
 }
 
+func (instance *Instance) Init() error {
+	out, err := runAgentctlCmd(instance, "status")
+	if err != nil {
+		return err
+	}
+
+	logrus.Debugf("agent status:\n%s", out)
+
+	return nil
+}
+
 func (instance *Instance) UpdateInstanceInfo() (err error) {
-	instance.Config, err = retrieveConfig(instance.Handler)
+	instance.Config, err = RetrieveConfig(instance.Handler)
 	if err != nil {
 		return fmt.Errorf("retrieving config failed: %w", err)
 	}
+
 	return nil
 }

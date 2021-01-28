@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"go.ligato.io/vpp-probe/client"
+	client "go.ligato.io/vpp-probe/client"
 	"go.ligato.io/vpp-probe/cmd"
 	"go.ligato.io/vpp-probe/probe"
 	"go.ligato.io/vpp-probe/providers/kube"
@@ -30,7 +30,7 @@ func (s *BasicTestSuite) SetupSuite() {
 	// setup topology
 	kubectl(s.T(), s.kubectx, "apply", "-f", "../resources/vnf.yml")
 	time.Sleep(time.Second * 5)
-	kubectl(s.T(), s.kubectx, "wait", "--for=condition=Ready", "pod/vpp-vnf1", "pod/vpp-vnf2", "pod/vpp-vswitch", "--timeout=90s")
+	kubectl(s.T(), s.kubectx, "wait", "--for=condition=Ready", "pod/vpp-vnf1", "pod/vpp-vnf2", "pod/vpp-vswitch", "--timeout=120s")
 
 	// copy configs to containers
 	kubectl(s.T(), s.kubectx, "cp", "../resources/vnf1-config.yml", "vpp-vnf1:/")
@@ -40,7 +40,7 @@ func (s *BasicTestSuite) SetupSuite() {
 
 func (s *BasicTestSuite) TearDownSuite() {
 	// teardown topology
-	runCmd(s.T(), "kubectl", "--context", "kind-c1", "delete", "-f", "../resources/vnf.yml")
+	execCmd(s.T(), "kubectl", "--context", "kind-c1", "delete", "-f", "../resources/vnf.yml")
 }
 
 func (s *BasicTestSuite) SetupTest() {
@@ -59,7 +59,9 @@ func (s *BasicTestSuite) TestDiscover() {
 	}
 
 	c, err := client.NewClient()
-	s.NoError(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := c.AddProvider(p); err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +69,7 @@ func (s *BasicTestSuite) TestDiscover() {
 	s.Run("empty query", func() {
 		handlers, err := p.Query()
 		if s.NoError(err) {
-			s.Len(handlers, 3)
+			s.NotEmpty(handlers)
 		}
 	})
 
@@ -80,12 +82,17 @@ func (s *BasicTestSuite) TestDiscover() {
 	})
 
 	s.Run("init instances", func() {
+		var vpps []*vpp.Instance
 		for _, h := range handlers {
 			t.Logf("- %v: %+v", h.ID(), h.Metadata())
 			instance, err := vpp.NewInstance(h)
-			s.NoError(err)
+			if err != nil {
+				continue
+			}
+			vpps = append(vpps, instance)
 			t.Logf("instance: %+v", instance)
 		}
+		s.Len(vpps, 3)
 	})
 }
 

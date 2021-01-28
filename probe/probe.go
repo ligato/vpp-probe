@@ -4,7 +4,7 @@ package probe
 import (
 	govppapi "git.fd.io/govpp.git/api"
 
-	"go.ligato.io/vpp-probe/internal/exec"
+	"go.ligato.io/vpp-probe/pkg/exec"
 )
 
 // Handler is an interface for handling a running instance.

@@ -1,22 +1,6 @@
 package exec
 
-import (
-	"io"
-)
-
-type Interface interface {
-	Command(cmd string, args ...string) Cmd
-}
-
-type Cmd interface {
-	Run() error
-	Output() ([]byte, error)
-
-	SetStdin(in io.Reader)
-	SetStdout(out io.Writer)
-	SetStderr(out io.Writer)
-}
-
+// Wrapper executes commands using a wrapper command.
 type Wrapper struct {
 	Interface
 
@@ -24,6 +8,8 @@ type Wrapper struct {
 	args []string
 }
 
+// Wrap wraps existing Interface with a custom command which is used for
+// commands executed via returned Wrapper.
 func Wrap(e Interface, cmd string, args ...string) *Wrapper {
 	return &Wrapper{
 		Interface: e,

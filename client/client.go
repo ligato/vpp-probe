@@ -28,7 +28,12 @@ func NewClient(opt ...Opt) (*Client, error) {
 
 // Close releases used resources.
 func (c *Client) Close() error {
-	// TODO: close connections gracefully and free resources
+	for _, instance := range c.instances {
+		handler := instance.Handler()
+		if err := handler.Close(); err != nil {
+			logrus.Debugf("closing handler %v failed: %v", handler.ID(), err)
+		}
+	}
 	return nil
 }
 
@@ -51,7 +56,7 @@ func (c *Client) AddProvider(provider providers.Provider) error {
 
 	// check duplicate
 	for _, p := range c.providers {
-		if p == provider {
+		if p.Name() == provider.Name() {
 			return fmt.Errorf("provider '%v' already added", p)
 		}
 	}
@@ -68,9 +73,8 @@ func (c *Client) DiscoverInstances(queryParams ...map[string]string) error {
 		return fmt.Errorf("no providers available")
 	}
 
-	var instanceList []*vpp.Instance
-
 	instanceChan := make(chan []*vpp.Instance)
+
 	for _, p := range c.providers {
 		go func(provider providers.Provider) {
 			instances, err := queryInstances(provider, queryParams...)
@@ -80,6 +84,8 @@ func (c *Client) DiscoverInstances(queryParams ...map[string]string) error {
 			instanceChan <- instances
 		}(p)
 	}
+
+	var instanceList []*vpp.Instance
 
 	for range c.providers {
 		instances := <-instanceChan

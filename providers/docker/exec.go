@@ -10,7 +10,7 @@ import (
 	docker "github.com/fsouza/go-dockerclient"
 )
 
-type Cmd struct {
+type command struct {
 	Cmd  string
 	Args []string
 
@@ -21,19 +21,19 @@ type Cmd struct {
 	container *ContainerHandler
 }
 
-func (c *Cmd) SetStdin(in io.Reader) {
+func (c *command) SetStdin(in io.Reader) {
 	c.Stdin = in
 }
 
-func (c *Cmd) SetStdout(out io.Writer) {
+func (c *command) SetStdout(out io.Writer) {
 	c.Stdout = out
 }
 
-func (c *Cmd) SetStderr(out io.Writer) {
+func (c *command) SetStderr(out io.Writer) {
 	c.Stderr = out
 }
 
-func (c *Cmd) Output() ([]byte, error) {
+func (c *command) Output() ([]byte, error) {
 	if c.Stdout != nil {
 		return nil, errors.New("stdout already set")
 	}
@@ -52,7 +52,7 @@ func (c *Cmd) Output() ([]byte, error) {
 	return stdout.Bytes(), err
 }
 
-func (c *Cmd) Run() error {
+func (c *command) Run() error {
 	command := fmt.Sprintf("%s %s", c.Cmd, strings.Join(c.Args, " "))
 	return containerExec(c.container.client, c.container.container.ID, command, c.Stdin, c.Stdout, c.Stderr)
 }

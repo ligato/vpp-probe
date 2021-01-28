@@ -2,14 +2,13 @@ package kube
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	govppapi "git.fd.io/govpp.git/api"
 	"git.fd.io/govpp.git/proxy"
 	"github.com/sirupsen/logrus"
 
-	"go.ligato.io/vpp-probe/internal/exec"
+	"go.ligato.io/vpp-probe/pkg/exec"
 	"go.ligato.io/vpp-probe/probe"
 	"go.ligato.io/vpp-probe/providers"
 	"go.ligato.io/vpp-probe/providers/kube/client"
@@ -54,19 +53,12 @@ func (h *PodHandler) Metadata() map[string]string {
 }
 
 func (h *PodHandler) Command(cmd string, args ...string) exec.Cmd {
-	return h.pod.Command(cmd, args...)
-}
-
-func (h *PodHandler) ExecCmd(cmd string, args ...string) (string, error) {
-	return h.podExec(cmd + " " + strings.Join(args, " "))
-}
-
-func (h *PodHandler) podExec(cmd string) (string, error) {
-	out, err := h.pod.Exec(cmd)
-	if err != nil {
-		return "", fmt.Errorf("kube exec error: %w", err)
+	c := &command{
+		Cmd:  cmd,
+		Args: args,
+		pod:  h.pod,
 	}
-	return strings.TrimSpace(out), nil
+	return c
 }
 
 func (h *PodHandler) GetCLI() (probe.CliExecutor, error) {
@@ -90,7 +82,6 @@ func (h *PodHandler) GetAPI() (govppapi.Channel, error) {
 	if err := h.connectProxy(); err != nil {
 		return nil, err
 	}
-
 	return proxyBinapi(h.vppProxy)
 }
 
@@ -98,7 +89,6 @@ func (h *PodHandler) GetStats() (govppapi.StatsProvider, error) {
 	if err := h.connectProxy(); err != nil {
 		return nil, err
 	}
-
 	return proxyStats(h.vppProxy)
 }
 
@@ -140,21 +130,30 @@ func (h *PodHandler) connectProxy() error {
 	return nil
 }
 
-func proxyBinapi(client *proxy.Client) (*proxy.BinapiClient, error) {
-	binapiChannel, err := client.NewBinapiClient()
+func proxyBinapi(client *proxy.Client) (govppapi.Channel, error) {
+	c, err := client.NewBinapiClient()
 	if err != nil {
 		logrus.Warnf("creating new proxy binapi client failed: %v", err)
 		return nil, err
 	}
-
-	return binapiChannel, nil
+	return &binapiClient{c}, nil
 }
 
-func proxyStats(client *proxy.Client) (*proxy.StatsClient, error) {
-	statsProvider, err := client.NewStatsClient()
+func proxyStats(client *proxy.Client) (govppapi.StatsProvider, error) {
+	c, err := client.NewStatsClient()
 	if err != nil {
 		logrus.Warnf("creating new proxy stats client failed: %v", err)
 		return nil, err
 	}
-	return statsProvider, nil
+	return c, nil
+}
+
+// binapiClient is a hack to wrap proxy binapi client and prevent calls to Close
+// which currently would close the actual rpc client.
+type binapiClient struct {
+	*proxy.BinapiClient
+}
+
+func (*binapiClient) Close() {
+	// ignore
 }
