@@ -108,3 +108,23 @@ func (s *BasicTestSuite) TestTracer() {
 	err = cmd.RunTracer(cli, tracerOpts)
 	s.NoError(err)
 }
+
+func (s *BasicTestSuite) TestDiscovery() {
+	cli, err := cmd.NewProbeCli()
+	s.NoError(err)
+
+	var opts cmd.ProbeOptions
+	opts.Kube.Context = s.kubectx
+	opts.Queries = []string{"label=app=vpp"}
+
+	err = cli.Initialize(opts)
+	s.NoError(err)
+
+	discoverOpts := cmd.DiscoverOptions{}
+	discoverOpts.CustomCmd = fmt.Sprintf(
+		"kubectl --context=%s exec -i %s -- ping -c 1 %s", s.kubectx, "vpp-vswitch", "192.168.23.2",
+	)
+
+	err = cmd.RunDiscover(cli, discoverOpts)
+	s.NoError(err)
+}

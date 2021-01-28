@@ -45,7 +45,14 @@ func NewDiscoverCmd(cli Cli) *cobra.Command {
 }
 
 type DiscoverOptions struct {
-	Format string
+	Format    string
+	CustomCmd string
+}
+
+// expanding test case for auto discovery
+
+var DefaultDiscoverOptions = DiscoverOptions{
+	Format: "test",
 }
 
 func RunDiscover(cli Cli, opts DiscoverOptions) error {
