@@ -49,6 +49,10 @@ type DiscoverOptions struct {
 }
 
 func RunDiscover(cli Cli, opts DiscoverOptions) error {
+	// TODO: refactor this to run discovery and only print list of discovered
+	//  instances and move retrieval of agent config (interfaces) to a separate
+	//  command that will support selecting specific instance
+
 	if err := cli.Client().DiscoverInstances(cli.Queries()...); err != nil {
 		return err
 	}
