@@ -44,3 +44,10 @@ type VPP interface {
 type CliExecutor interface {
 	RunCli(cmd string) (string, error)
 }
+
+// TODO
+//  - move Handler.Metadata() to Host interface ?
+//  - add more useful methods to Host ?
+//    - for accessing filesystem
+//    - network namespace
+//  - remove VPP.GetCLI() ?
