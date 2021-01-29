@@ -77,7 +77,7 @@ func (c *Client) DiscoverInstances(queryParams ...map[string]string) error {
 
 	for _, p := range c.providers {
 		go func(provider providers.Provider) {
-			instances, err := queryInstances(provider, queryParams...)
+			instances, err := DiscoverInstances(provider, queryParams...)
 			if err != nil {
 				logrus.Warnf("provider %q discover error: %v", provider.Name(), err)
 			}
@@ -102,13 +102,20 @@ func (c *Client) DiscoverInstances(queryParams ...map[string]string) error {
 	return nil
 }
 
-func queryInstances(provider providers.Provider, queryParams ...map[string]string) ([]*vpp.Instance, error) {
+// DiscoverInstances discovers running VPP instances using provider and
+// returns the list of instances or error if provider query fails.
+func DiscoverInstances(provider providers.Provider, queryParams ...map[string]string) ([]*vpp.Instance, error) {
 	handlers, err := provider.Query(queryParams...)
 	if err != nil {
 		return nil, err
 	}
 
 	var instances []*vpp.Instance
+
+	// TODO
+	//  - run this in parallel (with throttle) to make it faster
+	//  - persist failed handlers to skip in the next run
+
 	for _, handler := range handlers {
 		inst, err := vpp.NewInstance(handler)
 		if err != nil {
