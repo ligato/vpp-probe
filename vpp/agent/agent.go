@@ -4,18 +4,19 @@ import (
 	"fmt"
 
 	"github.com/sirupsen/logrus"
+
 	"go.ligato.io/vpp-probe/probe"
 )
 
 type Instance struct {
-	probe.Handler `json:"Handler"`
+	handler probe.Handler
 
 	Config *Config
 }
 
 func NewInstance(handler probe.Handler) (*Instance, error) {
 	instance := &Instance{
-		Handler: handler,
+		handler: handler,
 	}
 	if err := instance.Init(); err != nil {
 		return nil, err
@@ -24,7 +25,7 @@ func NewInstance(handler probe.Handler) (*Instance, error) {
 }
 
 func (instance *Instance) Init() error {
-	out, err := runAgentctlCmd(instance, "status")
+	out, err := runAgentctlCmd(instance.handler, "status")
 	if err != nil {
 		return err
 	}
@@ -35,10 +36,18 @@ func (instance *Instance) Init() error {
 }
 
 func (instance *Instance) UpdateInstanceInfo() (err error) {
-	instance.Config, err = RetrieveConfig(instance.Handler)
+	instance.Config, err = RetrieveConfig(instance.handler)
 	if err != nil {
 		return fmt.Errorf("retrieving config failed: %w", err)
 	}
 
 	return nil
+}
+
+func runAgentctlCmd(h probe.Handler, args ...string) ([]byte, error) {
+	out, err := h.Command("agentctl", args...).Output()
+	if err != nil {
+		return nil, err
+	}
+	return out, err
 }

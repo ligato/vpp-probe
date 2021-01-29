@@ -22,16 +22,19 @@ type LocalCmd struct {
 	*stdexec.Cmd
 }
 
-func (c *LocalCmd) SetStdin(in io.Reader) {
+func (c *LocalCmd) SetStdin(in io.Reader) Cmd {
 	c.Stdin = in
+	return c
 }
 
-func (c *LocalCmd) SetStdout(out io.Writer) {
+func (c *LocalCmd) SetStdout(out io.Writer) Cmd {
 	c.Stdout = out
+	return c
 }
 
-func (c *LocalCmd) SetStderr(out io.Writer) {
+func (c *LocalCmd) SetStderr(out io.Writer) Cmd {
 	c.Stderr = out
+	return c
 }
 
 func (c *LocalCmd) Output() ([]byte, error) {

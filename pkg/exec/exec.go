@@ -15,15 +15,14 @@ type Cmd interface {
 	Run() error
 	Output() ([]byte, error)
 
-	SetStdin(in io.Reader)
-	SetStdout(out io.Writer)
-	SetStderr(out io.Writer)
+	SetStdin(in io.Reader) Cmd
+	SetStdout(out io.Writer) Cmd
+	SetStderr(out io.Writer) Cmd
 	// TODO: SetEnv
 }
 
 func Output(cmd Cmd) ([]byte, error) {
 	var stdout bytes.Buffer
-	cmd.SetStdout(&stdout)
-	err := cmd.Run()
+	err := cmd.SetStdout(&stdout).Run()
 	return stdout.Bytes(), err
 }

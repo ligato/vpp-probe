@@ -240,14 +240,6 @@ func HasAnyIPSecConfig(config *Config) bool {
 	return false
 }
 
-func runAgentctlCmd(h probe.Handler, args ...string) ([]byte, error) {
-	out, err := h.Command("agentctl", args...).Output()
-	if err != nil {
-		return nil, err
-	}
-	return out, err
-}
-
 func toInt(v interface{}) int {
 	s := fmt.Sprint(v)
 	idx, _ := strconv.Atoi(s)

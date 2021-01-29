@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	docker "github.com/fsouza/go-dockerclient"
+
+	"go.ligato.io/vpp-probe/pkg/exec"
 )
 
 type command struct {
@@ -21,16 +23,19 @@ type command struct {
 	container *ContainerHandler
 }
 
-func (c *command) SetStdin(in io.Reader) {
+func (c *command) SetStdin(in io.Reader) exec.Cmd {
 	c.Stdin = in
+	return c
 }
 
-func (c *command) SetStdout(out io.Writer) {
+func (c *command) SetStdout(out io.Writer) exec.Cmd {
 	c.Stdout = out
+	return c
 }
 
-func (c *command) SetStderr(out io.Writer) {
+func (c *command) SetStderr(out io.Writer) exec.Cmd {
 	c.Stderr = out
+	return c
 }
 
 func (c *command) Output() ([]byte, error) {
