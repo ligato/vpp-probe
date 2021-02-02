@@ -50,6 +50,13 @@ type E2ETestSuite struct {
 	kubectx string
 }
 
+type MultiClusterTestSuite struct {
+	suite.Suite
+
+	kubectxA string
+	kubectxB string
+}
+
 func Setup() {
 	log.Println("============== [ SETUP CLUSTERS ] ==============")
 	defer log.Println("---------------------")
