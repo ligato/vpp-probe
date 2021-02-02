@@ -121,3 +121,64 @@ func (s *BasicTestSuite) TestTracer() {
 	err = cmd.RunTracer(cli, tracerOpts)
 	s.NoError(err)
 }
+
+func (s *TopoTestSuite) TestTopoDiscover() {
+	t := s.T()
+
+	T1, err := kube.NewProvider("", s.kubectxA)
+	T2, err := kube.NewProvider("", s.kubectxB)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	c, err := client.NewClient()
+	s.NoError(err)
+	if err := c.AddProvider(T1); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.AddProvider(T2); err != nil {
+		t.Fatal(err)
+	}
+
+	s.Run("empty query", func() {
+		handlerA, err := T1.Query()
+		if s.NoError(err) {
+			s.Len(handlerA, 0)
+		}
+		handlerB, err := T1.Query()
+		if s.NoError(err) {
+			s.Len(handlerB, 0)
+		}
+	})
+
+	var handlerA []probe.Handler
+	s.Run("query label", func() {
+		handlerA, err = T1.Query()
+		if s.NoError(err) {
+			s.Len(handlerA, 0)
+		}
+	})
+
+	var handlerB []probe.Handler
+	s.Run("query label", func() {
+		handlerA, err = T1.Query()
+		if s.NoError(err) {
+			s.Len(handlerB, 0)
+		}
+	})
+
+	s.Run("init instances", func() {
+		for _, h1 := range handlerA {
+			t.Logf("- %v: %+v", h1.ID(), h1.Metadata())
+			instance, err := vpp.NewInstance(h1)
+			s.NoError(err)
+			t.Logf("instance: %+v", instance)
+		}
+		for _, h2 := range handlerB {
+			t.Logf("- %v: %+v", h2.ID(), h2.Metadata())
+			instance, err := vpp.NewInstance(h2)
+			s.NoError(err)
+			t.Logf("instance: %+v", instance)
+		}
+	})
+}
