@@ -66,7 +66,7 @@ type kvdata struct {
 }
 
 func retrieveConfig(handler probe.Handler) (*Config, error) {
-	dump, err := runAgentctlCmd(handler, "dump", "--format", "json", "--view ", "SB", "all")
+	dump, err := runAgentctlCmd(handler, "dump", "--format", "json", "--view ", "cached", "all")
 	if err != nil {
 		return nil, fmt.Errorf("dumping all failed: %w", err)
 	}
