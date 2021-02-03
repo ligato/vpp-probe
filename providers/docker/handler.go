@@ -10,7 +10,7 @@ import (
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/sirupsen/logrus"
 
-	"go.ligato.io/vpp-probe/internal/exec"
+	"go.ligato.io/vpp-probe/pkg/exec"
 	"go.ligato.io/vpp-probe/probe"
 	"go.ligato.io/vpp-probe/providers"
 	vppcli "go.ligato.io/vpp-probe/vpp/cli"
@@ -33,11 +33,7 @@ func NewHandler(client *docker.Client, container *docker.Container) *ContainerHa
 }
 
 func (h *ContainerHandler) ID() string {
-	containerID := h.container.ID
-	if len(containerID) > 7 {
-		containerID = containerID[:7]
-	}
-	return fmt.Sprintf("%v-%v", getContainerName(h.container), containerID)
+	return fmt.Sprintf("%v-%v", getContainerName(h.container), getContainerID(h.container))
 }
 
 func (h *ContainerHandler) Metadata() map[string]string {
@@ -53,27 +49,10 @@ func (h *ContainerHandler) Metadata() map[string]string {
 	}
 }
 
-func getContainerName(container *docker.Container) string {
-	return strings.TrimPrefix(container.Name, "/")
-}
-
-func getContainerID(container *docker.Container) string {
-	if len(container.ID) > 12 {
-		return container.ID[:12]
-	}
-	return container.ID
-}
-
 func (h *ContainerHandler) Close() error {
 	logrus.Debugf("closing handler %v", h.ID())
 	h.vppProxy = nil
 	return nil
-}
-
-func (h *ContainerHandler) ExecCmd(command string, args ...string) (string, error) {
-	cmd := h.Command(command, args...)
-	out, err := cmd.Output()
-	return string(out), err
 }
 
 func (h *ContainerHandler) GetCLI() (probe.CliExecutor, error) {
@@ -94,7 +73,7 @@ func (h *ContainerHandler) GetCLI() (probe.CliExecutor, error) {
 }
 
 func (h *ContainerHandler) Command(cmd string, args ...string) exec.Cmd {
-	return &Cmd{
+	return &command{
 		Cmd:       cmd,
 		Args:      args,
 		container: h,
@@ -105,7 +84,6 @@ func (h *ContainerHandler) GetAPI() (govppapi.Channel, error) {
 	if err := h.connectProxy(); err != nil {
 		return nil, err
 	}
-
 	return proxyBinapi(h.vppProxy)
 }
 
@@ -113,7 +91,6 @@ func (h *ContainerHandler) GetStats() (govppapi.StatsProvider, error) {
 	if err := h.connectProxy(); err != nil {
 		return nil, err
 	}
-
 	return proxyStats(h.vppProxy)
 }
 
@@ -122,18 +99,11 @@ func (h *ContainerHandler) connectProxy() error {
 		return nil
 	}
 
-	logrus.Tracef("network settings: %+v", h.container.NetworkSettings)
-
-	var ipaddr string
-	for _, nw := range h.container.NetworkSettings.Networks {
-		if nw.IPAddress != "" {
-			ipaddr = nw.IPAddress
-			break
-		}
-	}
+	ipaddr := getContainerIp(h.container)
 	addr := fmt.Sprintf("%s:%d", ipaddr, 9191)
 
-	logrus.Debugf("connecting to proxy %v", addr)
+	logrus.WithField("container", h.container.Name).
+		Debugf("connecting to proxy %v", addr)
 
 	c, err := proxy.Connect(addr)
 	if err != nil {
@@ -145,18 +115,50 @@ func (h *ContainerHandler) connectProxy() error {
 }
 
 func proxyBinapi(client *proxy.Client) (govppapi.Channel, error) {
-	binapiChannel, err := client.NewBinapiClient()
+	c, err := client.NewBinapiClient()
 	if err != nil {
 		logrus.Errorf("creating new proxy binapi client failed: %v", err)
 		return nil, err
 	}
-	return binapiChannel, nil
+	return &binapiClient{c}, nil
 }
 
 func proxyStats(client *proxy.Client) (govppapi.StatsProvider, error) {
-	statsProvider, err := client.NewStatsClient()
+	c, err := client.NewStatsClient()
 	if err != nil {
 		return nil, err
 	}
-	return statsProvider, nil
+	return c, nil
+}
+
+// binapiClient is a hack to wrap proxy binapi client and prevent calls to Close
+// which currently would close the actual rpc client.
+type binapiClient struct {
+	*proxy.BinapiClient
+}
+
+func (*binapiClient) Close() {
+	// ignore
+}
+
+func getContainerName(container *docker.Container) string {
+	return strings.TrimPrefix(container.Name, "/")
+}
+
+func getContainerID(container *docker.Container) string {
+	if len(container.ID) > 12 {
+		return container.ID[:12]
+	}
+	return container.ID
+}
+
+func getContainerIp(container *docker.Container) string {
+	var ipaddr string
+	for _, nw := range container.NetworkSettings.Networks {
+		if nw.IPAddress != "" {
+			ipaddr = nw.IPAddress
+			break
+		}
+	}
+	return ipaddr
 }

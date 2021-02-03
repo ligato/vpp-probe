@@ -14,7 +14,6 @@ require (
 	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
 	github.com/k0kubun/pp v3.0.1+incompatible
-	github.com/kr/pretty v0.1.0
 	github.com/mitchellh/go-ps v0.0.0-20170309133038-4fdf99ab2936
 	github.com/moby/term v0.0.0-20201216013528-df9cb8a40635
 	github.com/segmentio/textio v1.2.0

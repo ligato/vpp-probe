@@ -3,14 +3,18 @@ package agent
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 
 	"github.com/sirupsen/logrus"
 	"go.ligato.io/vpp-agent/v3/pkg/models"
 	"go.ligato.io/vpp-agent/v3/plugins/kvscheduler/api"
+	"go.ligato.io/vpp-agent/v3/proto/ligato/kvscheduler"
 	linux_interfaces "go.ligato.io/vpp-agent/v3/proto/ligato/linux/interfaces"
+	linux_l3 "go.ligato.io/vpp-agent/v3/proto/ligato/linux/l3"
 	vpp_interfaces "go.ligato.io/vpp-agent/v3/proto/ligato/vpp/interfaces"
 	vpp_ipsec "go.ligato.io/vpp-agent/v3/proto/ligato/vpp/ipsec"
 	vpp_l2 "go.ligato.io/vpp-agent/v3/proto/ligato/vpp/l2"
+	vpp_l3 "go.ligato.io/vpp-agent/v3/proto/ligato/vpp/l3"
 
 	"go.ligato.io/vpp-probe/probe"
 )
@@ -18,6 +22,7 @@ import (
 type Config struct {
 	VPP struct {
 		Interfaces       []VppInterface
+		Routes           []VppRoute           `json:",omitempty"`
 		L2XConnects      []VppL2XConnect      `json:",omitempty"`
 		IPSecTunProtects []VppIPSecTunProtect `json:",omitempty"`
 		IPSecSAs         []VppIPSecSA         `json:",omitempty"`
@@ -25,61 +30,141 @@ type Config struct {
 	}
 	Linux struct {
 		Interfaces []LinuxInterface
+		Routes     []LinuxRoute `json:",omitempty"`
 	}
 }
 
 type LinuxInterface struct {
-	kvdata
+	KVData
 	Value *linux_interfaces.Interface
 }
 
+func (v *LinuxInterface) Index() int {
+	return toInt(v.Metadata["LinuxIfIndex"])
+}
+
+type LinuxRoute struct {
+	KVData
+	Value *linux_l3.Route
+}
+
 type VppInterface struct {
-	kvdata
+	KVData
 	Value *vpp_interfaces.Interface
 }
 
+func (v *VppInterface) Index() int {
+	return toInt(v.Metadata["SwIfIndex"])
+}
+
+func (v *VppInterface) GetLinkState() bool {
+	return toBool(v.Metadata["linkstate"])
+}
+
+type VppRoute struct {
+	KVData
+	Value *vpp_l3.Route
+}
+
 type VppL2XConnect struct {
-	kvdata
+	KVData
 	Value *vpp_l2.XConnectPair
 }
 
 type VppIPSecTunProtect struct {
-	kvdata
+	KVData
 	Value *vpp_ipsec.TunnelProtection
 }
 
 type VppIPSecSA struct {
-	kvdata
+	KVData
 	Value *vpp_ipsec.SecurityAssociation
 }
 
 type VppIPSecSPD struct {
-	kvdata
+	KVData
 	Value *vpp_ipsec.SecurityPolicyDatabase
 }
 
-type kvdata struct {
+type KVData struct {
 	Key      string
 	Value    json.RawMessage
 	Metadata map[string]interface{}
 	Origin   api.ValueOrigin
 }
 
-func retrieveConfig(handler probe.Handler) (*Config, error) {
-	dump, err := runAgentctlCmd(handler, "dump", "--format", "json", "--view ", "cached", "all")
-	if err != nil {
-		return nil, fmt.Errorf("dumping all failed: %w", err)
-	}
-	logrus.Debugf("dump response %d bytes", len(dump))
+func RetrieveConfig(handler probe.Handler) (*Config, error) {
+	return retrieveConfigView(handler, false)
+}
 
-	var list []kvdata
+func retrieveConfigView(handler probe.Handler, cached bool) (*Config, error) {
+	viewType := "SB"
+	if cached {
+		viewType = "cached"
+	}
+
+	var config Config
+
+	if err := dumpConfig(handler, &config, viewType); err != nil {
+		return nil, err
+	}
+
+	if err := getValues(handler, &config); err != nil {
+		return nil, err
+	}
+
+	return &config, nil
+}
+
+func getValues(handler probe.Handler, c *Config) error {
+	resp, err := runAgentctlCmd(handler, "values", "--format", "json")
+	if err != nil {
+		return fmt.Errorf("dumping all failed: %w", err)
+	}
+	logrus.Debugf("response %d bytes", len(resp))
+
+	var values []*kvscheduler.BaseValueStatus
+	if err := json.Unmarshal(resp, &values); err != nil {
+		logrus.Tracef("json data: %s", resp)
+		return fmt.Errorf("unmarshaling failed: %w", err)
+	}
+	logrus.Debugf("retrieved %d vales", len(values))
+
+	keys := map[string]int{}
+	for i, iface := range c.VPP.Interfaces {
+		keys[iface.Value.Name] = i
+	}
+
+	for _, value := range values {
+		logrus.Debugf(" - %+v", value)
+		ifaceName, isUp, ok := vpp_interfaces.ParseLinkStateKey(value.Value.Key)
+		if !ok {
+			continue
+		}
+		if i, ok := keys[ifaceName]; ok {
+			c.VPP.Interfaces[i].Metadata["linkstate"] = isUp
+		} else {
+			logrus.Debugf("link state for unknown interface %q", ifaceName)
+		}
+	}
+
+	return nil
+}
+
+func dumpConfig(handler probe.Handler, config *Config, viewType string) error {
+	dump, err := runAgentctlCmd(handler, "dump", "--format", "json", "--view ", viewType, "all")
+	if err != nil {
+		return fmt.Errorf("dumping all failed: %w", err)
+	}
+	logrus.Debugf("response %d bytes", len(dump))
+
+	var list []KVData
 	if err := json.Unmarshal(dump, &list); err != nil {
 		logrus.Tracef("json data: %s", dump)
-		return nil, fmt.Errorf("unmarshaling dump failed: %w", err)
+		return fmt.Errorf("unmarshaling failed: %w", err)
 	}
 	logrus.Debugf("dumped %d items", len(list))
 
-	var config Config
 	for _, item := range list {
 		model, err := models.GetModelForKey(item.Key)
 		if err != nil {
@@ -88,24 +173,40 @@ func retrieveConfig(handler probe.Handler) (*Config, error) {
 		}
 
 		switch model.Name() {
-		case vpp_interfaces.ModelInterface.Name():
-			var value = VppInterface{kvdata: item}
-			if err := json.Unmarshal(item.Value, &value.Value); err != nil {
-				logrus.Warnf("unmarshal value failed: %v", err)
-				continue
-			}
-			config.VPP.Interfaces = append(config.VPP.Interfaces, value)
-
 		case linux_interfaces.ModelInterface.Name():
-			var value = LinuxInterface{kvdata: item}
+			var value = LinuxInterface{KVData: item}
 			if err := json.Unmarshal(item.Value, &value.Value); err != nil {
 				logrus.Warnf("unmarshal value failed: %v", err)
 				continue
 			}
 			config.Linux.Interfaces = append(config.Linux.Interfaces, value)
 
+		case linux_l3.ModelRoute.Name():
+			var value = LinuxRoute{KVData: item}
+			if err := json.Unmarshal(item.Value, &value.Value); err != nil {
+				logrus.Warnf("unmarshal value failed: %v", err)
+				continue
+			}
+			config.Linux.Routes = append(config.Linux.Routes, value)
+
+		case vpp_interfaces.ModelInterface.Name():
+			var value = VppInterface{KVData: item}
+			if err := json.Unmarshal(item.Value, &value.Value); err != nil {
+				logrus.Warnf("unmarshal value failed: %v", err)
+				continue
+			}
+			config.VPP.Interfaces = append(config.VPP.Interfaces, value)
+
+		case vpp_l3.ModelRoute.Name():
+			var value = VppRoute{KVData: item}
+			if err := json.Unmarshal(item.Value, &value.Value); err != nil {
+				logrus.Warnf("unmarshal value failed: %v", err)
+				continue
+			}
+			config.VPP.Routes = append(config.VPP.Routes, value)
+
 		case vpp_l2.ModelXConnectPair.Name():
-			var value = VppL2XConnect{kvdata: item}
+			var value = VppL2XConnect{KVData: item}
 			if err := json.Unmarshal(item.Value, &value.Value); err != nil {
 				logrus.Warnf("unmarshal value failed: %v", err)
 				continue
@@ -113,7 +214,7 @@ func retrieveConfig(handler probe.Handler) (*Config, error) {
 			config.VPP.L2XConnects = append(config.VPP.L2XConnects, value)
 
 		case vpp_ipsec.ModelTunnelProtection.Name():
-			var value = VppIPSecTunProtect{kvdata: item}
+			var value = VppIPSecTunProtect{KVData: item}
 			if err := json.Unmarshal(item.Value, &value.Value); err != nil {
 				logrus.Warnf("unmarshal value failed: %v", err)
 				continue
@@ -121,7 +222,7 @@ func retrieveConfig(handler probe.Handler) (*Config, error) {
 			config.VPP.IPSecTunProtects = append(config.VPP.IPSecTunProtects, value)
 
 		case vpp_ipsec.ModelSecurityAssociation.Name():
-			var value = VppIPSecSA{kvdata: item}
+			var value = VppIPSecSA{KVData: item}
 			if err := json.Unmarshal(item.Value, &value.Value); err != nil {
 				logrus.Warnf("unmarshal value failed: %v", err)
 				continue
@@ -129,7 +230,7 @@ func retrieveConfig(handler probe.Handler) (*Config, error) {
 			config.VPP.IPSecSAs = append(config.VPP.IPSecSAs, value)
 
 		case vpp_ipsec.ModelSecurityPolicyDatabase.Name():
-			var value = VppIPSecSPD{kvdata: item}
+			var value = VppIPSecSPD{KVData: item}
 			if err := json.Unmarshal(item.Value, &value.Value); err != nil {
 				logrus.Warnf("unmarshal value failed: %v", err)
 				continue
@@ -141,7 +242,12 @@ func retrieveConfig(handler probe.Handler) (*Config, error) {
 		}
 	}
 
-	return &config, nil
+	// Sort interfaces by index
+	sort.Slice(config.VPP.Interfaces, func(i, j int) bool {
+		return config.VPP.Interfaces[i].Index() < config.VPP.Interfaces[j].Index()
+	})
+
+	return nil
 }
 
 func (c *Config) HasVppInterfaceType(typ vpp_interfaces.Interface_Type) bool {
@@ -153,23 +259,33 @@ func (c *Config) HasVppInterfaceType(typ vpp_interfaces.Interface_Type) bool {
 	return false
 }
 
-func FindL2XconnFor(intfName string, l2XConnects []VppL2XConnect) *VppL2XConnect {
+func FindL2XconnFor(iface string, l2XConnects []VppL2XConnect) *VppL2XConnect {
 	for _, xconn := range l2XConnects {
-		if intfName == xconn.Value.ReceiveInterface ||
-			intfName == xconn.Value.TransmitInterface {
+		if iface == xconn.Value.ReceiveInterface ||
+			iface == xconn.Value.TransmitInterface {
 			return &xconn
 		}
 	}
 	return nil
 }
 
-func FindIPSecTunProtectFor(intfName string, tunProtects []VppIPSecTunProtect) *VppIPSecTunProtect {
+func FindIPSecTunProtectFor(iface string, tunProtects []VppIPSecTunProtect) *VppIPSecTunProtect {
 	for _, tp := range tunProtects {
-		if intfName == tp.Value.Interface {
+		if iface == tp.Value.Interface {
 			return &tp
 		}
 	}
 	return nil
+}
+
+func FindVppRoutesFor(iface string, routes []VppRoute) []VppRoute {
+	var list []VppRoute
+	for _, r := range routes {
+		if iface == r.Value.OutgoingInterface {
+			list = append(list, r)
+		}
+	}
+	return list
 }
 
 func HasAnyIPSecConfig(config *Config) bool {
@@ -183,12 +299,4 @@ func HasAnyIPSecConfig(config *Config) bool {
 		return true
 	}
 	return false
-}
-
-func runAgentctlCmd(h probe.Handler, args ...string) ([]byte, error) {
-	out, err := h.Command("agentctl", args...).Output()
-	if err != nil {
-		return nil, err
-	}
-	return out, err
 }

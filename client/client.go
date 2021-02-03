@@ -28,7 +28,12 @@ func NewClient(opt ...Opt) (*Client, error) {
 
 // Close releases used resources.
 func (c *Client) Close() error {
-	// TODO: close connections gracefully and free resources
+	for _, instance := range c.instances {
+		handler := instance.Handler()
+		if err := handler.Close(); err != nil {
+			logrus.Debugf("closing handler %v failed: %v", handler.ID(), err)
+		}
+	}
 	return nil
 }
 
@@ -51,7 +56,7 @@ func (c *Client) AddProvider(provider providers.Provider) error {
 
 	// check duplicate
 	for _, p := range c.providers {
-		if p == provider {
+		if p.Name() == provider.Name() {
 			return fmt.Errorf("provider '%v' already added", p)
 		}
 	}
@@ -68,18 +73,19 @@ func (c *Client) DiscoverInstances(queryParams ...map[string]string) error {
 		return fmt.Errorf("no providers available")
 	}
 
-	var instanceList []*vpp.Instance
-
 	instanceChan := make(chan []*vpp.Instance)
+
 	for _, p := range c.providers {
 		go func(provider providers.Provider) {
-			instances, err := queryInstances(provider, queryParams...)
+			instances, err := DiscoverInstances(provider, queryParams...)
 			if err != nil {
 				logrus.Warnf("provider %q discover error: %v", provider.Name(), err)
 			}
 			instanceChan <- instances
 		}(p)
 	}
+
+	var instanceList []*vpp.Instance
 
 	for range c.providers {
 		instances := <-instanceChan
@@ -96,13 +102,20 @@ func (c *Client) DiscoverInstances(queryParams ...map[string]string) error {
 	return nil
 }
 
-func queryInstances(provider providers.Provider, queryParams ...map[string]string) ([]*vpp.Instance, error) {
+// DiscoverInstances discovers running VPP instances using provider and
+// returns the list of instances or error if provider query fails.
+func DiscoverInstances(provider providers.Provider, queryParams ...map[string]string) ([]*vpp.Instance, error) {
 	handlers, err := provider.Query(queryParams...)
 	if err != nil {
 		return nil, err
 	}
 
 	var instances []*vpp.Instance
+
+	// TODO
+	//  - run this in parallel (with throttle) to make it faster
+	//  - persist failed handlers to skip in the next run
+
 	for _, handler := range handlers {
 		inst, err := vpp.NewInstance(handler)
 		if err != nil {

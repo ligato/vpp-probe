@@ -4,7 +4,7 @@ package probe
 import (
 	govppapi "git.fd.io/govpp.git/api"
 
-	"go.ligato.io/vpp-probe/internal/exec"
+	"go.ligato.io/vpp-probe/pkg/exec"
 )
 
 // Handler is an interface for handling a running instance.
@@ -44,3 +44,10 @@ type VPP interface {
 type CliExecutor interface {
 	RunCli(cmd string) (string, error)
 }
+
+// TODO
+//  - move Handler.Metadata() to Host interface ?
+//  - add more useful methods to Host ?
+//    - for accessing filesystem
+//    - network namespace
+//  - remove VPP.GetCLI() ?

@@ -2,14 +2,13 @@ package local
 
 import (
 	"fmt"
-	stdexec "os/exec"
 
 	"git.fd.io/govpp.git"
 	"git.fd.io/govpp.git/adapter/statsclient"
 	govppapi "git.fd.io/govpp.git/api"
 	govppcore "git.fd.io/govpp.git/core"
 
-	"go.ligato.io/vpp-probe/internal/exec"
+	"go.ligato.io/vpp-probe/pkg/exec"
 	"go.ligato.io/vpp-probe/probe"
 	"go.ligato.io/vpp-probe/providers"
 	vppcli "go.ligato.io/vpp-probe/vpp/cli"
@@ -60,16 +59,8 @@ func (h *Handler) Metadata() map[string]string {
 	}
 }
 
-func (h *Handler) ExecCmd(command string, args ...string) (string, error) {
-	cmd := h.Command(command, args...)
-	out, err := cmd.Output()
-	return string(out), err
-}
-
-func (h *Handler) Command(command string, args ...string) exec.Cmd {
-	return &Cmd{
-		Cmd: stdexec.Command(command, args...),
-	}
+func (h *Handler) Command(cmd string, args ...string) exec.Cmd {
+	return exec.Command(cmd, args...)
 }
 
 func (h *Handler) GetCLI() (probe.CliExecutor, error) {
@@ -81,12 +72,6 @@ func (h *Handler) GetCLI() (probe.CliExecutor, error) {
 		}
 		return string(out), nil
 	})
-	/*var cli probe.CliExecutor
-	if h.CliAddr == "" {
-		cli = vppcli.NewCmdExecutor("/usr/bin/vppctl")
-	} else {
-		cli = vppcli.NewCmdExecutor("/usr/bin/vppctl", "-s", h.CliAddr)
-	}*/
 	return cli, nil
 }
 

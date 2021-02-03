@@ -28,7 +28,7 @@ const logo = `
 func Execute() {
 	cli, err := NewProbeCli()
 	if err != nil {
-		logrus.Fatal("ERROR: %v", err)
+		logrus.Fatalf("ERROR: %v", err)
 	}
 
 	root := NewRootCmd(cli)

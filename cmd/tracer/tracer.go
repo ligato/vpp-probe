@@ -14,6 +14,8 @@ import (
 	vpptrace "go.ligato.io/vpp-probe/vpp/trace"
 )
 
+// TODO: merge this package with vpp/trace
+
 var (
 	DefaultNodes = vpptrace.CommonNodes
 )

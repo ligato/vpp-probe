@@ -16,18 +16,18 @@ func kubectl(t *testing.T, context string, args ...string) {
 	args = append([]string{
 		"--context", context,
 	}, args...)
-	runCmd(t, "kubectl", args...)
+	execCmd(t, "kubectl", args...)
 }
 
 func createCluster(name string) {
-	runCmd(nil, "kind", "create", "cluster", "--name", name, "--wait", waitCreateCluster.String())
+	execCmd(nil, "kind", "create", "cluster", "--name", name, "--wait", waitCreateCluster.String())
 }
 
 func deleteCluster(name string) {
-	runCmd(nil, "kind", "delete", "cluster", "--name", name)
+	execCmd(nil, "kind", "delete", "cluster", "--name", name)
 }
 
-func runCmd(t *testing.T, cmd string, args ...string) {
+func execCmd(t *testing.T, cmd string, args ...string) {
 	c := exec.Command(cmd, args...)
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr

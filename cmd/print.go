@@ -181,11 +181,20 @@ func linuxInterfaceStatus(iface agent.LinuxInterface) string {
 	return colorize(statusDownColor, "down")
 }
 
-func interfaceStatus(iface agent.VppInterface) string {
-	if iface.Value.Enabled {
+func colorizedStatus(status bool) string {
+	if status {
 		return colorize(statusUpColor, "up")
 	}
 	return colorize(statusDownColor, "down")
+}
+
+func interfaceStatus(iface agent.VppInterface) string {
+	adminStatus := colorizedStatus(iface.Value.Enabled)
+	linkState := iface.GetLinkState()
+	if linkState != iface.Value.Enabled {
+		return fmt.Sprintf("%v (link %v)", adminStatus, colorizedStatus(linkState))
+	}
+	return adminStatus
 }
 
 func otherInfo(conf *agent.Config, iface agent.VppInterface) string {
@@ -197,13 +206,21 @@ func otherInfo(conf *agent.Config, iface agent.VppInterface) string {
 		if iface.Value.Name == xconn.Value.ReceiveInterface {
 			toIface = xconn.Value.TransmitInterface
 		}
-		info = append(info, fmt.Sprintf("l2xc to %v", colorize(interfaceColor, toIface)))
+		info = append(info, fmt.Sprintf("l2xc to: %v", colorize(interfaceColor, toIface)))
 	}
 
 	// IPSec
 	if tp := agent.FindIPSecTunProtectFor(iface.Value.Name, conf.VPP.IPSecTunProtects); tp != nil {
 		info = append(info, fmt.Sprintf("ipsec-sa in:%v out:%v", colorize(color.Cyan, tp.Value.SaIn), colorize(color.Cyan, tp.Value.SaOut)))
 	}
+
+	// Routes
+	/*for _, r := range agent.FindVppRoutesFor(iface.Value.Name, conf.VPP.Routes) {
+		if r.Origin != api.FromNB {
+			continue
+		}
+		info = append(info, fmt.Sprintf("route:%v", colorize(color.Cyan, r.Value.DstNetwork)))
+	}*/
 
 	return strings.Join(info, ", ")
 }

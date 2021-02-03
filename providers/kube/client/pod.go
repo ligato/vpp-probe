@@ -1,13 +1,16 @@
 package client
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-
-	"go.ligato.io/vpp-probe/internal/exec"
+	"k8s.io/client-go/deprecated/scheme"
+	"k8s.io/client-go/tools/remotecommand"
 )
 
 // Pod is a pod returned from Client.
@@ -45,48 +48,32 @@ func newPod(client *Client, pod *corev1.Pod) *Pod {
 }
 
 // Strings returns name for this pod prefixed with cluster name and namespace.
-func (p Pod) String() string {
-	return fmt.Sprintf("%s::%s", p.Namespace, p.Name)
+func (pod Pod) String() string {
+	return fmt.Sprintf("%s::%s", pod.Namespace, pod.Name)
 }
 
 // Age returns duration since the pod started.
-func (p Pod) Age() time.Duration {
-	if p.Created.IsZero() {
+func (pod Pod) Age() time.Duration {
+	if pod.Created.IsZero() {
 		return -1
 	}
-	return time.Since(p.Created)
+	return time.Since(pod.Created)
 }
 
 // PortForward starts port forwarding of pod port to a local random port.
-func (p Pod) PortForward(podPort int) (*PortForwarder, error) {
-	return PortForward(p.client, PortForwardOptions{
-		PodName:      p.Name,
-		PodNamespace: p.Namespace,
+func (pod Pod) PortForward(podPort int) (*PortForwarder, error) {
+	return PortForward(pod.client, PortForwardOptions{
+		PodName:      pod.Name,
+		PodNamespace: pod.Namespace,
 		LocalPort:    0, // pick random
 		PodPort:      podPort,
 	})
 }
 
 // Exec executes a command in the pod.
-func (p Pod) Exec(command string) (string, error) {
-	container := getPodFirstContainer(p.pod).Name
-	return p.ExecContainer(container, command)
-}
-
-// ExecContainer executes a command in a container of the pod.
-func (p Pod) ExecContainer(container, command string, args ...string) (string, error) {
-	cmd := p.Command(command, args...)
-	out, err := cmd.Output()
-	return string(out), err
-}
-
-func (p Pod) Command(cmd string, args ...string) exec.Cmd {
-	c := &Cmd{
-		Cmd:  cmd,
-		Args: args,
-		pod:  &p,
-	}
-	return c
+func (pod Pod) Exec(command string, stdin io.Reader, stdout, stderr io.Writer) error {
+	container := getPodFirstContainer(pod.pod).Name
+	return pod.ExecContainer(container, command, stdin, stdout, stderr)
 }
 
 func getPodFirstContainer(pod *corev1.Pod) corev1.Container {
@@ -94,4 +81,53 @@ func getPodFirstContainer(pod *corev1.Pod) corev1.Container {
 		return corev1.Container{}
 	}
 	return pod.Spec.Containers[0]
+}
+
+// ExecContainer executes a command in a container of the pod.
+func (pod Pod) ExecContainer(container, command string, stdin io.Reader, stdout, stderr io.Writer) error {
+	return podExec(pod.client, pod.Namespace, pod.Name, container, command, stdin, stdout, stderr)
+}
+
+// podExec exec command on specific pod and wait the command's output.
+func podExec(client *Client, namespace, podName, container string,
+	cmd string, stdin io.Reader, stdout, stderr io.Writer,
+) error {
+	opts := &corev1.PodExecOptions{
+		Container: container,
+		Command:   []string{"sh", "-c", cmd},
+		Stdin:     stdin != nil,
+		Stdout:    stdout != nil,
+		Stderr:    true,
+		TTY:       false,
+	}
+	req := client.client.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(podName).
+		Namespace(namespace).
+		SubResource("exec").
+		VersionedParams(opts, scheme.ParameterCodec)
+
+	logrus.WithFields(logrus.Fields{
+		"command":   opts.Command,
+		"container": opts.Container,
+	}).Tracef("pod %s running exec: %+v", podName, req.URL())
+
+	exec, err := remotecommand.NewSPDYExecutor(client.restConfig, "POST", req.URL())
+	if err != nil {
+		return err
+	}
+	if stderr == nil {
+		stderr = new(bytes.Buffer)
+	}
+	err = exec.Stream(remotecommand.StreamOptions{
+		Stdin:  stdin,
+		Stdout: stdout,
+		Stderr: stderr,
+		Tty:    false,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

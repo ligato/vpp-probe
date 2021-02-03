@@ -9,8 +9,8 @@ import (
 	"go.ligato.io/vpp-probe/vpp/agent"
 )
 
-func Test_interfaceInfo(t *testing.T) {
-	agent.coloredOutput = false
+func Test_vppInterfaceInfo(t *testing.T) {
+	coloredOutput = false
 
 	type args struct {
 		iface agent.VppInterface
@@ -39,7 +39,7 @@ func Test_interfaceInfo(t *testing.T) {
 		{
 			name: "tap",
 			args: args{iface: agent.VppInterface{
-				kvdata: agent.kvdata{
+				KVData: agent.KVData{
 					Metadata: map[string]interface{}{
 						"TAPHostIfName": "tapx",
 					},

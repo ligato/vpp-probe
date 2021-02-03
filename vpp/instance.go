@@ -2,6 +2,7 @@ package vpp
 
 import (
 	"encoding/gob"
+	"encoding/json"
 	"fmt"
 	"runtime/debug"
 	"strings"
@@ -10,29 +11,50 @@ import (
 	"github.com/sirupsen/logrus"
 	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi"
 
+	"go.ligato.io/vpp-probe/pkg/exec"
 	"go.ligato.io/vpp-probe/probe"
+	"go.ligato.io/vpp-probe/vpp/agent"
 	"go.ligato.io/vpp-probe/vpp/api"
+	vppcli "go.ligato.io/vpp-probe/vpp/cli"
 )
 
 // Instance handles access to a running VPP instance.
 type Instance struct {
 	handler probe.Handler
 
-	vppClient *vppClient
-	cli       probe.CliExecutor
-	api       govppapi.Channel
-	stats     govppapi.StatsProvider
+	cli   probe.CliExecutor
+	api   govppapi.Channel
+	stats govppapi.StatsProvider
+
+	agent *agent.Instance
 
 	status *APIStatus
-	info   *api.VersionInfo
+	info   api.VersionInfo
+}
+
+func (v *Instance) MarshalJSON() ([]byte, error) {
+	type instanceData struct {
+		ID       string
+		Metadata map[string]string
+		Info     api.VersionInfo
+		Status   *APIStatus
+		Agent    *agent.Instance
+	}
+	instance := instanceData{
+		ID:       v.handler.ID(),
+		Metadata: v.handler.Metadata(),
+		Info:     v.info,
+		Agent:    v.agent,
+		Status:   v.status,
+	}
+	return json.Marshal(instance)
 }
 
 // NewInstance tries to initialize probe and returns a new Instance on success.
 func NewInstance(probe probe.Handler) (*Instance, error) {
 	h := &Instance{
-		handler:   probe,
-		vppClient: newVppClient(),
-		status:    &APIStatus{},
+		handler: probe,
+		status:  &APIStatus{},
 	}
 	return h, h.Init()
 }
@@ -49,26 +71,49 @@ func (v *Instance) Handler() probe.Handler {
 	return v.handler
 }
 
-func (v *Instance) VersionInfo() *api.VersionInfo {
+func (v *Instance) Agent() *agent.Instance {
+	return v.agent
+}
+
+func (v *Instance) VersionInfo() api.VersionInfo {
 	return v.info
 }
 
 func (v *Instance) Init() (err error) {
-	logrus.Tracef("init instance %v", v.ID())
+	logrus.Tracef("init vpp instance: %v", v.ID())
 
 	if err = v.initVPP(); err != nil {
 		v.status.LastErr = err
 		return err
 	}
 
-	v.vppClient.cli = v.cli
+	if err = v.initAgent(); err != nil {
+		logrus.Debugf("vpp agent not detected")
+	}
 
-	v.info, err = v.GetVersionInfo()
+	info, err := v.GetVersionInfo()
 	if err != nil {
 		v.status.LastErr = err
 		return err
 	}
+	v.info = *info
 
+	return nil
+}
+
+func (v *Instance) RunCli(cmd string) (string, error) {
+	if v.cli == nil {
+		return "", ErrCLIUnavailable
+	}
+	return v.cli.RunCli(cmd)
+}
+
+func (v *Instance) initAgent() error {
+	a, err := agent.NewInstance(v.handler)
+	if err != nil {
+		return err
+	}
+	v.agent = a
 	return nil
 }
 
@@ -97,11 +142,30 @@ func (v *Instance) initVPP() (err error) {
 	return nil
 }
 
+const (
+	defaultCliSocket = "/run/vpp/cli.sock"
+	defaultCliAddr   = "localhost:5002"
+)
+
 func (v *Instance) initCLI() error {
-	cli, err := v.handler.GetCLI()
+	var args []string
+	if err := v.handler.Command("ls", defaultCliSocket).Run(); err != nil {
+		args = append(args, "-s", defaultCliAddr)
+		logrus.Tracef("checking cli socket error: %v, using flag '%s' for vppctl", err, args)
+	}
+	wrapper := exec.Wrap(v.handler, "/usr/bin/vppctl", args...)
+	cli := vppcli.ExecutorFunc(func(cmd string) (string, error) {
+		out, err := wrapper.Command(cmd).Output()
+		if err != nil {
+			return "", err
+		}
+		return string(out), nil
+	})
+
+	/*cli, err := v.handler.GetCLI()
 	if err != nil {
 		return fmt.Errorf("CLI handler: %w", err)
-	}
+	}*/
 
 	out, err := cli.RunCli("show version verbose")
 	if err != nil {
@@ -121,13 +185,16 @@ func (v *Instance) initBinapi() (err error) {
 		}
 	}()
 
+	vppClient := newVppClient()
+	vppClient.cli = v.cli
+
 	ch, err := v.handler.GetAPI()
 	if err != nil {
 		return err
 	}
-	v.vppClient.ch = ch
+	vppClient.ch = ch
 
-	v.vppClient.version, err = binapi.CompatibleVersion(ch)
+	vppClient.version, err = binapi.CompatibleVersion(ch)
 	if err != nil {
 		logrus.Warnf("binapi.CompatibleVersion error: %v", err)
 	}
@@ -138,7 +205,6 @@ func (v *Instance) initBinapi() (err error) {
 	} else {
 		logrus.WithField("instance", v.ID()).Debugf("version info: %+v", info)
 	}
-	vppVersion := info.Version
 
 	for version := range binapi.Versions {
 		ver := string(version)
@@ -146,17 +212,17 @@ func (v *Instance) initBinapi() (err error) {
 			ver = ver[:5]
 		}
 		logrus.Tracef("checking version %v in %q", ver, info.Version)
-		if strings.Contains(vppVersion, ver) {
-			v.vppClient.version = version
+		if strings.Contains(info.Version, ver) {
+			vppClient.version = version
 			logrus.Debugf("found version %v in %q", ver, info.Version)
 			break
 		}
 	}
 
 	// register binapi messages to gob package (required for proxy)
-	msgList, ok := binapi.Versions[v.vppClient.BinapiVersion()]
+	msgList, ok := binapi.Versions[vppClient.BinapiVersion()]
 	if !ok {
-		return fmt.Errorf("not found version %v", v.vppClient.BinapiVersion())
+		return fmt.Errorf("not found version %v", vppClient.BinapiVersion())
 	}
 	for _, msg := range msgList.AllMessages() {
 		gob.Register(msg)
@@ -177,11 +243,4 @@ func (v *Instance) initStats() error {
 	}
 	v.stats = stats
 	return nil
-}
-
-func (v *Instance) RunCli(cmd string) (string, error) {
-	if v.cli == nil {
-		return "", ErrCLIUnavailable
-	}
-	return v.cli.RunCli(cmd)
 }

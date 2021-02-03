@@ -12,10 +12,12 @@ import (
 
 var (
 	doSetup = flag.Bool("setup", true, "Setup clusters for tests")
+	doTest  = flag.Bool("test", true, "Run tests")
 )
 
 func init() {
 	log.SetFlags(0)
+	log.SetOutput(os.Stdout)
 	logrus.SetFormatter(&logrus.TextFormatter{
 		ForceColors:               true,
 		EnvironmentOverrideColors: true,
@@ -36,9 +38,17 @@ func TestMain(m *testing.M) {
 func RunTests(run func() int) int {
 	if *doSetup {
 		Setup()
-		defer Teardown()
 	} else {
-		log.Println("# skipping setup of clusters")
+		log.Println("# skipping setup")
+	}
+
+	if !*doTest {
+		log.Println("# skipping test")
+		return 0
+	}
+
+	if *doSetup {
+		defer Teardown()
 	}
 
 	return run()

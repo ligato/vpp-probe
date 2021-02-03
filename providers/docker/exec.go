@@ -8,9 +8,11 @@ import (
 	"strings"
 
 	docker "github.com/fsouza/go-dockerclient"
+
+	"go.ligato.io/vpp-probe/pkg/exec"
 )
 
-type Cmd struct {
+type command struct {
 	Cmd  string
 	Args []string
 
@@ -21,19 +23,22 @@ type Cmd struct {
 	container *ContainerHandler
 }
 
-func (c *Cmd) SetStdin(in io.Reader) {
+func (c *command) SetStdin(in io.Reader) exec.Cmd {
 	c.Stdin = in
+	return c
 }
 
-func (c *Cmd) SetStdout(out io.Writer) {
+func (c *command) SetStdout(out io.Writer) exec.Cmd {
 	c.Stdout = out
+	return c
 }
 
-func (c *Cmd) SetStderr(out io.Writer) {
+func (c *command) SetStderr(out io.Writer) exec.Cmd {
 	c.Stderr = out
+	return c
 }
 
-func (c *Cmd) Output() ([]byte, error) {
+func (c *command) Output() ([]byte, error) {
 	if c.Stdout != nil {
 		return nil, errors.New("stdout already set")
 	}
@@ -52,7 +57,7 @@ func (c *Cmd) Output() ([]byte, error) {
 	return stdout.Bytes(), err
 }
 
-func (c *Cmd) Run() error {
+func (c *command) Run() error {
 	command := fmt.Sprintf("%s %s", c.Cmd, strings.Join(c.Args, " "))
 	return containerExec(c.container.client, c.container.container.ID, command, c.Stdin, c.Stdout, c.Stderr)
 }
