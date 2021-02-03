@@ -48,11 +48,20 @@ type DiscoverOptions struct {
 	Format string
 }
 
-// expanding test case for auto discovery
-//
-//var DefaultTopoDisOptions = TopoDisOptions{
-//	Format: "test",
-//}
+type PodInfo struct {
+	Pod string
+}
+
+type NodeInfo struct {
+	Node  string
+	ip    string
+	plist []PodInfo
+}
+
+type ClusterInfo struct {
+	cname string
+	nlist []NodeInfo
+}
 
 func RunDiscover(cli Cli, opts DiscoverOptions) error {
 	if err := cli.Client().DiscoverInstances(cli.Queries()...); err != nil {
@@ -93,6 +102,7 @@ func printDiscoverTable(out io.Writer, instance *agent.Instance) {
 
 	w := prefixWriter(out, defaultPrefix)
 	PrintInstance(w, instance)
+	PrintCorrelation(w)
 }
 
 func printInstanceHeader(out io.Writer, handler probe.Handler) {
@@ -170,4 +180,8 @@ func PrintInstance(out io.Writer, instance *agent.Instance) {
 	fmt.Fprintln(&buf)
 
 	fmt.Fprint(out, color.ReplaceTag(buf.String()))
+}
+
+func PrintCorrelation(out io.Writer) {
+
 }
