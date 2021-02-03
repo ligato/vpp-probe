@@ -2,6 +2,7 @@ package vpp
 
 import (
 	"encoding/gob"
+	"encoding/json"
 	"fmt"
 	"runtime/debug"
 	"strings"
@@ -25,9 +26,28 @@ type Instance struct {
 	api   govppapi.Channel
 	stats govppapi.StatsProvider
 
-	agent  *agent.Instance
+	agent *agent.Instance
+
 	status *APIStatus
 	info   api.VersionInfo
+}
+
+func (v *Instance) MarshalJSON() ([]byte, error) {
+	type instanceData struct {
+		ID       string
+		Metadata map[string]string
+		Info     api.VersionInfo
+		Status   *APIStatus
+		Agent    *agent.Instance
+	}
+	instance := instanceData{
+		ID:       v.handler.ID(),
+		Metadata: v.handler.Metadata(),
+		Info:     v.info,
+		Agent:    v.agent,
+		Status:   v.status,
+	}
+	return json.Marshal(instance)
 }
 
 // NewInstance tries to initialize probe and returns a new Instance on success.

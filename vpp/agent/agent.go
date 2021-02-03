@@ -18,10 +18,7 @@ func NewInstance(handler probe.Handler) (*Instance, error) {
 	instance := &Instance{
 		handler: handler,
 	}
-	if err := instance.Init(); err != nil {
-		return nil, err
-	}
-	return instance, nil
+	return instance, instance.Init()
 }
 
 func (instance *Instance) Init() error {

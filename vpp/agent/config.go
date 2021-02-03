@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
-	"strconv"
 
 	"github.com/sirupsen/logrus"
 	"go.ligato.io/vpp-agent/v3/pkg/models"
 	"go.ligato.io/vpp-agent/v3/plugins/kvscheduler/api"
+	"go.ligato.io/vpp-agent/v3/proto/ligato/kvscheduler"
 	linux_interfaces "go.ligato.io/vpp-agent/v3/proto/ligato/linux/interfaces"
 	linux_l3 "go.ligato.io/vpp-agent/v3/proto/ligato/linux/l3"
 	vpp_interfaces "go.ligato.io/vpp-agent/v3/proto/ligato/vpp/interfaces"
@@ -57,6 +57,10 @@ func (v *VppInterface) Index() int {
 	return toInt(v.Metadata["SwIfIndex"])
 }
 
+func (v *VppInterface) GetLinkState() bool {
+	return toBool(v.Metadata["linkstate"])
+}
+
 type VppRoute struct {
 	KVData
 	Value *vpp_l3.Route
@@ -90,20 +94,77 @@ type KVData struct {
 }
 
 func RetrieveConfig(handler probe.Handler) (*Config, error) {
-	dump, err := runAgentctlCmd(handler, "dump", "--format", "json", "--view ", "SB", "all")
-	if err != nil {
-		return nil, fmt.Errorf("dumping all failed: %w", err)
+	return retrieveConfigView(handler, false)
+}
+
+func retrieveConfigView(handler probe.Handler, cached bool) (*Config, error) {
+	viewType := "SB"
+	if cached {
+		viewType = "cached"
 	}
-	logrus.Debugf("dump response %d bytes", len(dump))
+
+	var config Config
+
+	if err := dumpConfig(handler, &config, viewType); err != nil {
+		return nil, err
+	}
+
+	if err := getValues(handler, &config); err != nil {
+		return nil, err
+	}
+
+	return &config, nil
+}
+
+func getValues(handler probe.Handler, c *Config) error {
+	resp, err := runAgentctlCmd(handler, "values", "--format", "json")
+	if err != nil {
+		return fmt.Errorf("dumping all failed: %w", err)
+	}
+	logrus.Debugf("response %d bytes", len(resp))
+
+	var values []*kvscheduler.BaseValueStatus
+	if err := json.Unmarshal(resp, &values); err != nil {
+		logrus.Tracef("json data: %s", resp)
+		return fmt.Errorf("unmarshaling failed: %w", err)
+	}
+	logrus.Debugf("retrieved %d vales", len(values))
+
+	keys := map[string]int{}
+	for i, iface := range c.VPP.Interfaces {
+		keys[iface.Value.Name] = i
+	}
+
+	for _, value := range values {
+		logrus.Debugf(" - %+v", value)
+		ifaceName, isUp, ok := vpp_interfaces.ParseLinkStateKey(value.Value.Key)
+		if !ok {
+			continue
+		}
+		if i, ok := keys[ifaceName]; ok {
+			c.VPP.Interfaces[i].Metadata["linkstate"] = isUp
+		} else {
+			logrus.Debugf("link state for unknown interface %q", ifaceName)
+		}
+	}
+
+	return nil
+}
+
+func dumpConfig(handler probe.Handler, config *Config, viewType string) error {
+	dump, err := runAgentctlCmd(handler, "dump", "--format", "json", "--view ", viewType, "all")
+	if err != nil {
+		return fmt.Errorf("dumping all failed: %w", err)
+	}
+	logrus.Debugf("response %d bytes", len(dump))
 
 	var list []KVData
 	if err := json.Unmarshal(dump, &list); err != nil {
 		logrus.Tracef("json data: %s", dump)
-		return nil, fmt.Errorf("unmarshaling dump failed: %w", err)
+		return fmt.Errorf("unmarshaling failed: %w", err)
 	}
 	logrus.Debugf("dumped %d items", len(list))
 
-	var config Config
 	for _, item := range list {
 		model, err := models.GetModelForKey(item.Key)
 		if err != nil {
@@ -186,7 +247,7 @@ func RetrieveConfig(handler probe.Handler) (*Config, error) {
 		return config.VPP.Interfaces[i].Index() < config.VPP.Interfaces[j].Index()
 	})
 
-	return &config, nil
+	return nil
 }
 
 func (c *Config) HasVppInterfaceType(typ vpp_interfaces.Interface_Type) bool {
@@ -238,10 +299,4 @@ func HasAnyIPSecConfig(config *Config) bool {
 		return true
 	}
 	return false
-}
-
-func toInt(v interface{}) int {
-	s := fmt.Sprint(v)
-	idx, _ := strconv.Atoi(s)
-	return idx
 }
