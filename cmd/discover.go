@@ -195,6 +195,31 @@ func PrintInstance(out io.Writer, instance *vpp.Instance) {
 
 func BldCorrelation(instance *vpp.Instance) {
 
+	// Testing interface
+	cfg := instance.Agent().Config
+	if len(cfg.VPP.Interfaces) > 0 {
+		for _, v := range cfg.VPP.Interfaces {
+			if v.Metadata["InternalName"] == defaultVppInterfaceName {
+				continue
+			}
+			iface := v.Value
+
+			var iname string = interfaceInternalName(v)
+			var idesc string = iface.Name
+			var typ string = vppInterfaceType(v)
+			var ips string = interfaceIPs(iface.IpAddresses, iface.Vrf)
+			var info string = vppInterfaceInfo(v)
+
+			logrus.Debugf("----------TJ------------")
+			logrus.Debugf("Internal: %s -> Interface : %s -> Type : %s\n", iname, idesc, typ)
+			logrus.Debugf("ips : %s\n", ips)
+			logrus.Debugf("info : %s\n", info)
+
+		}
+	}
+
+	//
+
 	metadata := instance.Handler().Metadata()
 
 	metaKey := func(k string) string {
