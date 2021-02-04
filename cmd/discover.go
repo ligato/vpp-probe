@@ -28,12 +28,12 @@ const discoverExample = `  # Discover VPP instances in Kubernetes pods
   vpp-probe discover`
 
 type PodInfo struct {
-	Pod string
+	pinfo string
 }
 
 type NodeInfo struct {
 	node, ip string
-	//plist []PodInfo
+	plist    []PodInfo
 }
 
 type ClusterInfo struct {
@@ -42,6 +42,10 @@ type ClusterInfo struct {
 }
 
 var cl ClusterInfo
+
+var clusterset = make(map[string]bool)
+var nodeset = make(map[string]bool)
+var podset = make(map[string]bool)
 
 type DiscoverOptions struct {
 	Format string
@@ -200,22 +204,39 @@ func BldCorrelation(instance *vpp.Instance) {
 
 	if metadata["env"] == providers.Kube {
 
-		cname := strings.Split(metaKey("cluster"), ":")[1]
-		nname := strings.Split(metaKey("node"), ":")[1]
-		nip := strings.Split(metaKey("ip"), ":")[1]
+		var cname string = strings.Split(metaKey("cluster"), ":")[1]
+		var nname string = strings.Split(metaKey("node"), ":")[1]
+		var nip string = strings.Split(metaKey("ip"), ":")[1]
+		//		var pname string = strings.Split(metaKey("pod"), ":")[1]
 
-		nd := NodeInfo{
-			node: nname,
-			ip:   nip,
+		clexists := clusterset[cname]
+
+		if !clexists {
+			clusterset[cname] = true
+			cl.cname = cname
 		}
-		cl.cname = cname
-		cl.nlist = append(cl.nlist, nd)
 
+		ndexists := nodeset[nname]
+
+		if !ndexists {
+			nodeset[nname] = true
+			nd := NodeInfo{
+				node: nname,
+				ip:   nip,
+			}
+			cl.nlist = append(cl.nlist, nd)
+		}
 	}
 
 }
 
 func PrintCorrelation(out io.Writer) {
+
+	fmt.Fprintf(out, "\n\n")
+
+	fmt.Fprintln(out, "----------------------------------------------------------------------------------------------------------------------------------")
+	fmt.Fprintf(out, "Topology")
+	fmt.Fprintln(out, "----------------------------------------------------------------------------------------------------------------------------------")
 
 	fmt.Fprintf(out, "Cluster : %s\n", cl.cname)
 	for i, n := range cl.nlist {
