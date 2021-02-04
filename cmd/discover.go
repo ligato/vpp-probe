@@ -44,25 +44,6 @@ func NewDiscoverCmd(cli Cli) *cobra.Command {
 	return cmd
 }
 
-type DiscoverOptions struct {
-	Format string
-}
-
-type PodInfo struct {
-	Pod string
-}
-
-type NodeInfo struct {
-	Node  string
-	ip    string
-	plist []PodInfo
-}
-
-type ClusterInfo struct {
-	cname string
-	nlist []NodeInfo
-}
-
 func RunDiscover(cli Cli, opts DiscoverOptions) error {
 	// TODO: refactor this to run discovery and only print list of discovered
 	//  instances and move retrieval of agent config (interfaces) to a separate
@@ -105,7 +86,7 @@ func printDiscoverTable(out io.Writer, instance *vpp.Instance) {
 
 	w := prefixWriter(out, defaultPrefix)
 	PrintInstance(w, instance)
-	PrintCorrelation(w)
+	PrintCorrelation(out, instance)
 }
 
 func printInstanceHeader(out io.Writer, handler probe.Handler) {
@@ -187,6 +168,19 @@ func PrintInstance(out io.Writer, instance *vpp.Instance) {
 	fmt.Fprint(out, color.ReplaceTag(buf.String()))
 }
 
-func PrintCorrelation(out io.Writer) {
+func PrintCorrelation(out io.Writer, instance *vpp.Instance) {
+	//var buf bytes.Buffer
+	//
+	//config := instance.Agent().Config
 
+	metadata := instance.Handler().Metadata()
+
+	metaKey := func(k string) string {
+		v := metadata[k]
+		return fmt.Sprintf("%s: %v", k, instanceHeaderColor.Sprint(v))
+	}
+
+	if metadata["env"] == providers.Kube {
+		fmt.Fprintf(out, " %s\n", metaKey("pod"))
+	}
 }
