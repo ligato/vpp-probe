@@ -28,7 +28,7 @@ const discoverExample = `  # Discover VPP instances in Kubernetes pods
   vpp-probe discover`
 
 type PodInfo struct {
-	pinfo string
+	pinfo []string
 }
 
 type NodeInfo struct {
@@ -45,7 +45,7 @@ var cl ClusterInfo
 
 var clusterset = make(map[string]bool)
 var nodeset = make(map[string]bool)
-var podset = make(map[string]bool)
+var nodedump = make(map[string]PodInfo)
 
 type DiscoverOptions struct {
 	Format string
@@ -207,7 +207,7 @@ func BldCorrelation(instance *vpp.Instance) {
 		var cname string = strings.Split(metaKey("cluster"), ":")[1]
 		var nname string = strings.Split(metaKey("node"), ":")[1]
 		var nip string = strings.Split(metaKey("ip"), ":")[1]
-		//		var pname string = strings.Split(metaKey("pod"), ":")[1]
+		var pname string = strings.Split(metaKey("pod"), ":")[1]
 
 		clexists := clusterset[cname]
 
@@ -218,6 +218,8 @@ func BldCorrelation(instance *vpp.Instance) {
 
 		ndexists := nodeset[nname]
 
+		var updatepods PodInfo
+
 		if !ndexists {
 			nodeset[nname] = true
 			nd := NodeInfo{
@@ -225,6 +227,13 @@ func BldCorrelation(instance *vpp.Instance) {
 				ip:   nip,
 			}
 			cl.nlist = append(cl.nlist, nd)
+
+			updatepods.pinfo = append(updatepods.pinfo, pname)
+			nodedump[nname] = updatepods
+		} else {
+			updatepods = nodedump[nname]
+			updatepods.pinfo = append(updatepods.pinfo, pname)
+			nodedump[nname] = updatepods
 		}
 	}
 
@@ -235,15 +244,17 @@ func PrintCorrelation(out io.Writer) {
 	fmt.Fprintf(out, "\n\n")
 
 	fmt.Fprintln(out, "----------------------------------------------------------------------------------------------------------------------------------")
-	fmt.Fprintf(out, "Topology")
+	fmt.Fprintf(out, "Topology\n")
 	fmt.Fprintln(out, "----------------------------------------------------------------------------------------------------------------------------------")
 
 	fmt.Fprintf(out, "Cluster : %s\n", cl.cname)
 	for i, n := range cl.nlist {
 		fmt.Fprintf(out, "\t %d : Node : %s / IP: %s\n", i, n.node, n.ip)
 
-		//for _, pd := range n.plist {
-		//	fmt.Fprintf(out, "\t\t pname : %s\n", pd.Pod)
-		//}
+		var npods PodInfo = nodedump[n.node]
+
+		for pd := range npods.pinfo {
+			fmt.Fprintf(out, "\t\t Pod : %s\n", pd)
+		}
 	}
 }
