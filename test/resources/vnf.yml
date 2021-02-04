@@ -1,0 +1,198 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: vpp-vnf1
+  labels:
+    app: vpp
+spec:
+  containers:
+    - name: vpp
+      image: ligato/vpp-agent:latest
+      imagePullPolicy: IfNotPresent
+      securityContext:
+        privileged: true
+      env:
+        - name: MICROSERVICE_LABEL
+          value: vnf1
+        - name: ETCD_CONFIG
+          value: disabled
+      volumeMounts:
+        - name: vpp-config
+          mountPath: /etc/vpp
+        - name: memif-sockets
+          mountPath: /tmp
+  volumes:
+    - name: vpp-config
+      configMap:
+        name: vpp-cfg-vnf1
+    - name: memif-sockets
+      hostPath:
+        path: /tmp
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vpp-cfg-vnf1
+data:
+  vpp.conf: |
+    unix {
+      nodaemon
+      cli-listen /run/vpp/cli.sock
+      cli-no-pager
+      coredump-size unlimited
+      full-coredump
+      poll-sleep-usec 100
+    }
+    socksvr {
+      default
+    }
+    statseg {
+      default
+    }
+    plugins {
+      plugin dpdk_plugin.so {
+        disable
+      }
+    }
+    nat {
+      endpoint-dependent
+    }
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: vpp-vnf2
+  labels:
+    app: vpp
+spec:
+  containers:
+    - name: vpp
+      image: ligato/vpp-agent:latest
+      imagePullPolicy: IfNotPresent
+      securityContext:
+        privileged: true
+      env:
+        - name: MICROSERVICE_LABEL
+          value: vnf2
+        - name: ETCD_CONFIG
+          value: disabled
+      volumeMounts:
+        - name: vpp-config
+          mountPath: /etc/vpp
+        - name: memif-sockets
+          mountPath: /tmp
+  volumes:
+    - name: vpp-config
+      configMap:
+        name: vpp-cfg-vnf2
+    - name: memif-sockets
+      hostPath:
+        path: /tmp
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vpp-cfg-vnf2
+data:
+  vpp.conf: |
+    unix {
+      nodaemon
+      cli-listen /run/vpp/cli.sock
+      cli-no-pager
+      coredump-size unlimited
+      full-coredump
+      poll-sleep-usec 100
+    }
+    socksvr {
+      default
+    }
+    statseg {
+      default
+    }
+    plugins {
+      plugin dpdk_plugin.so {
+        disable
+      }
+    }
+    nat {
+      endpoint-dependent
+    }
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: vpp-vswitch
+  labels:
+    app: vpp
+spec:
+  containers:
+    - name: vpp
+      image: ligato/vpp-agent:latest
+      imagePullPolicy: IfNotPresent
+      securityContext:
+        privileged: true
+      ports:
+        - containerPort: 9191
+      readinessProbe:
+        httpGet:
+          path: /readiness
+          port: 9191
+        periodSeconds: 1
+      livenessProbe:
+        httpGet:
+          path: /liveness
+          port: 9191
+        periodSeconds: 1
+        initialDelaySeconds: 15
+      env:
+        - name: MICROSERVICE_LABEL
+          value: vswitch
+        - name: ETCD_CONFIG
+          value: disabled
+      volumeMounts:
+        - name: vpp-config
+          mountPath: /etc/vpp
+        - name: memif-sockets
+          mountPath: /tmp
+  volumes:
+    - name: vpp-config
+      configMap:
+        name: vpp-cfg-vswitch
+    - name: memif-sockets
+      hostPath:
+        path: /tmp
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vpp-cfg-vswitch
+data:
+  vpp.conf: |
+    unix {
+      nodaemon
+      cli-listen /run/vpp/cli.sock
+      cli-no-pager
+      coredump-size unlimited
+      full-coredump
+      poll-sleep-usec 100
+    }
+    socksvr {
+      default
+    }
+    statseg {
+      default
+    }
+    plugins {
+      plugin dpdk_plugin.so {
+        disable
+      }
+    }
+    nat {
+      endpoint-dependent
+    }

@@ -32,7 +32,7 @@ func TestUnexpectedBanner(t *testing.T) {
 		t.Skip("skip live tests (enable with --live)")
 	}
 
-	localcli := VppCtl
+	localcli := NewCmdExecutor("/usr/bin/vppctl")
 
 	for i := 0; i < 1000; i++ {
 		out, err := localcli.RunCli("show version")

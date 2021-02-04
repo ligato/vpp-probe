@@ -1,6 +1,7 @@
 package vpp
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -95,4 +96,53 @@ func DumpLogsCLI(cli probe.CliExecutor) ([]string, error) {
 	}
 	logs := strings.Split(out, "\n")
 	return logs, nil
+}
+
+func ShowPluginsCLI(cli probe.CliExecutor) ([]api.PluginInfo, error) {
+	const (
+		pluginPathPrefix = "Plugin path is:"
+		pluginNameSuffix = "_plugin.so"
+	)
+
+	out, err := cli.RunCli("show plugins")
+	if err != nil {
+		return nil, err
+	}
+
+	lines := strings.Split(out, "\n")
+	if len(lines) == 0 {
+		return nil, fmt.Errorf("empty output for 'show plugins'")
+	}
+	pluginPathLine := strings.TrimSpace(lines[0])
+	if !strings.HasPrefix(pluginPathLine, pluginPathPrefix) {
+		return nil, fmt.Errorf("unexpected output for 'show plugins'")
+	}
+	pluginPath := strings.TrimSpace(strings.TrimPrefix(pluginPathLine, pluginPathPrefix))
+	if len(pluginPath) == 0 {
+		return nil, fmt.Errorf("plugin path not found in output for 'show plugins'")
+	}
+
+	var plugins []api.PluginInfo
+	for _, line := range lines {
+		fields := strings.Fields(line)
+		if len(fields) < 3 {
+			continue
+		}
+		var i int
+		if _, err := fmt.Sscanf(fields[0], "%d.", &i); err != nil {
+			continue
+		}
+		if i <= 0 {
+			continue
+		}
+		plugin := api.PluginInfo{
+			Name:        strings.TrimSuffix(fields[1], pluginNameSuffix),
+			Path:        fields[1],
+			Version:     fields[2],
+			Description: strings.Join(fields[3:], " "),
+		}
+		plugins = append(plugins, plugin)
+	}
+
+	return plugins, nil
 }

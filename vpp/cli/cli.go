@@ -18,26 +18,6 @@ import (
 	"bytes"
 )
 
-var (
-	// Local provides default access to the VPP CLI via vppctl.
-	VppCtl = NewCmdExecutor("/usr/bin/vppctl")
-)
-
-// RunCli executes a CLI command via vppctl.
-func RunCli(cmd string) (string, error) {
-	return VppCtl.RunCli(cmd)
-}
-
-// VppCtlAddr returns vppctl handler that
-func VppCtlAddr(addr string) Executor {
-	return NewCmdExecutor("/usr/bin/vppctl", "-s", addr)
-}
-
-// Executor defines method executing VPP CLI commands.
-type Executor interface {
-	RunCli(cmd string) (string, error)
-}
-
 // ExecutorFunc is a helper type for implementing the Executor from function.
 type ExecutorFunc func(cmd string) (string, error)
 

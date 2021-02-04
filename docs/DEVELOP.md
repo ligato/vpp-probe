@@ -34,7 +34,11 @@ The core components of vpp-probe are:
     - getting metrics
     - watching events
 
-### Environment Types
+## Providers
+
+### Runtime Environment
+
+VPP instance local or remote  
 
 * Local
   - Host
@@ -42,18 +46,29 @@ The core components of vpp-probe are:
   - Kubernetes
   - Docker
 
-### VPP Access
+## Instance
 
-* CLI
-  - via exec `vppctl` cmd
-  - via exec `agentctl vpp cli` cmd (vpp-agent only) 
-  - via binapi `vpe.CliInband` req (requires Binary API)
-  
-* Binary API
-  - direct to socket (local only)
-  - via proxy (vpp-agent or standalone GoVPP proxy)
-  
-* Stats API
-  - direct to socket+shm (local only)
-  - via proxy (vpp-agent or standalone GoVPP proxy)
+VPP instance manages a running VPP and provides common API for the VPP data.
 
+### VPP Data & API
+
+VPP data is accessed in various ways depending on the VPP configuration and current availability.
+
+**VPP CLI**
+- by running `vppctl` program
+- calling RPC `vpe.CliInband` (VPP binary API must be available)
+- via agent API (requires vpp-agent)
+
+**VPP Binary API**
+- direct to unix socket `/run/vpp/api.sock` (local env only)
+- via proxy (vpp-agent or standalone GoVPP proxy)
+  
+**VPP Stats API**
+- direct to shared memory (local env only)
+- via proxy (vpp-agent or standalone GoVPP proxy)
+
+|API| Access | Description | Local Env | Kube Env | Docker Env |
+|---|---|---|---|---|---|
+|VPP CLI|by running `vppctl` program| |direct|pod exec|conainer exec|
+|-|calling RPC `vpe.CliInband`| |direct|pod exec|conainer exec|
+|-|by running `vppctl` program| |direct|pod exec|conainer exec|

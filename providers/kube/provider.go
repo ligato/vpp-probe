@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/sirupsen/logrus"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	"go.ligato.io/vpp-probe/probe"
 	"go.ligato.io/vpp-probe/providers"
@@ -18,11 +19,19 @@ type Provider struct {
 }
 
 func NewProvider(kubeconfig string, context string) (*Provider, error) {
-	cfg := client.NewConfig(kubeconfig, context)
+	flags := genericclioptions.NewConfigFlags(true)
+	if kubeconfig != "" {
+		flags.KubeConfig = &kubeconfig
+	}
+	if context != "" {
+		flags.Context = &context
+	}
+
+	cfg := client.NewConfig(flags)
 
 	c, err := client.NewClient(cfg)
 	if err != nil {
-		logrus.Warnf("loading clientl for context %v failed: %v", context, err)
+		logrus.Debugf("loading client for context %v failed: %v", context, err)
 		return nil, err
 	}
 
@@ -41,12 +50,12 @@ func NewProvider(kubeconfig string, context string) (*Provider, error) {
 	return provider, nil
 }
 
-func (p *Provider) Env() probe.Env {
+func (p *Provider) Env() string {
 	return providers.Kube
 }
 
 func (p *Provider) Name() string {
-	return fmt.Sprintf("kube::%v", p.client.String())
+	return fmt.Sprintf("%v", p.client.String())
 }
 
 func (p *Provider) Query(params ...map[string]string) ([]probe.Handler, error) {
@@ -55,23 +64,27 @@ func (p *Provider) Query(params ...map[string]string) ([]probe.Handler, error) {
 		return nil, err
 	}
 
-	logrus.Infof("-> query %q in %v (cluster %v)", params, p.client, p.client.Cluster())
+	// force single empty query by default
+	if len(queries) == 0 {
+		queries = []PodQuery{{}}
+	}
+
+	logrus.Debugf("-> query %q in %v (cluster %v)", params, p.client, p.client.Cluster())
 
 	pods, err := queryPods(p.client, queries)
 	if err != nil {
 		return nil, fmt.Errorf("query pods error: %w", err)
 	}
 
-	logrus.Infof("found %d pods", len(pods))
+	if len(pods) == 0 {
+		return nil, fmt.Errorf("no pods queried")
+	}
+
+	logrus.Debugf("queried %d pods", len(pods))
 
 	var handlers []probe.Handler
 	for _, pod := range pods {
-		handler := NewHandler(pod)
-		handlers = append(handlers, handler)
-	}
-
-	if len(handlers) == 0 {
-		return nil, fmt.Errorf("no instances found")
+		handlers = append(handlers, NewHandler(pod))
 	}
 
 	return handlers, nil
@@ -88,7 +101,8 @@ func queryPods(kubectx *client.Client, queries []PodQuery) ([]*client.Pod, error
 				logrus.Warnf("GetPod failed: %v", err)
 				continue
 			}
-			logrus.Debugf("1 matching pod found")
+			logrus.Debugf("matching pod found")
+
 			list = append(list, pod)
 		} else {
 			pods, err := kubectx.ListPods(q.Namespace, q.LabelSelector, q.FieldSelector)
@@ -101,6 +115,7 @@ func queryPods(kubectx *client.Client, queries []PodQuery) ([]*client.Pod, error
 				continue
 			}
 			logrus.Debugf("%d matching pods found", len(pods))
+
 			list = append(list, pods...)
 		}
 	}
@@ -127,8 +142,12 @@ type PodQuery struct {
 }
 
 func newPodQuery(params map[string]string) PodQuery {
+	name := params["name"]
+	if pod, ok := params["pod"]; ok && pod != "" {
+		name = pod
+	}
 	return PodQuery{
-		Name:          params["name"],
+		Name:          name,
 		Namespace:     params["namespace"],
 		LabelSelector: params["label"],
 		FieldSelector: params["field"],

@@ -19,14 +19,13 @@ type Provider struct {
 	Config HandlerConfig
 }
 
-func NewProvider() (*Provider, error) {
-	provider := &Provider{
-		Config: DefaultConfig(),
+func NewProvider(config HandlerConfig) *Provider {
+	return &Provider{
+		Config: config,
 	}
-	return provider, nil
 }
 
-func (p *Provider) Env() probe.Env {
+func (p *Provider) Env() string {
 	return providers.Local
 }
 
@@ -52,46 +51,15 @@ func (p *Provider) Query(params ...map[string]string) ([]probe.Handler, error) {
 
 		logrus.Infof("found local vpp process (pid %d)", proc.Pid())
 
-		handler := NewHandler(proc.Pid(), p.Config)
-		handlers = append(handlers, handler)
+		h := NewHandler(proc.Pid(), p.Config)
+
+		handlers = append(handlers, h)
 	}
 
 	if len(handlers) == 0 {
 		return nil, fmt.Errorf("no instances found")
 	}
 	return handlers, nil
-}
-
-func (p *Provider) Search(query ...interface{}) ([]*probe.Probe, error) {
-	var instances []*probe.Probe
-
-	procs, err := ps.Processes()
-	if err != nil {
-		return nil, nil
-	}
-	for _, proc := range procs {
-		executable := strings.ToLower(proc.Executable())
-		if !strings.Contains(executable, "vpp") {
-			continue
-		}
-		if !isVppProcess(proc.Pid()) {
-			continue
-		}
-		logrus.Infof("found local vpp process (pid %d)", proc.Pid())
-		handler := NewHandler(proc.Pid(), p.Config)
-		instance := &probe.Probe{
-			Location: handler.ID(),
-			Provider: p.Name(),
-			Handler:  handler,
-		}
-		instances = append(instances, instance)
-	}
-
-	if len(instances) == 0 {
-		return nil, fmt.Errorf("no instances found")
-	}
-
-	return instances, nil
 }
 
 func isVppProcess(pid int) bool {

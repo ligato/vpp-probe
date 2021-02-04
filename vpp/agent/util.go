@@ -1,11 +1,18 @@
 package agent
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+)
 
-type Colorer interface {
-	Code() string
+func toInt(v interface{}) int {
+	s := fmt.Sprint(v)
+	idx, _ := strconv.Atoi(s)
+	return idx
 }
 
-func escapeClr(c Colorer, s interface{}) string {
-	return fmt.Sprintf("\xff\x1b[%sm\xff%v\xff\x1b[0m\xff", c.Code(), s)
+func toBool(v interface{}) bool {
+	s := fmt.Sprint(v)
+	idx, _ := strconv.ParseBool(s)
+	return idx
 }

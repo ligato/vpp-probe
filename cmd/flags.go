@@ -1,52 +1,30 @@
 package cmd
 
 import (
-	"fmt"
-
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
-
-	"go.ligato.io/vpp-probe/controller"
-	"go.ligato.io/vpp-probe/probe"
-	"go.ligato.io/vpp-probe/providers"
-	"go.ligato.io/vpp-probe/providers/docker"
-	"go.ligato.io/vpp-probe/providers/kube"
-	"go.ligato.io/vpp-probe/providers/local"
 )
 
-type Flags struct {
-	GlobalFlags
-	ProviderFlags
-}
-
-func (glob *Flags) AddFlags(flags *pflag.FlagSet) {
-	glob.GlobalFlags.AddFlags(flags)
-	glob.ProviderFlags.AddFlags(flags)
-}
-
-type GlobalFlags struct {
+type GlobalOptions struct {
 	Debug    bool
 	LogLevel string
 	// TODO: support config file
 	// Config string
 }
 
-func (glob *GlobalFlags) AddFlags(flags *pflag.FlagSet) {
+func (glob *GlobalOptions) InstallFlags(flags *pflag.FlagSet) {
 	flags.BoolVarP(&glob.Debug, "debug", "D", false, "Enable debug mode")
-	flags.StringVar(&glob.LogLevel, "loglevel", "", "Set logging level")
+	flags.StringVarP(&glob.LogLevel, "loglevel", "L", "", "Set logging level")
 }
 
-type ProviderFlags struct {
+type ProbeOptions struct {
 	Env     string
 	Queries []string
 
-	// vpp related
-
-	APISocket   string
-	StatsSocket string
-
-	// provider-specific
-
+	Local struct {
+		CLISocket   string
+		APISocket   string
+		StatsSocket string
+	}
 	Docker struct {
 		Host string
 	}
@@ -56,81 +34,27 @@ type ProviderFlags struct {
 	}
 }
 
-func (f *ProviderFlags) AddFlags(flags *pflag.FlagSet) {
-	flags.StringVar(&f.Env, "env", "", "Environment type in which VPP is running (local, kube)")
-	flags.StringArrayVarP(&f.Queries, "query", "q", nil, "Query parameters")
-
-	// vpp flags
-	flags.StringVar(&f.APISocket, "apisock", "/run/vpp/api.sock", "Path to VPP binary API socket file")
-	flags.StringVar(&f.StatsSocket, "statsock", "/run/vpp/stats.sock", "Path to VPP stats API socket file")
-
-	// docker flags
-	flags.StringVarP(&f.Docker.Host, "dockerhost", "H", "", "Daemon socket(s) to connect to\n")
+func (f *ProbeOptions) InstallFlags(flags *pflag.FlagSet) {
+	flags.StringVarP(&f.Env, "env", "e", "",
+		`Environment type in which VPP is running. Supported environments are local, docker and kube,
+where VPP is running as a local process, as a Docker container or as a Kubernetes pod, respectivelly.
+`)
+	flags.StringArrayVarP(&f.Queries, "query", "q", nil,
+		`Selector query to filter VPP instances on, supports '=' (e.g --query key1=value1). 
+Multiple parameters in a single query (using AND logic) are separated by a comma (e.g. -q key1=val1,key2=val2) and 
+multiple queries (using OR logic) can be defined as additional flag options (e.g. -q k1=v1 -q k1=v2). 
+Parameter types depend on probe environment (defined with --env).
+`)
 
 	// kube flags
-	flags.StringVar(&f.Kube.Kubeconfig, "kubeconfig", "", "Path to kubeconfig, defaults to ~/.kube/config (or set via KUBECONFIG)")
-	flags.StringVar(&f.Kube.Context, "kubecontext", "", "The name of the kubeconfig context to use")
+	flags.StringVar(&f.Kube.Kubeconfig, "kubeconfig", "", "Path to kubeconfig, defaults to ~/.kube/config (or set via KUBECONFIG) (implies kube env)")
+	flags.StringVar(&f.Kube.Context, "kubecontext", "", "The name of the kubeconfig context to use, multiple contexts separated by a comma `,` (implies kube env)\n")
 
-}
+	// docker flags
+	flags.StringVar(&f.Docker.Host, "dockerhost", "", "Daemon socket(s) to connect to (implies docker env)\n")
 
-func SetupController(glob Flags) (*controller.Controller, error) {
-	env := resolveEnv(glob)
-
-	logrus.Infof("Setting up %v provider env", env)
-
-	provider, err := SetupProvider(env, glob)
-	if err != nil {
-		return nil, err
-	}
-
-	logrus.Infof("%v provider %v connected", provider.Env(), provider.Name())
-
-	return newController(provider), nil
-}
-
-func SetupProvider(env probe.Env, glob Flags) (probe.Provider, error) {
-	switch env {
-	case providers.Local:
-		return local.NewProvider()
-	case providers.Kube:
-		provider, err := kube.NewProvider(glob.Kube.Kubeconfig, glob.Kube.Context)
-		if err != nil {
-			return nil, err
-		}
-		return provider, nil
-	case providers.Docker:
-		provider, err := docker.NewProvider(glob.Docker.Host)
-		if err != nil {
-			return nil, err
-		}
-		return provider, nil
-	default:
-		return nil, fmt.Errorf("invalid env: %q", env)
-	}
-}
-
-func newController(providers ...probe.Provider) *controller.Controller {
-	probectl := controller.NewController()
-	for _, provider := range providers {
-		if err := probectl.AddProvider(provider); err != nil {
-			logrus.Warnf("add provider failed: %v", err)
-		}
-	}
-	return probectl
-}
-
-func resolveEnv(glob Flags) (env providers.Env) {
-	if glob.Env != "" {
-		return providers.Env(glob.Env)
-	}
-	defer func() {
-		logrus.Debugf("env resolved to %v", env)
-	}()
-	if glob.Docker.Host != "" {
-		return providers.Docker
-	}
-	if glob.Kube.Kubeconfig != "" || glob.Kube.Context != "" {
-		return providers.Kube
-	}
-	return providers.Local
+	// local flags
+	flags.StringVar(&f.Local.CLISocket, "clisock", "", "Path to VPP CLIsocket file (used in local env)")
+	flags.StringVar(&f.Local.APISocket, "apisock", "", "Path to VPP binary API socket file (used in local env)")
+	flags.StringVar(&f.Local.StatsSocket, "statsock", "", "Path to VPP stats API socket file (used in local env)\n")
 }

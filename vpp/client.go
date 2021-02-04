@@ -6,8 +6,9 @@ import (
 
 	govppapi "git.fd.io/govpp.git/api"
 	"github.com/sirupsen/logrus"
-	"go.ligato.io/vpp-agent/v3/plugins/govppmux/vppcalls"
 	"go.ligato.io/vpp-agent/v3/plugins/vpp"
+
+	"go.ligato.io/vpp-probe/probe"
 )
 
 var (
@@ -17,11 +18,10 @@ var (
 )
 
 type vppClient struct {
-	//conn    *govppcore.Connection
+	cli     probe.CliExecutor
 	vppConn govppapi.Connection
 	ch      govppapi.Channel
 	stats   govppapi.StatsProvider
-	vpp     vppcalls.VppCoreAPI
 	version vpp.Version
 }
 
@@ -29,7 +29,6 @@ func newVppClient() *vppClient {
 	return &vppClient{
 		ch:      nil,
 		stats:   nil,
-		vpp:     nil,
 		version: "",
 	}
 }
@@ -63,8 +62,7 @@ func (v *vppClient) Stats() govppapi.StatsProvider {
 }
 
 func (v *vppClient) IsPluginLoaded(plugin string) bool {
-	ctx := context.Background()
-	plugins, err := v.vpp.GetPlugins(ctx)
+	plugins, err := ShowPluginsCLI(v.cli)
 	if err != nil {
 		logrus.Warnf("GetPlugins failed: %v", plugins)
 		return false

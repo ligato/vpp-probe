@@ -4,36 +4,15 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
-	"net"
 	"strings"
 	"time"
 
-	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2001/interface_types"
-	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2001/interfaces"
-	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2001/ip_types"
-	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2001/vpe"
+	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2005/interface_types"
+	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2005/vpe"
+	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2005/vpe_types"
 
 	"go.ligato.io/vpp-probe/vpp/api"
 )
-
-func vppL2AddrToString(mac interfaces.MacAddress) string {
-	return net.HardwareAddr(mac[:]).String()
-}
-
-func vppPrefixToString(x ip_types.AddressWithPrefix) string {
-	ipaddr := vppAddressToIP(x.Address)
-	return fmt.Sprintf("%s/%d", ipaddr, x.Len)
-}
-
-func vppAddressToIP(x ip_types.Address) net.IP {
-	if x.Af == ip_types.ADDRESS_IP6 {
-		ip6 := x.Un.GetIP6()
-		return net.IP(ip6[:]).To16()
-	} else {
-		ip4 := x.Un.GetIP4()
-		return net.IP(ip4[:]).To4()
-	}
-}
 
 func vppIfTypeToString(ifType interface_types.IfType) string {
 	const (
@@ -54,7 +33,7 @@ func vppIfStatusFlagsToStatus(status interface_types.IfStatusFlags) api.Status {
 	}
 }
 
-func vppLogLevelToString(level vpe.LogLevel) string {
+func vppLogLevelToString(level vpe_types.LogLevel) string {
 	const logLevelPrefix = "VPE_API_LOG_LEVEL_"
 	return strings.TrimPrefix(level.String(), logLevelPrefix)
 }
@@ -69,7 +48,9 @@ func vppInterfaceMTU(mtu []uint32, link uint16) api.MTU {
 	}
 }
 
-const logTimeFormat = "2006/01/01 15:04:05.000"
+const (
+	logTimeFormat = "2006/01/02 15:04:05.000"
+)
 
 func formatLogLine(log *vpe.LogDetails) string {
 	ts := timestampToTime(fixTimestamp(log.Timestamp)).Format(logTimeFormat)
@@ -77,37 +58,26 @@ func formatLogLine(log *vpe.LogDetails) string {
 	return fmt.Sprintf("%v %s  %s  %s", ts, logLevel, log.MsgClass, log.Message)
 }
 
-func newTimestamp(t time.Time) vpe.Timestamp {
+func newTimestamp(t time.Time) vpe_types.Timestamp {
 	if t.IsZero() {
 		return 0
 	}
 	sec := int64(t.Unix())
 	nsec := int32(t.Nanosecond())
 	ns := float64(sec) + float64(nsec/1e9)
-	return vpe.Timestamp(ns)
+	return vpe_types.Timestamp(ns)
 }
 
-func timestampToTime(timestamp vpe.Timestamp) time.Time {
+func timestampToTime(timestamp vpe_types.Timestamp) time.Time {
 	ns := int64(timestamp * 1e9)
 	sec := ns / 1e9
 	nsec := ns % 1e9
 	return time.Unix(sec, nsec)
 }
 
-func encodeFloat64(v float64) []byte {
-	b := make([]byte, 8)
-	binary.LittleEndian.PutUint64(b, math.Float64bits(v))
-	return b
-}
-
-func decodeFloat64(b []byte) float64 {
-	v := math.Float64frombits(binary.LittleEndian.Uint64(b))
-	return v
-}
-
-func fixTimestamp(timestamp vpe.Timestamp) vpe.Timestamp {
+func fixTimestamp(timestamp vpe_types.Timestamp) vpe_types.Timestamp {
 	b := make([]byte, 8)
 	binary.BigEndian.PutUint64(b, math.Float64bits(float64(timestamp)))
 	v := math.Float64frombits(binary.LittleEndian.Uint64(b))
-	return vpe.Timestamp(v)
+	return vpe_types.Timestamp(v)
 }

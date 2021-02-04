@@ -21,8 +21,8 @@ const (
 	noPacketsInBuffer = "No packets in trace buffer"
 )
 
-// ParseResult parses raw trace output and returns Result with parsed Packet(s)
-// or error in case the trace output cannot be parsed.
+// ParseResult parses a raw trace output and returns parsed Packet(s)
+// or error if the trace data cannot be parsed.
 func ParseTracePackets(trace string) (packets []Packet, err error) {
 	trace = normalizeLines(trace)
 
@@ -43,7 +43,7 @@ func ParseTracePackets(trace string) (packets []Packet, err error) {
 			if idstr := strings.TrimPrefix(pkt, tracePacketPrefix); idstr != pkt {
 				id, err := strconv.Atoi(idstr)
 				if err != nil {
-					logrus.Warnf("invalid packet Location %v: %v", idstr, err)
+					logrus.Warnf("invalid packet %v: %v", idstr, err)
 					continue
 				}
 				packet = Packet{
@@ -54,13 +54,12 @@ func ParseTracePackets(trace string) (packets []Packet, err error) {
 
 			packet.Captures, err = ParseTraceCaptures(pkt)
 			if err != nil {
-				logrus.Warn(err)
+				logrus.Warnf("parse captures error: %v", err)
 				continue
 			}
 			if len(packet.Captures) == 0 {
 				continue
 			}
-			//packet.Start = packet.FirstCapture().Start
 			packets = append(packets, packet)
 
 		}
@@ -69,6 +68,8 @@ func ParseTracePackets(trace string) (packets []Packet, err error) {
 	return packets, nil
 }
 
+// ParseResult parses a raw packet data from trace output and returns parsed Capture(s)
+// or error if the packet from trace data cannot be parsed.
 func ParseTraceCaptures(pkt string) ([]Capture, error) {
 	var captures []Capture
 
@@ -80,20 +81,23 @@ func ParseTraceCaptures(pkt string) ([]Capture, error) {
 			logrus.Warnf("invalid capture data (idx %d)", c)
 			continue
 		}
-		start, err := parseTimestamp(capture[1])
+
+		timestamp := capture[1]
+		name := capture[2]
+
+		start, err := parseTimestamp(timestamp)
 		if err != nil {
 			logrus.Warnf("invalid capture timestamp: %v", err)
 			continue
 		}
-		/* if c == 0 {
-		    packet.Start = start
-		}*/
+
 		var capt string
 		if len(indexMatches) <= c+1 {
 			capt = pkt[indexMatches[c][1]:]
 		} else {
 			capt = pkt[indexMatches[c][1]:indexMatches[c+1][0]]
 		}
+
 		var content string
 		captLines := strings.Split(capt, "\n")
 		if len(captLines) > 0 {
@@ -107,13 +111,15 @@ func ParseTraceCaptures(pkt string) ([]Capture, error) {
 				content += fmt.Sprintf("%s\n", strings.TrimPrefix(line, prefix))
 			}
 		}
+
 		cpt := Capture{
-			Start:   start, // - packet.Start,
-			Name:    capture[2],
+			Start:   start,
+			Name:    name,
 			Content: content,
 		}
 		captures = append(captures, cpt)
 	}
+
 	return captures, nil
 }
 

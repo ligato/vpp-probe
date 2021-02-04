@@ -1,0 +1,84 @@
+linuxConfig:
+  interfaces:
+    - name: "in"
+      type: TAP_TO_VPP
+      enabled: true
+      ip_addresses:
+        - 192.168.23.1/24
+      host_if_name: "vpp-in"
+      tap:
+        vpp_tap_if_name: "in"
+    - name: "out"
+      type: TAP_TO_VPP
+      enabled: true
+      ip_addresses:
+        - 192.168.23.2/24
+      host_if_name: "vpp-out"
+      tap:
+        vpp_tap_if_name: "out"
+      namespace:
+        type: NSID
+        reference: "vppout"
+vppConfig:
+  interfaces:
+    - name: "in"
+      type: TAP
+      enabled: true
+      tap:
+        version: 2
+    - name: "out"
+      type: TAP
+      enabled: true
+      tap:
+        version: 2
+    - name: "vnf1_port1"
+      type: MEMIF
+      enabled: true
+      mtu: 1500
+      memif:
+        master: true
+        id: 4
+        socket_filename: "/tmp/memif.sock"
+    - name: "vnf1_port2"
+      type: MEMIF
+      enabled: true
+      mtu: 1500
+      memif:
+        master: true
+        id: 2
+        socket_filename: "/tmp/memif.sock"
+    - name: "vnf2_port1"
+      type: MEMIF
+      enabled: true
+      mtu: 1500
+      memif:
+        master: true
+        id: 3
+        socket_filename: "/tmp/memif.sock"
+    - name: "vnf2_port2"
+      type: MEMIF
+      enabled: true
+      mtu: 1500
+      memif:
+        master: true
+        id: 1
+        socket_filename: "/tmp/memif.sock"
+  xconnect_pairs:
+    - receive_interface: "in"
+      transmit_interface: "vnf1_port1"
+    - receive_interface: "out"
+      transmit_interface: "vnf2_port2"
+    - receive_interface: "vnf1_port2"
+      transmit_interface: "vnf2_port1"
+    - receive_interface: "vnf2_port1"
+      transmit_interface: "vnf1_port2"
+    - receive_interface: "vnf1_port1"
+      transmit_interface: "in"
+    - receive_interface: "vnf2_port2"
+      transmit_interface: "out"
+  bridge_domains:
+    - name: "internal_vswitch"
+      flood: true
+      forward: true
+      learn: true
+      unknown_unicast_flood: true

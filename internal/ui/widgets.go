@@ -47,20 +47,6 @@ func NewInstanceList() *InstanceList {
 	return v
 }
 
-/*func (l *InstanceList) Focus(delegate func(p tview.Primitive)) {
-	l.List.SetSelectedBackgroundColor(Styles.PanelSelectedBackgroundColor)
-	l.List.SetTitleColor(Styles.PanelTitleSelectedColor)
-	l.List.SetBorderColor(Styles.PanelBorderSelectedColor)
-	l.List.Focus(delegate)
-}
-
-func (l *InstanceList) Blur() {
-	l.List.SetSelectedBackgroundColor(Styles.PanelSelectedBackgroundInactiveColor)
-	l.List.SetTitleColor(Styles.PanelTitleColor)
-	l.List.SetBorderColor(Styles.PanelBorderColor)
-	l.List.Blur()
-}*/
-
 func (l *InstanceList) SetInstances(instances []*VPP) {
 	l.List.Clear()
 	for idx, instance := range instances {
@@ -101,31 +87,16 @@ func NewInfoPanel() *InfoPanel {
 	return v
 }
 
-/*func (v *InfoPanel) Focus(delegate func(p tview.Primitive)) {
-	v.TextView.SetTitleColor(Styles.PanelTitleSelectedColor)
-	v.TextView.SetBorderColor(Styles.PanelBorderSelectedColor)
-	v.TextView.Focus(delegate)
-}
-
-func (v *InfoPanel) Blur() {
-	v.TextView.SetTitleColor(Styles.PanelTitleColor)
-	v.TextView.SetBorderColor(Styles.PanelBorderColor)
-	v.TextView.Blur()
-}*/
-
 func (v *InfoPanel) SetInstance(vpp *VPP) {
 	v.Clear()
 	status := vpp.Status()
 	info := []string{
-		fmt.Sprintf("Location: [steelblue]%v[-]", vpp.Probe().Location),
-		fmt.Sprintf("Provider: [steelblue]%v[-]", vpp.Probe().Provider),
+		fmt.Sprintf("Instance: [steelblue]%v[-]", vpp.Handler().ID()),
+		"",
 		fmt.Sprintf("Status:   [%s]CLI %v[-] / [%s]API %v[-] / [%s]Stats %v[-]",
 			statusColor(status.CLI), status.CLI,
 			statusColor(status.BinAPI), status.BinAPI,
 			statusColor(status.StatsAPI), status.StatsAPI),
-		/*fmt.Sprintf("CLI:   [%s]%v[-]", statusColor(status.CLI), status.CLI),
-		fmt.Sprintf("API:   [%s]%v[-]", statusColor(status.API), status.API),
-		fmt.Sprintf("Stats: [%s]%v[-]", statusColor(status.StatsAPI), status.StatsAPI),*/
 	}
 	if vpp.Error != nil {
 		info = append(info,
@@ -137,14 +108,14 @@ func (v *InfoPanel) SetInstance(vpp *VPP) {
 	var updated string
 	sinceUpdate := time.Since(vpp.LastUpdate)
 	if vpp.Updating {
-		updated = fmt.Sprintf("updating (last [%s]%v[-])", updatedColor(sinceUpdate), shortHumanDuration(sinceUpdate))
+		updated = fmt.Sprintf("updating now..")
 	} else {
 		updated = fmt.Sprintf("last update [%s]%v[-]", updatedColor(sinceUpdate), shortHumanDuration(sinceUpdate))
 	}
 	info = append(info, []string{
 		fmt.Sprintf("Version: [yellow]%v[-]", vpp.Version),
-		fmt.Sprintf("Uptime: [yellow]%v[-]", vpp.Uptime),
-		fmt.Sprintf("PID: [yellow]%v[-]", vpp.Pid),
+		fmt.Sprintf("Uptime:  [yellow]%v[-]", vpp.Uptime),
+		fmt.Sprintf("PID:     [yellow]%v[-]", vpp.Pid),
 		"",
 		updated,
 	}...)
@@ -195,7 +166,6 @@ func (v *PagesPanel) SetInstance(instance *VPP) {
 
 	// stats tab
 	stats := strings.Join(instance.Stats, "\n")
-	//logrus.Debugf("translated ANSI: %q", tview.TranslateANSI(stats))
 	v.statsPanel.SetText(tview.TranslateANSI(stats))
 
 	// cli tab
@@ -248,20 +218,6 @@ func NewInterfaceTable() *InterfaceTable {
 	return v
 }
 
-/*func (l *InterfaceTable) Focus(delegate func(p tview.Primitive)) {
-	l.Table.SetSelectedStyle(tcell.ColorDefault, Styles.PanelSelectedBackgroundColor, 0)
-	l.Table.SetTitleColor(Styles.PanelTitleSelectedColor)
-	l.Table.SetBorderColor(Styles.PanelBorderSelectedColor)
-	l.Table.Focus(delegate)
-}
-
-func (l *InterfaceTable) Blur() {
-	l.Table.SetSelectedStyle(tcell.ColorDefault, Styles.PanelSelectedBackgroundInactiveColor, 0)
-	l.Table.SetTitleColor(Styles.PanelTitleColor)
-	l.Table.SetBorderColor(Styles.PanelBorderColor)
-	l.Table.Blur()
-}*/
-
 func (t *InterfaceTable) SetInterfaces(interfaces []*api.Interface) {
 	t.Clear()
 	if len(interfaces) == 0 {
@@ -298,7 +254,6 @@ func (t *InterfaceTable) SetInterfaces(interfaces []*api.Interface) {
 			expansion := 1
 			if column == 2 || column == 4 || column == 6 {
 				maxWidth = 6
-				//expansion = 0
 			}
 			tableCell := tview.NewTableCell(col)
 			tableCell.SetTextColor(color)
@@ -328,18 +283,6 @@ func NewLogPanel() *LogPanel {
 	v.TextView.ScrollToEnd()
 	return v
 }
-
-/*func (l *LogPanel) Focus(delegate func(p tview.Primitive)) {
-	l.TextView.SetTitleColor(Styles.PanelTitleSelectedColor)
-	l.TextView.SetBorderColor(Styles.PanelBorderSelectedColor)
-	l.TextView.Focus(delegate)
-}
-
-func (l *LogPanel) Blur() {
-	l.TextView.SetTitleColor(Styles.PanelTitleColor)
-	l.TextView.SetBorderColor(Styles.PanelBorderColor)
-	l.TextView.Blur()
-}*/
 
 func (l *LogPanel) SetLogs(lines []string) {
 	l.logLines = lines

@@ -3,43 +3,39 @@ package probe
 
 import (
 	govppapi "git.fd.io/govpp.git/api"
+
+	"go.ligato.io/vpp-probe/pkg/exec"
 )
 
-// Provider provides ways to discover instances.
-type Provider interface {
-	Env() Env
-
-	// Name returns a name of the provider.
-	Name() string
-
-	// Query runs query with list of parameters used as filters and returns a list
-	// of Handler for
-	Query(params ...map[string]string) ([]Handler, error)
-}
-
-// Handler handles a running instance.
+// Handler is an interface for handling a running instance.
 type Handler interface {
 	Host
 	VPP
 
-	// ID returns a string that identifies the instance.
+	// ID returns a string that identifies the handler.
 	ID() string
+
+	// Metadata returns a metadata for the handler.
+	Metadata() map[string]string
+
 	// Close closes open connections and frees resources used for this instance.
 	Close() error
 }
 
-// Host is a common interface to interact host system (OS).
+// Host is an interface for interacting with a host system where the instance is running.
 type Host interface {
-	// ExecCmd executes a command in the OS where the instance is running.
-	ExecCmd(cmd string, args ...string) (string, error)
+	// Command returns a command to be exectured on the host.
+	Command(cmd string, args ...string) exec.Cmd
 }
 
-// VPP is a common interface to access VPP APIs.
+// VPP is an interface for interacting with a VPP instance.
 type VPP interface {
-	// GetCLI returns an executor for CLI commands.
+	// GetCLI returns an executor for executing CLI commands.
 	GetCLI() (CliExecutor, error)
+
 	// GetAPI returns a channel for binary API requests.
 	GetAPI() (govppapi.Channel, error)
+
 	// GetStats returns a provider for stats data.
 	GetStats() (govppapi.StatsProvider, error)
 }
@@ -48,3 +44,10 @@ type VPP interface {
 type CliExecutor interface {
 	RunCli(cmd string) (string, error)
 }
+
+// TODO
+//  - move Handler.Metadata() to Host interface ?
+//  - add more useful methods to Host ?
+//    - for accessing filesystem
+//    - network namespace
+//  - remove VPP.GetCLI() ?
