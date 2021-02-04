@@ -27,6 +27,10 @@ const discoverExample = `  # Discover VPP instances in Kubernetes pods
   # Discover local VPP instance
   vpp-probe discover`
 
+type DiscoverOptions struct {
+	Format string
+}
+
 func NewDiscoverCmd(cli Cli) *cobra.Command {
 	var (
 		opts DiscoverOptions
