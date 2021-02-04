@@ -252,7 +252,9 @@ func PrintCorrelation(out io.Writer) {
 		fmt.Fprintf(out, "\t %d : Node : %s / IP: %s\n", i, n.node, n.ip)
 
 		var npods PodInfo = nodedump[n.node]
-		fmt.Fprintf(out, "\t\t Pod : %s\n", npods.pinfo)
-	}
 
+		for i := 0; i < len(npods.pinfo); i++ {
+			fmt.Fprintf(out, "\t\t Pod : %s\n", npods.pinfo[i])
+		}
+	}
 }
