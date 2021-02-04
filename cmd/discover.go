@@ -27,6 +27,22 @@ const discoverExample = `  # Discover VPP instances in Kubernetes pods
   # Discover local VPP instance
   vpp-probe discover`
 
+type PodInfo struct {
+	Pod string
+}
+
+type NodeInfo struct {
+	node, ip string
+	//plist []PodInfo
+}
+
+type ClusterInfo struct {
+	cname string
+	nlist []NodeInfo
+}
+
+var cl ClusterInfo
+
 type DiscoverOptions struct {
 	Format string
 }
@@ -82,6 +98,7 @@ func RunDiscover(cli Cli, opts DiscoverOptions) error {
 		}
 	}
 
+	PrintCorrelation(cli.Out())
 	return nil
 }
 
@@ -90,7 +107,7 @@ func printDiscoverTable(out io.Writer, instance *vpp.Instance) {
 
 	w := prefixWriter(out, defaultPrefix)
 	PrintInstance(w, instance)
-	PrintCorrelation(out, instance)
+	BldCorrelation(instance)
 }
 
 func printInstanceHeader(out io.Writer, handler probe.Handler) {
@@ -172,10 +189,7 @@ func PrintInstance(out io.Writer, instance *vpp.Instance) {
 	fmt.Fprint(out, color.ReplaceTag(buf.String()))
 }
 
-func PrintCorrelation(out io.Writer, instance *vpp.Instance) {
-	//var buf bytes.Buffer
-	//
-	//config := instance.Agent().Config
+func BldCorrelation(instance *vpp.Instance) {
 
 	metadata := instance.Handler().Metadata()
 
@@ -185,6 +199,30 @@ func PrintCorrelation(out io.Writer, instance *vpp.Instance) {
 	}
 
 	if metadata["env"] == providers.Kube {
-		fmt.Fprintf(out, " %s\n", metaKey("pod"))
+
+		cname := strings.Split(metaKey("cluster"), ":")[1]
+		nname := strings.Split(metaKey("node"), ":")[1]
+		nip := strings.Split(metaKey("ip"), ":")[1]
+
+		nd := NodeInfo{
+			node: nname,
+			ip:   nip,
+		}
+		cl.cname = cname
+		cl.nlist = append(cl.nlist, nd)
+
+	}
+
+}
+
+func PrintCorrelation(out io.Writer) {
+
+	fmt.Fprintf(out, "Cluster : %s\n", cl.cname)
+	for i, n := range cl.nlist {
+		fmt.Fprintf(out, "\t %d : Node : %s / IP: %s\n", i, n.node, n.ip)
+
+		//for _, pd := range n.plist {
+		//	fmt.Fprintf(out, "\t\t pname : %s\n", pd.Pod)
+		//}
 	}
 }
