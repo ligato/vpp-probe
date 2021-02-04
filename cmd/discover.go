@@ -206,14 +206,16 @@ func BldCorrelation(instance *vpp.Instance) {
 
 			var iname string = interfaceInternalName(v)
 			var idesc string = iface.Name
-			var typ string = vppInterfaceType(v)
 			var ips string = interfaceIPs(iface.IpAddresses, iface.Vrf)
 			var info string = vppInterfaceInfo(v)
 
 			logrus.Debugf("----------TJ------------")
-			logrus.Debugf("Internal: %s -> Interface : %s -> Type : %s\n", iname, idesc, typ)
+			logrus.Debugf("Internal: %s -> Interface : %s \n", iname, idesc)
 			logrus.Debugf("ips : %s\n", ips)
 			logrus.Debugf("info : %s\n", info)
+
+			cols := []string{iname, idesc, ips, info}
+			logrus.Debugf(strings.Join(cols, "\t"))
 
 		}
 	}
