@@ -223,10 +223,10 @@ func BldCorrelation(instance *vpp.Instance) {
 		var pname string = strings.Split(metaKey("pod"), ":")[1]
 
 		if value, ok := topo[cname]; ok {
-			fmt.Println("value: ", value)
+			//fmt.Println("value: ", value)
 			cl = value
 		} else {
-			fmt.Println("key not found, adding new entry")
+			//fmt.Println("key not found, adding new entry")
 			cl.cname = cname
 		}
 
@@ -289,7 +289,7 @@ func BldCorrelation(instance *vpp.Instance) {
 	logrus.Debugf("!!!!vpp key dump!!!")
 	for k, val := range keys {
 
-		logrus.Debugf("Key:", k, "=>", "Element:", val)
+		logrus.Debugf("Key: %s", k, "=>", "Element: %d", val)
 	}
 	//
 
