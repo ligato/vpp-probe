@@ -41,9 +41,11 @@ type ClusterInfo struct {
 	nlist []NodeInfo
 }
 
-var cl ClusterInfo
+//var topo []ClusterInfo
 
-var clusterset = make(map[string]bool)
+var topo map[string]ClusterInfo
+
+//var clusterset = make(map[string]bool)
 var nodeset = make(map[string]bool)
 var nodedump = make(map[string]PodInfo)
 
@@ -72,6 +74,7 @@ func RunDiscover(cli Cli, opts DiscoverOptions) error {
 	// TODO: refactor this to run discovery and only print list of discovered
 	//  instances and move retrieval of agent config (interfaces) to a separate
 	//  command that will support selecting specific instance
+	topo = make(map[string]ClusterInfo)
 
 	if err := cli.Client().DiscoverInstances(cli.Queries()...); err != nil {
 		return err
@@ -195,6 +198,8 @@ func PrintInstance(out io.Writer, instance *vpp.Instance) {
 
 func BldCorrelation(instance *vpp.Instance) {
 
+	var cl ClusterInfo
+
 	// Testing interface
 	cfg := instance.Agent().Config
 	if len(cfg.VPP.Interfaces) > 0 {
@@ -236,10 +241,25 @@ func BldCorrelation(instance *vpp.Instance) {
 		var nip string = strings.Split(metaKey("ip"), ":")[1]
 		var pname string = strings.Split(metaKey("pod"), ":")[1]
 
-		clexists := clusterset[cname]
+		//clexists := clusterset[cname]
 
-		if !clexists {
-			clusterset[cname] = true
+		// Add cluster to cluster set
+		//if !clexists {
+		//	clusterset[cname] = true
+		//	cl.cname = cname
+		//} else {
+		//	for _, c := range topo {
+		//		if c.cname == cname {
+		//			cl = c
+		//		}
+		//	}
+		//}
+
+		if value, ok := topo[cname]; ok {
+			fmt.Println("value: ", value)
+			cl = value
+		} else {
+			fmt.Println("key not found, adding new entry")
 			cl.cname = cname
 		}
 
@@ -262,6 +282,8 @@ func BldCorrelation(instance *vpp.Instance) {
 			updatepods.pinfo = append(updatepods.pinfo, pname)
 			nodedump[nname] = updatepods
 		}
+		topo[cname] = cl
+		//topo = append(topo, cl)
 	}
 
 }
@@ -274,14 +296,27 @@ func PrintCorrelation(out io.Writer) {
 	fmt.Fprintf(out, "Topology\n")
 	fmt.Fprintln(out, "----------------------------------------------------------------------------------------------------------------------------------")
 
-	fmt.Fprintf(out, "Cluster : %s\n", cl.cname)
-	for i, n := range cl.nlist {
-		fmt.Fprintf(out, "\t %d : Node : %s / IP: %s\n", i, n.node, n.ip)
+	//fmt.Fprintf(out, "Cluster : %s\n", cl.cname)
+	//for i, n := range cl.nlist {
+	//	fmt.Fprintf(out, "\t %d : Node : %s / IP: %s\n", i, n.node, n.ip)
+	//
+	//	var npods PodInfo = nodedump[n.node]
+	//
+	//	for i := 0; i < len(npods.pinfo); i++ {
+	//		fmt.Fprintf(out, "\t\t Pod : %s\n", npods.pinfo[i])
+	//	}
+	//}
 
-		var npods PodInfo = nodedump[n.node]
+	for key, cluster := range topo {
+		fmt.Fprintf(out, "Cluster : %s\n", key)
+		for i, n := range cluster.nlist {
+			fmt.Fprintf(out, "\t %d : Node : %s / IP: %s\n", i, n.node, n.ip)
 
-		for i := 0; i < len(npods.pinfo); i++ {
-			fmt.Fprintf(out, "\t\t Pod : %s\n", npods.pinfo[i])
+			var npods PodInfo = nodedump[n.node]
+
+			for i := 0; i < len(npods.pinfo); i++ {
+				fmt.Fprintf(out, "\t\t Pod : %s\n", npods.pinfo[i])
+			}
 		}
 	}
 }
