@@ -65,7 +65,7 @@ func PrintVPPInterfacesTable(out io.Writer, config *agent.Config) {
 		state := interfaceStatus(v)
 		ips := interfaceIPs(iface.IpAddresses, iface.Vrf)
 		mtu := interfaceMTU(iface.Mtu)
-		info := vppInterfaceInfo(v)
+		info := vppInterfaceInfo(v, true)
 		other := otherInfo(config, v)
 
 		cols := []string{idx, internal, name, typ, state, ips, mtu, info, other}
@@ -225,7 +225,7 @@ func otherInfo(conf *agent.Config, iface agent.VppInterface) string {
 	return strings.Join(info, ", ")
 }
 
-func vppInterfaceInfo(iface agent.VppInterface) string {
+func vppInterfaceInfo(iface agent.VppInterface, clr bool) string {
 
 	switch iface.Value.Type {
 	case vpp_interfaces.Interface_MEMIF:
@@ -235,10 +235,21 @@ func vppInterfaceInfo(iface agent.VppInterface) string {
 		for i, part := range socketParts {
 			socketParts[i] = colorize(filePathColor, part)
 		}
-		socket := strings.Join(socketParts, colorize(color.OpReset, "/"))
-		info += fmt.Sprintf("socket:%s ", socket)
+		if clr {
+			socket := strings.Join(socketParts, colorize(color.OpReset, "/"))
+			info += fmt.Sprintf("socket:%s ", socket)
+
+		} else {
+			socket := strings.Join(socketParts, "/")
+			info += fmt.Sprintf("socket:%s ", socket)
+		}
+		//info += fmt.Sprintf("socket:%s ", socket)
 		if memif.Id > 0 {
-			info += fmt.Sprintf("id:%v ", colorize(valueColor, memif.Id))
+			if clr {
+				info += fmt.Sprintf("id:%v ", colorize(valueColor, memif.Id))
+			} else {
+				info += fmt.Sprintf("id:%v ", memif.Id)
+			}
 		}
 		if memif.Master {
 			info += fmt.Sprintf("(%s)", colorize(valueColor, "master"))

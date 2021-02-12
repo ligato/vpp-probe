@@ -202,39 +202,6 @@ func BldCorrelation(instance *vpp.Instance) {
 
 	var cl ClusterInfo
 
-	// Testing interface
-	cfg := instance.Agent().Config
-	if len(cfg.VPP.Interfaces) > 0 {
-		for _, v := range cfg.VPP.Interfaces {
-			if v.Metadata["InternalName"] == defaultVppInterfaceName {
-				continue
-			}
-			iface := v.Value
-
-			var iname string = interfaceInternalName(v)
-			var idesc string = iface.Name
-			var ips string = interfaceIPs(iface.IpAddresses, iface.Vrf)
-			var info string = vppInterfaceInfo(v)
-
-			logrus.Debugf("----------TJ------------")
-			logrus.Debugf("Internal: %s -> Interface : %s \n", iname, idesc)
-			logrus.Debugf("ips : %s\n", ips)
-			logrus.Debugf("info : %s\n", info)
-
-			cols := []string{iname, idesc, ips, info}
-			logrus.Debugf(strings.Join(cols, "\t"))
-
-		}
-
-		keys := map[string]int{}
-		for i, iface := range cfg.VPP.Interfaces {
-			keys[iface.Value.Name] = i
-		}
-		logrus.Debugf("int map:", keys)
-	}
-
-	//
-
 	metadata := instance.Handler().Metadata()
 
 	metaKey := func(k string) string {
@@ -248,20 +215,6 @@ func BldCorrelation(instance *vpp.Instance) {
 		var nname string = strings.Split(metaKey("node"), ":")[1]
 		var nip string = strings.Split(metaKey("ip"), ":")[1]
 		var pname string = strings.Split(metaKey("pod"), ":")[1]
-
-		//clexists := clusterset[cname]
-
-		// Add cluster to cluster set
-		//if !clexists {
-		//	clusterset[cname] = true
-		//	cl.cname = cname
-		//} else {
-		//	for _, c := range topo {
-		//		if c.cname == cname {
-		//			cl = c
-		//		}
-		//	}
-		//}
 
 		if value, ok := topo[cname]; ok {
 			fmt.Println("value: ", value)
@@ -291,8 +244,40 @@ func BldCorrelation(instance *vpp.Instance) {
 			nodedump[nname] = updatepods
 		}
 		topo[cname] = cl
-		//topo = append(topo, cl)
 	}
+
+	// Testing interface
+	cfg := instance.Agent().Config
+	if len(cfg.VPP.Interfaces) > 0 {
+		for _, v := range cfg.VPP.Interfaces {
+			if v.Metadata["InternalName"] == defaultVppInterfaceName {
+				continue
+			}
+			iface := v.Value
+
+			var iname string = interfaceInternalName(v)
+			var idesc string = iface.Name
+			var ips string = interfaceIPs(iface.IpAddresses, 0)
+			var info string = vppInterfaceInfo(v, false)
+
+			logrus.Debugf("----------TJ------------")
+			logrus.Debugf("Internal: %s -> Interface : %s \n", iname, idesc)
+			logrus.Debugf("ips : %s\n", ips)
+			logrus.Debugf("info : %s\n", info)
+
+			cols := []string{iname, idesc, ips, info}
+			logrus.Debugf(strings.Join(cols, "\t"))
+
+		}
+
+		keys := map[string]int{}
+		for i, iface := range cfg.VPP.Interfaces {
+			keys[iface.Value.Name] = i
+		}
+		logrus.Debugf("int map:", keys)
+	}
+
+	//
 
 }
 
@@ -303,17 +288,6 @@ func PrintCorrelation(out io.Writer) {
 	fmt.Fprintln(out, "----------------------------------------------------------------------------------------------------------------------------------")
 	fmt.Fprintf(out, "Topology\n")
 	fmt.Fprintln(out, "----------------------------------------------------------------------------------------------------------------------------------")
-
-	//fmt.Fprintf(out, "Cluster : %s\n", cl.cname)
-	//for i, n := range cl.nlist {
-	//	fmt.Fprintf(out, "\t %d : Node : %s / IP: %s\n", i, n.node, n.ip)
-	//
-	//	var npods PodInfo = nodedump[n.node]
-	//
-	//	for i := 0; i < len(npods.pinfo); i++ {
-	//		fmt.Fprintf(out, "\t\t Pod : %s\n", npods.pinfo[i])
-	//	}
-	//}
 
 	for key, cluster := range topo {
 		fmt.Fprintf(out, "Cluster : %s\n", key)
@@ -326,10 +300,12 @@ func PrintCorrelation(out io.Writer) {
 				fmt.Fprintf(out, "\t\t Pod : %s\n", npods.pinfo[i])
 				if value, ok := nbr[npods.pinfo[i]]; ok {
 					fmt.Println("value: ", value)
+					fmt.Fprint(out, "\t\t\t\t\t\t Neighbors\n")
 					if strings.Contains(value, "helloworld") {
-						fmt.Fprint(out, "\t\t\t\t\t\t Neighbors\n")
 						fmt.Fprintf(out, "\t\t\t\t\t\t <-> %s\n", value)
 					}
+				} else {
+					logrus.Debugf("key not found")
 				}
 
 			}

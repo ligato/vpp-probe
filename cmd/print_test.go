@@ -59,7 +59,7 @@ func Test_vppInterfaceInfo(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := vppInterfaceInfo(tt.args.iface); strings.TrimSpace(got) != tt.want {
+			if got := vppInterfaceInfo(tt.args.iface, true); strings.TrimSpace(got) != tt.want {
 				t.Errorf("interfaceInfo() = %v, want %v", got, tt.want)
 			}
 		})
