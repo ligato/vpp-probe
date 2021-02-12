@@ -44,6 +44,7 @@ type ClusterInfo struct {
 //var topo []ClusterInfo
 
 var topo map[string]ClusterInfo
+var nbr map[string]string
 
 //var clusterset = make(map[string]bool)
 var nodeset = make(map[string]bool)
@@ -75,6 +76,7 @@ func RunDiscover(cli Cli, opts DiscoverOptions) error {
 	//  instances and move retrieval of agent config (interfaces) to a separate
 	//  command that will support selecting specific instance
 	topo = make(map[string]ClusterInfo)
+	nbr = make(map[string]string)
 
 	if err := cli.Client().DiscoverInstances(cli.Queries()...); err != nil {
 		return err
@@ -223,6 +225,12 @@ func BldCorrelation(instance *vpp.Instance) {
 			logrus.Debugf(strings.Join(cols, "\t"))
 
 		}
+
+		keys := map[string]int{}
+		for i, iface := range cfg.VPP.Interfaces {
+			keys[iface.Value.Name] = i
+		}
+		logrus.Debugf("int map:", keys)
 	}
 
 	//
@@ -316,6 +324,14 @@ func PrintCorrelation(out io.Writer) {
 
 			for i := 0; i < len(npods.pinfo); i++ {
 				fmt.Fprintf(out, "\t\t Pod : %s\n", npods.pinfo[i])
+				if value, ok := nbr[npods.pinfo[i]]; ok {
+					fmt.Println("value: ", value)
+					if strings.Contains(value, "helloworld") {
+						fmt.Fprint(out, "\t\t\t\t\t\t Neighbors\n")
+						fmt.Fprintf(out, "\t\t\t\t\t\t <-> %s\n", value)
+					}
+				}
+
 			}
 		}
 	}
