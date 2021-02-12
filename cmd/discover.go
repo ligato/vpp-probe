@@ -41,6 +41,11 @@ type ClusterInfo struct {
 	nlist []NodeInfo
 }
 
+type worker struct {
+	ptype int /* 0 - client, 1 - nse, 2 - forwarder*/
+	inf   string
+}
+
 //var topo []ClusterInfo
 
 var topo map[string]ClusterInfo
@@ -201,6 +206,7 @@ func PrintInstance(out io.Writer, instance *vpp.Instance) {
 func BldCorrelation(instance *vpp.Instance) {
 
 	var cl ClusterInfo
+	var updatepods PodInfo
 
 	metadata := instance.Handler().Metadata()
 
@@ -226,8 +232,6 @@ func BldCorrelation(instance *vpp.Instance) {
 
 		ndexists := nodeset[nname]
 
-		var updatepods PodInfo
-
 		if !ndexists {
 			nodeset[nname] = true
 			nd := NodeInfo{
@@ -248,34 +252,41 @@ func BldCorrelation(instance *vpp.Instance) {
 
 	// Testing interface
 	cfg := instance.Agent().Config
-	if len(cfg.VPP.Interfaces) > 0 {
-		for _, v := range cfg.VPP.Interfaces {
-			if v.Metadata["InternalName"] == defaultVppInterfaceName {
-				continue
-			}
-			iface := v.Value
+	//if len(cfg.VPP.Interfaces) > 0 {
+	//	for _, v := range cfg.VPP.Interfaces {
+	//		if v.Metadata["InternalName"] == defaultVppInterfaceName {
+	//			continue
+	//		}
+	//		iface := v.Value
+	//
+	//		var iname string = interfaceInternalName(v)
+	//		var idesc string = iface.Name
+	//		var ips string = interfaceIPs(iface.IpAddresses, 0)
+	//		var info string = vppInterfaceInfo(v, false)
+	//
+	//		logrus.Debugf("----------TJ------------")
+	//		logrus.Debugf("Internal: %s -> Interface : %s \n", iname, idesc)
+	//		logrus.Debugf("ips : %s\n", ips)
+	//		logrus.Debugf("info : %s\n", info)
+	//		//
+	//		//cols := []string{iname, idesc, ips, info}
+	//		//logrus.Debugf(strings.Join(cols, "\t"))
+	//
+	//		//if strings.Contains(idesc, "helloworld") {
+	//		//	nbr[updatepods.pinfo] = idesc
+	//		//}
+	//
+	//	}
+	//
+	//
+	//}
 
-			var iname string = interfaceInternalName(v)
-			var idesc string = iface.Name
-			var ips string = interfaceIPs(iface.IpAddresses, 0)
-			var info string = vppInterfaceInfo(v, false)
-
-			logrus.Debugf("----------TJ------------")
-			logrus.Debugf("Internal: %s -> Interface : %s \n", iname, idesc)
-			logrus.Debugf("ips : %s\n", ips)
-			logrus.Debugf("info : %s\n", info)
-
-			cols := []string{iname, idesc, ips, info}
-			logrus.Debugf(strings.Join(cols, "\t"))
-
-		}
-
-		keys := map[string]int{}
-		for i, iface := range cfg.VPP.Interfaces {
-			keys[iface.Value.Name] = i
-		}
-		logrus.Debugf("int map:", keys)
+	keys := map[string]int{}
+	for i, iface := range cfg.VPP.Interfaces {
+		keys[iface.Value.Name] = i
 	}
+
+	logrus.Debugf("imap : ", keys)
 
 	//
 
