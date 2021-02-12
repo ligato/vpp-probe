@@ -286,8 +286,11 @@ func BldCorrelation(instance *vpp.Instance) {
 		keys[iface.Value.Name] = i
 	}
 
-	logrus.Debugf("imap : ", keys)
+	logrus.Debugf("!!!!vpp key dump!!!")
+	for k, val := range keys {
 
+		logrus.Debugf("Key:", k, "=>", "Element:", val)
+	}
 	//
 
 }
@@ -309,15 +312,15 @@ func PrintCorrelation(out io.Writer) {
 
 			for i := 0; i < len(npods.pinfo); i++ {
 				fmt.Fprintf(out, "\t\t Pod : %s\n", npods.pinfo[i])
-				if value, ok := nbr[npods.pinfo[i]]; ok {
-					fmt.Println("value: ", value)
-					fmt.Fprint(out, "\t\t\t\t\t\t Neighbors\n")
-					if strings.Contains(value, "helloworld") {
-						fmt.Fprintf(out, "\t\t\t\t\t\t <-> %s\n", value)
-					}
-				} else {
-					logrus.Debugf("key not found")
-				}
+				//if value, ok := nbr[npods.pinfo[i]]; ok {
+				//	fmt.Println("value: ", value)
+				//	fmt.Fprint(out, "\t\t\t\t\t\t Neighbors\n")
+				//	if strings.Contains(value, "helloworld") {
+				//		fmt.Fprintf(out, "\t\t\t\t\t\t <-> %s\n", value)
+				//	}
+				//} else {
+				//	logrus.Debugf("key not found")
+				//}
 
 			}
 		}
