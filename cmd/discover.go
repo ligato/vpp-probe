@@ -252,46 +252,49 @@ func BldCorrelation(instance *vpp.Instance) {
 
 	// Testing interface
 	cfg := instance.Agent().Config
-	//if len(cfg.VPP.Interfaces) > 0 {
-	//	for _, v := range cfg.VPP.Interfaces {
-	//		if v.Metadata["InternalName"] == defaultVppInterfaceName {
-	//			continue
-	//		}
-	//		iface := v.Value
-	//
-	//		var iname string = interfaceInternalName(v)
-	//		var idesc string = iface.Name
-	//		var ips string = interfaceIPs(iface.IpAddresses, 0)
-	//		var info string = vppInterfaceInfo(v, false)
-	//
-	//		logrus.Debugf("----------TJ------------")
-	//		logrus.Debugf("Internal: %s -> Interface : %s \n", iname, idesc)
-	//		logrus.Debugf("ips : %s\n", ips)
-	//		logrus.Debugf("info : %s\n", info)
-	//		//
-	//		//cols := []string{iname, idesc, ips, info}
-	//		//logrus.Debugf(strings.Join(cols, "\t"))
-	//
-	//		//if strings.Contains(idesc, "helloworld") {
-	//		//	nbr[updatepods.pinfo] = idesc
-	//		//}
-	//
-	//	}
-	//
-	//
+	if len(cfg.VPP.Interfaces) > 0 {
+		for _, v := range cfg.VPP.Interfaces {
+			if v.Metadata["InternalName"] == defaultVppInterfaceName {
+				continue
+			}
+			iface := v.Value
+
+			var iname string = interfaceInternalName(v)
+			var idesc string = iface.Name
+			var ips []string = iface.IpAddresses
+			//var ips string = interfaceIPs(iface.IpAddresses, 0)
+			//var info string = vppInterfaceInfo(v, false)
+			var info string = iface.GetMemif().SocketFilename
+
+			//v.Value.GetMemif().SocketFilename
+
+			logrus.Debugf("----------TJ------------")
+			logrus.Debugf("Internal: %s -> Interface : %s \n", iname, idesc)
+			logrus.Debugf("ips : %s\n", ips)
+			logrus.Debugf("info : %s\n", info)
+			//
+			//cols := []string{iname, idesc, ips, info}
+			//logrus.Debugf(strings.Join(cols, "\t"))
+
+			//if strings.Contains(idesc, "helloworld") {
+			//	nbr[updatepods.pinfo] = idesc
+			//}
+
+		}
+
+	}
+
+	//keys := map[string]int{}
+	//for i, iface := range cfg.VPP.Interfaces {
+	//	keys[iface.Value.Name] = i
 	//}
-
-	keys := map[string]int{}
-	for i, iface := range cfg.VPP.Interfaces {
-		keys[iface.Value.Name] = i
-	}
-
-	logrus.Debugf("!!!!vpp key dump!!!")
-	for k, val := range keys {
-
-		logrus.Debugf("Key: %s", k, "=>", "Element: %d", val)
-	}
 	//
+	//logrus.Debugf("!!!!vpp key dump!!!")
+	//for k, val := range keys {
+	//
+	//	logrus.Debugf("Key: %s", k, "=>", "Element: %d", val)
+	//}
+	////
 
 }
 
