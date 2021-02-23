@@ -261,10 +261,13 @@ func BldCorrelation(instance *vpp.Instance) {
 
 			var iname string = interfaceInternalName(v)
 			var idesc string = iface.Name
-			var ips []string = iface.IpAddresses
-			//var ips string = interfaceIPs(iface.IpAddresses, 0)
+			//var ips []string = iface.IpAddresses
+			var ips string = interfaceIPs(iface.IpAddresses, 0)
+
 			//var info string = vppInterfaceInfo(v, false)
-			var info string = iface.GetMemif().SocketFilename
+			var info string = v.Value.GetMemif().SocketFilename
+
+			//var info string = iface.GetMemif().SocketFilename
 
 			//v.Value.GetMemif().SocketFilename
 
@@ -272,29 +275,11 @@ func BldCorrelation(instance *vpp.Instance) {
 			logrus.Debugf("Internal: %s -> Interface : %s \n", iname, idesc)
 			logrus.Debugf("ips : %s\n", ips)
 			logrus.Debugf("info : %s\n", info)
-			//
-			//cols := []string{iname, idesc, ips, info}
-			//logrus.Debugf(strings.Join(cols, "\t"))
-
-			//if strings.Contains(idesc, "helloworld") {
-			//	nbr[updatepods.pinfo] = idesc
-			//}
+			logrus.Debugf("info : %s\n", updatepods.pinfo[len(updatepods.pinfo)-1])
 
 		}
 
 	}
-
-	//keys := map[string]int{}
-	//for i, iface := range cfg.VPP.Interfaces {
-	//	keys[iface.Value.Name] = i
-	//}
-	//
-	//logrus.Debugf("!!!!vpp key dump!!!")
-	//for k, val := range keys {
-	//
-	//	logrus.Debugf("Key: %s", k, "=>", "Element: %d", val)
-	//}
-	////
 
 }
 
