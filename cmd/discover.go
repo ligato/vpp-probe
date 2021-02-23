@@ -265,16 +265,19 @@ func BldCorrelation(instance *vpp.Instance) {
 			var ips string = interfaceIPs(iface.IpAddresses, 0)
 
 			//var info string = vppInterfaceInfo(v, false)
-			var info string = v.Value.GetMemif().SocketFilename
+			//var info string = v.Value.GetMemif().SocketFilename
+			logrus.Debugf("----------TJ------------")
 
+			if info := v.Value.GetMemif(); &info != nil {
+				logrus.Debugf("info : %s\n", info)
+			}
 			//var info string = iface.GetMemif().SocketFilename
 
 			//v.Value.GetMemif().SocketFilename
 
-			logrus.Debugf("----------TJ------------")
 			logrus.Debugf("Internal: %s -> Interface : %s \n", iname, idesc)
 			logrus.Debugf("ips : %s\n", ips)
-			logrus.Debugf("info : %s\n", info)
+			//logrus.Debugf("info : %s\n", info)
 			logrus.Debugf("info : %s\n", updatepods.pinfo[len(updatepods.pinfo)-1])
 
 		}
