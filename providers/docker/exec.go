@@ -52,7 +52,7 @@ func (c *command) Output() ([]byte, error) {
 
 	err := c.Run()
 	if err != nil && captureErr {
-		err = fmt.Errorf("pod exec %w: %s", err, stderr.Bytes())
+		err = fmt.Errorf("container exec %w: %s", err, stderr.Bytes())
 	}
 	return stdout.Bytes(), err
 }
