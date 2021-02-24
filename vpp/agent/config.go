@@ -90,7 +90,13 @@ type KVData struct {
 	Key      string
 	Value    json.RawMessage
 	Metadata map[string]interface{}
-	Origin   api.ValueOrigin
+	Origin   ValueOrigin
+}
+
+type ValueOrigin api.ValueOrigin
+
+func (v ValueOrigin) MarshalJSON() ([]byte, error) {
+	return json.Marshal(api.ValueOrigin(v).String())
 }
 
 func RetrieveConfig(handler probe.Handler) (*Config, error) {
@@ -136,7 +142,7 @@ func getValues(handler probe.Handler, c *Config) error {
 	}
 
 	for _, value := range values {
-		logrus.Debugf(" - %+v", value)
+		logrus.Tracef(" - %+v", value)
 		ifaceName, isUp, ok := vpp_interfaces.ParseLinkStateKey(value.Value.Key)
 		if !ok {
 			continue
@@ -152,7 +158,7 @@ func getValues(handler probe.Handler, c *Config) error {
 }
 
 func dumpConfig(handler probe.Handler, config *Config, viewType string) error {
-	dump, err := runAgentctlCmd(handler, "dump", "--format", "json", "--view ", viewType, "all")
+	dump, err := runAgentctlCmd(handler, "dump", "--format", "json", "--view", viewType, "all")
 	if err != nil {
 		return fmt.Errorf("dumping all failed: %w", err)
 	}
@@ -166,6 +172,7 @@ func dumpConfig(handler probe.Handler, config *Config, viewType string) error {
 	logrus.Debugf("dumped %d items", len(list))
 
 	for _, item := range list {
+		logrus.Tracef(" - %+v", item)
 		model, err := models.GetModelForKey(item.Key)
 		if err != nil {
 			logrus.Tracef("GetModelForKey error: %v", err)
