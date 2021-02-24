@@ -10,12 +10,15 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
+// nocolor is override for controling color in test
+var nocolor bool
+
 type Colorer interface {
 	Code() string
 }
 
 func colorize(x Colorer, v interface{}) string {
-	if x == nil {
+	if nocolor || x == nil {
 		return fmt.Sprint(v)
 	}
 

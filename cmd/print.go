@@ -228,7 +228,6 @@ func otherInfo(conf *agent.Config, iface agent.VppInterface) string {
 }
 
 func vppInterfaceInfo(iface agent.VppInterface) string {
-
 	switch iface.Value.Type {
 	case vpp_interfaces.Interface_MEMIF:
 		memif := iface.Value.GetMemif()
