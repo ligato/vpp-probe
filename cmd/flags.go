@@ -7,6 +7,7 @@ import (
 type GlobalOptions struct {
 	Debug    bool
 	LogLevel string
+	Color    string
 	// TODO: support config file
 	// Config string
 }
@@ -14,6 +15,7 @@ type GlobalOptions struct {
 func (glob *GlobalOptions) InstallFlags(flags *pflag.FlagSet) {
 	flags.BoolVarP(&glob.Debug, "debug", "D", false, "Enable debug mode")
 	flags.StringVarP(&glob.LogLevel, "loglevel", "L", "", "Set logging level")
+	flags.StringVar(&glob.Color, "color", "", "Color mode; auto / always / off")
 }
 
 type ProbeOptions struct {

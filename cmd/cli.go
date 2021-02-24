@@ -21,9 +21,9 @@ type Cli interface {
 	Client() *client.Client
 	Queries() []map[string]string
 
-	Out() io.Writer
+	Out() *streams.Out
 	Err() io.Writer
-	In() io.ReadCloser
+	In() *streams.In
 	Apply(...CliOption) error
 }
 
@@ -31,9 +31,9 @@ type ProbeCli struct {
 	queries []map[string]string
 	client  *client.Client
 
-	in  io.ReadCloser
-	out io.Writer
+	out *streams.Out
 	err io.Writer
+	in  *streams.In
 }
 
 func NewProbeCli(opt ...CliOption) (*ProbeCli, error) {
@@ -84,7 +84,7 @@ func (cli *ProbeCli) Queries() []map[string]string {
 	return cli.queries
 }
 
-func (cli *ProbeCli) Out() io.Writer {
+func (cli *ProbeCli) Out() *streams.Out {
 	return cli.out
 }
 
@@ -92,7 +92,7 @@ func (cli *ProbeCli) Err() io.Writer {
 	return cli.err
 }
 
-func (cli *ProbeCli) In() io.ReadCloser {
+func (cli *ProbeCli) In() *streams.In {
 	return cli.in
 }
 

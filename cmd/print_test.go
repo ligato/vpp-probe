@@ -4,13 +4,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gookit/color"
 	vpp_interfaces "go.ligato.io/vpp-agent/v3/proto/ligato/vpp/interfaces"
 
 	"go.ligato.io/vpp-probe/vpp/agent"
 )
 
 func Test_vppInterfaceInfo(t *testing.T) {
-	coloredOutput = false
+	color.Disable()
 
 	type args struct {
 		iface agent.VppInterface
