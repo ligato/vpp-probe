@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	tunnelDirectionChar = `🡒`
+	tunnelDirectionChar = `->`
 	defaultPrefix       = "  "
 )
 
@@ -68,7 +68,9 @@ func PrintVPPInterfacesTable(out io.Writer, config *agent.Config) {
 		info := vppInterfaceInfo(v)
 		other := otherInfo(config, v)
 
-		cols := []string{idx, internal, name, typ, state, ips, mtu, info, other}
+		cols := []string{
+			idx, internal, name, typ, state, ips, mtu, info, other,
+		}
 		fmt.Fprintln(w, strings.Join(cols, "\t"))
 	}
 
@@ -226,7 +228,6 @@ func otherInfo(conf *agent.Config, iface agent.VppInterface) string {
 }
 
 func vppInterfaceInfo(iface agent.VppInterface) string {
-
 	switch iface.Value.Type {
 	case vpp_interfaces.Interface_MEMIF:
 		memif := iface.Value.GetMemif()

@@ -3,29 +3,22 @@ package cmd
 import (
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
-	"github.com/docker/docker/pkg/term"
 	"github.com/gookit/color"
 	"github.com/segmentio/textio"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-var coloredOutput bool
-
-func init() {
-	if term.IsTerminal(os.Stdout.Fd()) {
-		coloredOutput = os.Getenv("NOCOLOR") == ""
-	}
-}
+// nocolor is override for controling color in test
+var nocolor bool
 
 type Colorer interface {
 	Code() string
 }
 
 func colorize(x Colorer, v interface{}) string {
-	if !coloredOutput || x == nil {
+	if nocolor || x == nil {
 		return fmt.Sprint(v)
 	}
 

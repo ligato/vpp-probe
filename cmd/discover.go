@@ -86,10 +86,14 @@ func RunDiscover(cli Cli, opts DiscoverOptions) error {
 }
 
 func printDiscoverTable(out io.Writer, instance *vpp.Instance) {
-	printInstanceHeader(out, instance.Handler())
+	var buf bytes.Buffer
 
-	w := prefixWriter(out, defaultPrefix)
+	printInstanceHeader(&buf, instance.Handler())
+
+	w := prefixWriter(&buf, defaultPrefix)
 	PrintInstance(w, instance)
+
+	fmt.Fprint(out, color.ReplaceTag(buf.String()))
 }
 
 func printInstanceHeader(out io.Writer, handler probe.Handler) {
@@ -97,7 +101,7 @@ func printInstanceHeader(out io.Writer, handler probe.Handler) {
 
 	metaKey := func(k string) string {
 		v := metadata[k]
-		return fmt.Sprintf("%s: %v", k, instanceHeaderColor.Sprint(v))
+		return fmt.Sprintf("%s: %v", k, colorize(instanceHeaderColor, v))
 	}
 
 	var header []string
@@ -134,39 +138,35 @@ func printInstanceHeader(out io.Writer, handler probe.Handler) {
 }
 
 func PrintInstance(out io.Writer, instance *vpp.Instance) {
-	var buf bytes.Buffer
-
 	config := instance.Agent().Config
 
 	// Info
 	{
-		fmt.Fprintf(&buf, "VPP version: %s\n", noteColor.Sprint(instance.VersionInfo().Version))
+		fmt.Fprintf(out, "VPP version: %s\n", colorize(noteColor, instance.VersionInfo().Version))
 	}
-	fmt.Fprintln(&buf)
+	fmt.Fprintln(out)
 
 	// VPP
 	{
 		if len(config.VPP.Interfaces) > 0 {
-			fmt.Fprintln(&buf, headerColor.Sprint("VPP"))
-			w := prefixWriter(&buf, defaultPrefix)
+			fmt.Fprintln(out, colorize(headerColor, "VPP"))
+			w := prefixWriter(out, defaultPrefix)
 			PrintVPPInterfacesTable(w, config)
 		} else {
-			fmt.Fprintln(&buf, nonAvailableColor.Sprint("No VPP interfaces configured"))
+			fmt.Fprintln(out, colorize(nonAvailableColor, "No VPP interfaces configured"))
 		}
 	}
-	fmt.Fprintln(&buf)
+	fmt.Fprintln(out)
 
 	// Linux
 	{
 		if len(config.Linux.Interfaces) > 0 {
-			fmt.Fprintln(&buf, headerColor.Sprint("Linux"))
-			w := prefixWriter(&buf, defaultPrefix)
+			fmt.Fprintln(out, headerColor.Sprint("Linux"))
+			w := prefixWriter(out, defaultPrefix)
 			PrintLinuxInterfacesTable(w, config)
 		} else {
-			fmt.Fprintln(&buf, nonAvailableColor.Sprint("No linux interfaces configured"))
+			fmt.Fprintln(out, colorize(nonAvailableColor, "No linux interfaces configured"))
 		}
 	}
-	fmt.Fprintln(&buf)
-
-	fmt.Fprint(out, color.ReplaceTag(buf.String()))
+	fmt.Fprintln(out)
 }

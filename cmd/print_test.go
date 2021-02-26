@@ -4,13 +4,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	vpp_interfaces "go.ligato.io/vpp-agent/v3/proto/ligato/vpp/interfaces"
 
 	"go.ligato.io/vpp-probe/vpp/agent"
 )
 
 func Test_vppInterfaceInfo(t *testing.T) {
-	coloredOutput = false
+	nocolor = true
 
 	type args struct {
 		iface agent.VppInterface
@@ -59,9 +60,8 @@ func Test_vppInterfaceInfo(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := vppInterfaceInfo(tt.args.iface); strings.TrimSpace(got) != tt.want {
-				t.Errorf("interfaceInfo() = %v, want %v", got, tt.want)
-			}
+			got := strings.TrimSpace(vppInterfaceInfo(tt.args.iface))
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

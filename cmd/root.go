@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/gookit/color"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"go.ligato.io/cn-infra/v2/logging"
@@ -52,7 +53,7 @@ func NewRootCmd(cli Cli) *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			initOptions(glob)
+			initOptions(cli, glob)
 
 			return cli.Initialize(opts)
 		},
@@ -90,7 +91,19 @@ func NewRootCmd(cli Cli) *cobra.Command {
 	return cmd
 }
 
-func initOptions(opts GlobalOptions) {
+func initOptions(cli Cli, opts GlobalOptions) {
+	switch strings.ToLower(opts.Color) {
+	case "auto", "":
+		if !cli.Out().IsTerminal() {
+			color.Disable()
+		}
+	case "on", "always":
+		color.Enable = true
+	case "off", "disabled":
+		color.Disable()
+	default:
+		logrus.Fatalf("invalid color mode: %q", opts.Color)
+	}
 	if os.Getenv("VPP_PROBE_DEBUG") != "" {
 		opts.Debug = true
 	}

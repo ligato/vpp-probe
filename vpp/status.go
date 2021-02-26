@@ -7,6 +7,28 @@ import (
 
 type State int
 
+const (
+	StateUnknown State = iota
+	StateChecking
+	StateOK
+	StateError
+)
+
+func (s State) String() string {
+	switch s {
+	case StateUnknown:
+		return "unknown"
+	case StateOK:
+		return "OK"
+	case StateChecking:
+		return "checking"
+	case StateError:
+		return "error"
+	default:
+		return fmt.Sprintf("%#v", s)
+	}
+}
+
 func (s State) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.String())
 }
@@ -18,40 +40,20 @@ func (s *State) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	switch state {
-	case State(StateOK).String():
+	case StateUnknown.String():
+		*s = StateUnknown
+	case StateOK.String():
 		*s = StateOK
-	case State(StateChecking).String():
+	case StateChecking.String():
 		*s = StateChecking
-	case State(StateOK).String():
+	case StateOK.String():
 		*s = StateOK
-	case State(StateError).String():
+	case StateError.String():
 		*s = StateError
 	default:
 		return fmt.Errorf("invalid state: %q", state)
 	}
 	return nil
-}
-
-const (
-	StateUnknown = iota
-	StateChecking
-	StateOK
-	StateError
-)
-
-func (s State) String() string {
-	switch s {
-	case StateOK:
-		return "OK"
-	case StateChecking:
-		return "checking"
-	case StateError:
-		return "error"
-	case StateUnknown:
-		return "unknown"
-	default:
-		return fmt.Sprintf("%#v", s)
-	}
 }
 
 type Status struct {
@@ -64,6 +66,17 @@ func (s Status) String() string {
 		return fmt.Sprintf("%v (error: %v)", s.State, s.Err)
 	}
 	return fmt.Sprintf("%v", s.State)
+}
+
+func (s Status) MarshalJSON() ([]byte, error) {
+	x := struct {
+		State State
+		Error string
+	}{
+		State: s.State,
+		Error: s.Err.Error(),
+	}
+	return json.Marshal(x)
 }
 
 func (s *Status) SetError(err error) {
