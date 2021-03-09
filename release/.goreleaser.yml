@@ -1,0 +1,80 @@
+# Make sure to check the documentation at http://goreleaser.com
+project_name: vpp-probe
+build:
+  id: vpp-probe-build
+  dir: ../
+  binary: vpp-probe
+  goos:
+    - linux
+    - darwin
+    - windows
+  goarch:
+    - amd64
+    - 386
+  ignore:
+    - goos: darwin
+      goarch: 386
+  ldflags:
+    - -s
+    - -w
+    - -X main.build={{.Version}}
+    - -X main.commit={{.Commit}}
+    - -X main.date={{.Date}}
+#  hooks:
+#    pre:
+#      - cmd: packr2
+#        dir: ../wcmctl
+archives:
+  -
+    id: vpp-probe-archive
+    builds:
+      - vpp-probe-build
+    format: tar.gz
+    wrap_in_directory: "vpp-probe"
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - ../README.md
+    allow_different_binary_count: true
+    name_template: "vpp-probe_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+changelog:
+  # Set it to true if you wish to skip the changelog generation.
+  skip: false
+  # could either be asc, desc or empty
+  sort: asc
+  filters:
+    # commit messages matching the regexp listed here will be removed from
+    # the changelog
+    # Default is empty
+    exclude:
+      - '!^docs:'
+      - typo
+release:
+  # Repo in which the release will be created.
+  # Default is extracted from the origin remote URL or empty if its private hosted.
+  # Note: it can only be one: either github, gitlab or gitea
+  github:
+    owner: adodon2go
+    name: vpp-probe
+
+  # IDs of the archives to use.
+  ids:
+    - vpp-probe-archive
+
+  # If set to auto, will mark the release as not ready for production
+  # in case there is an indicator for this in the tag e.g. v1.0.0-rc1
+  # If set to true, will mark the release as not ready for production.
+  # Default is false.
+  prerelease: true
+
+  # You can change the name of the release.
+  # Default is `{{.Tag}}`
+  name_template: "{{.ProjectName}}-{{.Tag}}"
+
+#github_urls:
+#  api: https://wwwin-github.cisco.com/api/v3/
+#  upload: https://wwwin-github.cisco.com/api/uploads/
+#  download: https://wwwin-github.cisco.com/
+  # set to true if you use a self-signed certificate
+#  skip_tls_verify: false
