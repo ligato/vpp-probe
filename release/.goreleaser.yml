@@ -7,7 +7,7 @@ build:
   goos:
     - linux
     - darwin
-#    - windows
+#   - windows
   goarch:
     - amd64
     - 386
@@ -20,10 +20,6 @@ build:
     - -X main.build={{.Version}}
     - -X main.commit={{.Commit}}
     - -X main.date={{.Date}}
-#  hooks:
-#    pre:
-#      - cmd: packr2
-#        dir: ../wcmctl
 archives:
   -
     id: vpp-probe-archive
@@ -55,7 +51,7 @@ release:
   # Default is extracted from the origin remote URL or empty if its private hosted.
   # Note: it can only be one: either github, gitlab or gitea
   github:
-    owner: adodon2go
+    owner: ligato
     name: vpp-probe
 
   # IDs of the archives to use.
@@ -72,9 +68,3 @@ release:
   # Default is `{{.Tag}}`
   name_template: "{{.ProjectName}}-{{.Tag}}"
 
-#github_urls:
-#  api: https://wwwin-github.cisco.com/api/v3/
-#  upload: https://wwwin-github.cisco.com/api/uploads/
-#  download: https://wwwin-github.cisco.com/
-  # set to true if you use a self-signed certificate
-#  skip_tls_verify: false
