@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/gookit/color"
 	"github.com/sirupsen/logrus"
@@ -19,59 +18,55 @@ const traceExample = `  # Trace packets while running ping
   trace --env kube -- ping 10.10.1.1
 
   # Trace packets for duration 3s
-  trace --env kube -d 3s`
+  trace --env kube -- sleep 3`
 
-func NewTracerCmd(cli Cli) *cobra.Command {
-	var (
-		opts = DefaultTracerOptions
-	)
-	cmd := &cobra.Command{
-		Use:     "tracer [options] -- [command]",
-		Aliases: []string{"trace"},
-		Short:   "Trace packets from VPP instances",
-		Long:    "Trace packets from selected VPP instances during execution of custom command (usually ping), or for a specified duration.",
-		Example: traceExample,
-		Args:    cobra.ArbitraryArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) > 0 {
-				opts.CustomCmd = strings.Join(args, " ")
-			}
-			return RunTracer(cli, opts)
-		},
-	}
-	flags := cmd.Flags()
-	flags.StringVar(&opts.ResultDir, "resultdir", opts.ResultDir, "Directory to store raw VPP trace results")
-	flags.StringSliceVar(&opts.TraceNodes, "tracenodes", opts.TraceNodes, "List of traced nodes")
-	flags.DurationVarP(&opts.TraceDur, "dur", "d", opts.TraceDur, "Duration of tracing (ignored when command is defined)")
-	flags.UintVar(&opts.NumPackets, "numpackets", opts.NumPackets, "Number of packets to vpptrace per node")
-	flags.BoolVar(&opts.PrintResult, "print", opts.PrintResult, "Print results from tracing to stdout")
-	return cmd
-}
-
-type TracerOptions struct {
+type TraceOptions struct {
 	TraceNodes  []string
 	NumPackets  uint
-	TraceDur    time.Duration
 	CustomCmd   string
 	ResultDir   string
 	PrintResult bool
 }
 
-var DefaultTracerOptions = TracerOptions{
+var DefaultTraceOptions = TraceOptions{
 	ResultDir:   filepath.Join(os.TempDir(), "vppprobe-traces"),
-	TraceDur:    time.Second * 5,
 	TraceNodes:  tracer.DefaultNodes,
 	NumPackets:  10000,
 	PrintResult: false,
 }
 
-func RunTracer(cli Cli, opts TracerOptions) error {
+func NewTraceCmd(cli Cli) *cobra.Command {
+	var (
+		opts = DefaultTraceOptions
+	)
+	cmd := &cobra.Command{
+		Use:     "trace [flags] -- [command]",
+		Short:   "Trace packets from VPP instances",
+		Long:    "Trace packets from selected VPP instances during execution of custom command (defaults to 'sleep 5')",
+		Example: traceExample,
+		Args:    cobra.ArbitraryArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				return fmt.Errorf("command to run during tracing must be defined")
+			}
+			opts.CustomCmd = strings.Join(args, " ")
+			return RunTrace(cli, opts)
+		},
+	}
+	flags := cmd.Flags()
+	flags.StringVar(&opts.ResultDir, "resultdir", opts.ResultDir, "Directory to store raw VPP trace results")
+	flags.StringSliceVar(&opts.TraceNodes, "tracenodes", opts.TraceNodes, "List of traced nodes")
+	flags.UintVar(&opts.NumPackets, "numpackets", opts.NumPackets, "Number of packets to vpptrace per node")
+	flags.BoolVar(&opts.PrintResult, "print", opts.PrintResult, "Print results from tracing to stdout")
+	return cmd
+}
+func RunTrace(cli Cli, opts TraceOptions) error {
 	if err := cli.Client().DiscoverInstances(cli.Queries()...); err != nil {
 		return err
 	}
 	instances := cli.Client().Instances()
 
-	logrus.Debugf("running tracer with %d instances", len(instances))
+	logrus.Debugf("running trace with %d instances", len(instances))
 
 	var traceds []*tracer.Traced
 	for _, instance := range instances {
@@ -91,22 +86,17 @@ func RunTracer(cli Cli, opts TracerOptions) error {
 
 	logrus.Infof("tracing started for %d/%d instances", len(traceds), len(instances))
 
-	if opts.CustomCmd != "" {
-		cmd := exec.Command("sh", "-c", opts.CustomCmd)
-		cmd.Stderr = os.Stderr
-		cmd.Stdout = os.Stdout
-		logrus.Infof("running command: %v", cmd)
+	var commandErr error
+	cmd := exec.Command("sh", "-c", opts.CustomCmd)
+	cmd.Stderr = cli.Err()
+	cmd.Stdout = cli.Out()
+	logrus.Infof("running command: %v", cmd)
 
-		fmt.Fprintln(os.Stderr)
-		if err := cmd.Run(); err != nil {
-			logrus.Warnf("command failed: %v", err)
-		}
-		fmt.Fprintln(os.Stderr)
-	} else {
-		logrus.Infof("tracing for %v", opts.TraceDur)
-
-		time.Sleep(opts.TraceDur)
+	fmt.Fprintln(cli.Err())
+	if commandErr = cmd.Run(); commandErr != nil {
+		logrus.Warnf("command failed: %v", commandErr)
 	}
+	fmt.Fprintln(cli.Err())
 
 	logrus.Debugf("starting trace results collection")
 
@@ -150,5 +140,5 @@ func RunTracer(cli Cli, opts TracerOptions) error {
 		}
 	}
 
-	return nil
+	return commandErr
 }

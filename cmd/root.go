@@ -29,13 +29,13 @@ const logo = `
 func Execute() {
 	cli, err := NewProbeCli()
 	if err != nil {
-		logrus.Fatalf("ERROR: %v", err)
+		logrus.Fatalf("%v", err)
 	}
 
 	root := NewRootCmd(cli)
 
 	if err := root.Execute(); err != nil {
-		logrus.Fatalf("ERROR: %v", err)
+		logrus.Fatalf("%v", err)
 	}
 }
 
@@ -57,6 +57,7 @@ func NewRootCmd(cli Cli) *cobra.Command {
 
 			return cli.Initialize(opts)
 		},
+		TraverseChildren: true,
 	}
 
 	cmd.SetIn(cli.In())
@@ -77,7 +78,7 @@ func NewRootCmd(cli Cli) *cobra.Command {
 	cmd.AddCommand(
 		NewInspectorCmd(cli),
 		NewDiscoverCmd(cli),
-		NewTracerCmd(cli),
+		NewTraceCmd(cli),
 		NewExecCmd(cli),
 	)
 
@@ -92,24 +93,29 @@ func NewRootCmd(cli Cli) *cobra.Command {
 }
 
 func initOptions(cli Cli, opts GlobalOptions) {
+	// color mode
 	switch strings.ToLower(opts.Color) {
 	case "auto", "":
 		if !cli.Out().IsTerminal() {
 			color.Disable()
 		}
-	case "on", "always":
+	case "on", "enabled", "always", "1":
 		color.Enable = true
-	case "off", "disabled":
+	case "off", "disabled", "never", "0":
 		color.Disable()
 	default:
 		logrus.Fatalf("invalid color mode: %q", opts.Color)
 	}
+
+	// debug mode
 	if os.Getenv("VPP_PROBE_DEBUG") != "" {
 		opts.Debug = true
 	}
 	if opts.Debug {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
+
+	// log level
 	if opts.LogLevel != "" {
 		if lvl, err := logrus.ParseLevel(opts.LogLevel); err == nil {
 			logrus.SetLevel(lvl)

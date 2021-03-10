@@ -72,8 +72,8 @@ func colorize(x Colorer, v interface{}) string {
 	return color.WrapTag(fmt.Sprint(v), tag)
 }
 
-func prefixWriter(w io.Writer, prefix string) *textio.PrefixWriter {
-	return textio.NewPrefixWriter(w, prefix)
+func prefixWriter(w io.Writer) *textio.PrefixWriter {
+	return textio.NewPrefixWriter(w, defaultPrefix)
 }
 
 func mapKeyValString(m map[string]string, f func(k string, v string) string) string {
