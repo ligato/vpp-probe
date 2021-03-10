@@ -69,12 +69,16 @@ func (s Status) String() string {
 }
 
 func (s Status) MarshalJSON() ([]byte, error) {
+	var errStr string
+	if s.Err != nil {
+		errStr = s.Err.Error()
+	}
 	x := struct {
 		State State
 		Error string
 	}{
 		State: s.State,
-		Error: s.Err.Error(),
+		Error: errStr,
 	}
 	return json.Marshal(x)
 }
