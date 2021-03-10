@@ -19,10 +19,10 @@
 To release vpp-probe binaries using latest version of [GoReleaser](https://github.com/goreleaser/goreleaser/) run:
 
 ```sh
-cd release && ./goreleaser.sh
+cd release &&  curl -sL https://git.io/goreleaser | bash
 ```
 
-Example of usage when integrating with a CI tool (that can leave Git repo in a dirty state - modifying `go.sum` for example):
+Example of usage when integrating with a CI tool (that can leave Git repo in a dirty state - modifying `go.sum` for example) and using a particular version of GoReleaser:
 
 ```sh
 cd release && git stash && VERSION="v0.157.0" ./goreleaser.sh
