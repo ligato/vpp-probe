@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"fmt"
+	//"go.ligato.io/vpp-probe/vpp"
 	"io"
 	"log"
 	"strings"
@@ -172,6 +173,111 @@ func PrintLinuxInterfacesTable(out io.Writer, config *agent.Config) {
 
 	fmt.Fprint(out, buf.String())
 }
+
+func PrintCorrelatedNsmIpSec(out io.Writer, instances []*agent.Instance) {
+	srcMap := make(map[string]*agent.Instance)
+	inSpSrcDestMap := make(map[string]map[string]agent.VppIPSecSP)
+	outSpSrcDestMap := make(map[string]map[string]agent.VppIPSecSP)
+	// create a lookup of SP by src & dest
+	for _, instance := range instances {
+		if !HasAnyIPSecConfig(instance) {
+			continue
+		}
+		ipsecSPs := instance.Config.VPP.IPSecSPs
+		for _, sp := range ipsecSPs {
+			srcIp := sp.Value.LocalAddrStart
+			srcMap[srcIp] = instance
+			if sp.Value.IsOutbound {
+				if _, ok := outSpSrcDestMap[sp.Value.LocalAddrStart]; !ok {
+					outSpSrcDestMap[sp.Value.LocalAddrStart] = make(map[string]agent.VppIPSecSP)
+				}
+				outSpSrcDestMap[sp.Value.LocalAddrStart][sp.Value.RemoteAddrStart] = sp
+			} else {
+				if _, ok := inSpSrcDestMap[sp.Value.LocalAddrStart]; !ok {
+					inSpSrcDestMap[sp.Value.LocalAddrStart] = make(map[string]agent.VppIPSecSP)
+				}
+				inSpSrcDestMap[sp.Value.LocalAddrStart][sp.Value.RemoteAddrStart] = sp
+			}
+		}
+	}
+	if len(inSpSrcDestMap) == 0 {
+		// no instances with IPSec config
+		return
+	}
+	var buf bytes.Buffer
+	w := tabwriter.NewWriter(&buf, 0, 8, 1, '\t', tabwriter.StripEscape|tabwriter.FilterHTML|tabwriter.DiscardEmptyColumns)
+	//fmt.Fprintf(w, "\nSecurityPolicy Correlation\n%v\t%v\t%v\t%v\t%v\t%v\t\n",
+	//	escapeClr(color.LightWhite, "inIP <-> outIp"), escapeClr(color.White, "Peer?"), escapeClr(color.White, "SA"), escapeClr(color.White, "SPI"), escapeClr(color.White, "CRYPTO"),escapeClr(color.White, "INTEG") )
+
+	header := []string{
+		"inIP<->outIp", "Peer?", "SA", "SA-match?", "SPI", "CRYPTO", "INTEG", "MatchFlags",
+	}
+	for i, h := range header {
+		if h != "" {
+			header[i] = colorize(color.Bold, h)
+		}
+	}
+	fmt.Fprintln(w, strings.Join(header, "\t"))
+	// correlate data
+	for inSrcIp, inSpMap := range inSpSrcDestMap {
+		for inDestIp, inSp := range inSpMap {
+			// check for consistency between the in/out direction SPs for peer IPs
+			/*
+			saIdxColor := color.Red
+			spiColor := color.Red
+			cryptoColor := color.Red
+			integColor := color.Red
+
+			 */
+			srcdestIp := inSrcIp + " <-> " + inDestIp
+			if outSp, foundPeer := outSpSrcDestMap[inDestIp][inSrcIp]; foundPeer {
+				saMatch := "N"
+				if inSp.Value.SaIndex == outSp.Value.SaIndex {
+					// matching SaIndex
+					saMatch = "Y"
+				}
+
+				inSa := FindIPSecSA(inSp.Value.SaIndex, srcMap[inSrcIp].Config.VPP.IPSecSAs)
+				if inSa != nil {
+					paramsMatch := 0
+					if outSa := FindIPSecSA(inSp.Value.SaIndex, srcMap[inDestIp].Config.VPP.IPSecSAs); outSa != nil {
+						if inSa.Value.Spi == outSa.Value.Spi {
+							//spiColor = color.Green
+							paramsMatch |= 0x1
+						}
+						if inSa.Value.CryptoKey == outSa.Value.CryptoKey {
+							paramsMatch |= 0x1 << 1
+						}
+						if inSa.Value.IntegKey == outSa.Value.IntegKey {
+							paramsMatch |= 0x1 << 2
+						}
+					}
+
+					cols := []string{
+						srcdestIp, "Y", fmt.Sprint(inSp.Value.SaIndex), saMatch, fmt.Sprint(inSa.Value.Spi), inSa.Value.CryptoKey, inSa.Value.IntegKey, fmt.Sprintf("%03b\n", paramsMatch),
+					}
+					fmt.Fprintln(w, strings.Join(cols, "\t"))
+				} else {
+					cols := []string{
+						srcdestIp, "Y", fmt.Sprint(inSp.Value.SaIndex), saMatch,
+					}
+					fmt.Fprintln(w, strings.Join(cols, "\t"))
+				}
+			} else {
+				cols := []string{
+					srcdestIp, "N", fmt.Sprint(inSp.Value.SaIndex),
+				}
+				fmt.Fprintln(w, strings.Join(cols, "\t"))
+			}
+		}
+	}
+	if err := w.Flush(); err != nil {
+		log.Println(err)
+		return
+	}
+	fmt.Fprint(out, buf.String())
+}
+
 
 func linuxInterfaceType(iface agent.LinuxInterface) string {
 	return iface.Value.Type.String()
@@ -349,4 +455,25 @@ func linuxInterfaceInfo(iface agent.LinuxInterface) string {
 	return mapKeyValString(m, func(k string, v string) string {
 		return fmt.Sprintf("%s:%s", k, colorize(valueColor, v))
 	})
+}
+
+func FindIPSecSA(saIdx uint32, ipsecSas []agent.VppIPSecSA) *agent.VppIPSecSA {
+	for _, sa := range ipsecSas {
+		if saIdx == sa.Value.Index {
+			return &sa
+		}
+	}
+	return nil
+}
+
+func HasAnyIPSecConfig(vpp *agent.Instance) bool {
+	switch {
+	case len(vpp.Config.VPP.IPSecTunProtects) > 0,
+		len(vpp.Config.VPP.IPSecSAs) > 0:
+		return true
+	case len(vpp.Config.VPP.IPSecSPs) > 0,
+		len(vpp.Config.VPP.IPSecSAs) > 0:
+		return true
+	}
+	return false
 }

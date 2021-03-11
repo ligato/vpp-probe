@@ -3,8 +3,8 @@ package cmd
 import (
 	"bytes"
 	"fmt"
+	"go.ligato.io/vpp-probe/vpp/agent"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/sirupsen/logrus"
@@ -84,7 +84,7 @@ func RunDiscover(cli Cli, opts DiscoverOptions) error {
 			logrus.Errorf("instance %v error: %v", instance.ID(), err)
 			continue
 		}
-		vppInstances = append(vppInstances, vpp)
+		vppInstances = append(vppInstances, instance.Agent())
 
 		if format := opts.Format; len(format) == 0 {
 			printDiscoverTable(cli.Out(), instance)
@@ -97,7 +97,7 @@ func RunDiscover(cli Cli, opts DiscoverOptions) error {
 
 	if opts.IsNsm && opts.IPsecAgg {
 		logrus.Infof("Aggregating NSM IPSec info for instances")
-		agent.PrintCorrelatedNsmIpSec(os.Stdout, vppInstances)
+		PrintCorrelatedNsmIpSec(cli.Out(), vppInstances)
 	}
 
 	return nil

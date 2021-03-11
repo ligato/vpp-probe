@@ -27,6 +27,7 @@ type Config struct {
 		IPSecTunProtects []VppIPSecTunProtect `json:",omitempty"`
 		IPSecSAs         []VppIPSecSA         `json:",omitempty"`
 		IPSecSPDs        []VppIPSecSPD        `json:",omitempty"`
+		IPSecSPs         []VppIPSecSP         `json:",omitempty"`
 	}
 	Linux struct {
 		Interfaces []LinuxInterface
@@ -91,6 +92,7 @@ type VppIPSecSP struct {
 	Value *vpp_ipsec.SecurityPolicy
 }
 
+/*
 func agentctlDumpData(handler probe.Host, format, model string) ([]byte, error) {
 	dump, err := handler.ExecCmd("agentctl", "dump", "-f ", format, model)
 	if err != nil {
@@ -99,6 +101,7 @@ func agentctlDumpData(handler probe.Host, format, model string) ([]byte, error) 
 	logrus.Debugf("dumped %q (%d bytes)", model, len(dump))
 	return []byte(dump), err
 }
+*/
 
 type KVData struct {
 	Key      string
@@ -258,6 +261,14 @@ func dumpConfig(handler probe.Handler, config *Config, viewType string) error {
 			}
 			config.VPP.IPSecSPDs = append(config.VPP.IPSecSPDs, value)
 
+		case vpp_ipsec.ModelSecurityPolicy.Name():
+			var value = VppIPSecSP{KVData: item}
+			if err := json.Unmarshal(item.Value, &value.Value); err != nil {
+				logrus.Warnf("unmarshal value failed: %v", err)
+				continue
+			}
+			config.VPP.IPSecSPs = append(config.VPP.IPSecSPs, value)
+
 		default:
 			logrus.Debugf("ignoring value for key %q", item.Key)
 		}
@@ -316,12 +327,14 @@ func HasAnyIPSecConfig(config *Config) bool {
 	switch {
 	case len(config.VPP.IPSecTunProtects) > 0,
 		len(config.VPP.IPSecSAs) > 0,
-		len(config.VPP.IPSecSPDs) > 0:
+		len(config.VPP.IPSecSPDs) > 0,
+		len(config.VPP.IPSecSPs) > 0:
 		return true
 	}
 	return false
 }
 
+/*
 func retrieveIPSecSPs(handler probe.Handler) ([]VppIPSecSP, error) {
 	var list []VppIPSecSP
 	err := agentctlDumpModel(handler, vpp_ipsec.ModelSecurityPolicy, &list)
@@ -331,3 +344,4 @@ func retrieveIPSecSPs(handler probe.Handler) ([]VppIPSecSP, error) {
 
 	return list, nil
 }
+ */
