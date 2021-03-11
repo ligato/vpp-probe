@@ -87,6 +87,14 @@ func printInstanceHeader(out io.Writer, handler probe.Handler) {
 	fmt.Fprintln(out, "----------------------------------------------------------------------------------------------------------------------------------")
 }
 
+func printSectionHeader(out io.Writer, header []string) {
+	fmt.Fprintln(out, "----------------------------------------------------------------------------------------------------------------------------------")
+	fmt.Fprintf(out, " %s\n", strings.Join(header, " | "))
+	fmt.Fprintln(out, "----------------------------------------------------------------------------------------------------------------------------------")
+}
+
+
+
 const (
 	defaultVppInterfaceName = "local0"
 )
@@ -206,8 +214,6 @@ func PrintCorrelatedNsmIpSec(out io.Writer, instances []*agent.Instance) {
 	}
 	var buf bytes.Buffer
 	w := tabwriter.NewWriter(&buf, 0, 8, 1, '\t', tabwriter.StripEscape|tabwriter.FilterHTML|tabwriter.DiscardEmptyColumns)
-	//fmt.Fprintf(w, "\nSecurityPolicy Correlation\n%v\t%v\t%v\t%v\t%v\t%v\t\n",
-	//	escapeClr(color.LightWhite, "inIP <-> outIp"), escapeClr(color.White, "Peer?"), escapeClr(color.White, "SA"), escapeClr(color.White, "SPI"), escapeClr(color.White, "CRYPTO"),escapeClr(color.White, "INTEG") )
 
 	header := []string{
 		"inIP<->outIp", "Peer?", "SA", "SA-match?", "SPI", "CRYPTO", "INTEG", "MatchFlags",
@@ -222,14 +228,7 @@ func PrintCorrelatedNsmIpSec(out io.Writer, instances []*agent.Instance) {
 	for inSrcIp, inSpMap := range inSpSrcDestMap {
 		for inDestIp, inSp := range inSpMap {
 			// check for consistency between the in/out direction SPs for peer IPs
-			/*
-			saIdxColor := color.Red
-			spiColor := color.Red
-			cryptoColor := color.Red
-			integColor := color.Red
-
-			 */
-			srcdestIp := inSrcIp + " <-> " + inDestIp
+			srcdestIp := inSrcIp + "<->" + inDestIp
 			if outSp, foundPeer := outSpSrcDestMap[inDestIp][inSrcIp]; foundPeer {
 				saMatch := "N"
 				if inSp.Value.SaIndex == outSp.Value.SaIndex {

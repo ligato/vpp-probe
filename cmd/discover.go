@@ -3,12 +3,10 @@ package cmd
 import (
 	"bytes"
 	"fmt"
-	"go.ligato.io/vpp-probe/vpp/agent"
-	"io"
-	"strings"
-
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"go.ligato.io/vpp-probe/vpp/agent"
+	"io"
 
 	"go.ligato.io/vpp-probe/vpp"
 )
@@ -38,21 +36,15 @@ func NewDiscoverCmd(cli Cli) *cobra.Command {
 		Example: discoverExample,
 	}
 	flags := cmd.Flags()
-
 	flags.StringVarP(&opts.Format, "format", "f", "", "Output format (json, yaml, go-template..)")
-
-	flags.BoolVar(&opts.PrintCLIs, "printclis", false, "Additional CLI commands to run for each instance")
 	flags.BoolVar(&opts.IsNsm, "nsm", false, "Assume NSM VPP deployments.")
 	flags.BoolVar(&opts.IPsecAgg, "ipsec-agg", false, "aggregate IPSec info")
-	flags.StringSliceVar(&opts.ExtraCLIs, "extraclis", nil, "Additional CLI commands to run for each instance")
 
 	return cmd
 }
 
 type DiscoverOptions struct {
 	Format string
-	ExtraCLIs []string
-	PrintCLIs bool
 	IsNsm bool
 	IPsecAgg bool
 }
@@ -97,7 +89,7 @@ func RunDiscover(cli Cli, opts DiscoverOptions) error {
 
 	if opts.IsNsm && opts.IPsecAgg {
 		logrus.Infof("Aggregating NSM IPSec info for instances")
-		PrintCorrelatedNsmIpSec(cli.Out(), vppInstances)
+		printDiscoverAggIpsec(cli.Out(), vppInstances)
 	}
 
 	return nil
@@ -145,4 +137,13 @@ func printDiscoveredInstance(out io.Writer, instance *vpp.Instance) {
 		}
 	}
 	fmt.Fprintln(out)
+}
+
+func printDiscoverAggIpsec(out io.Writer, vppInstances []*agent.Instance) {
+	var buf bytes.Buffer
+
+	printSectionHeader(&buf, []string{"Aggregated IPSec info",})
+	PrintCorrelatedNsmIpSec(prefixWriter(&buf), vppInstances)
+
+	fmt.Fprint(out, renderColor(buf.String()))
 }
