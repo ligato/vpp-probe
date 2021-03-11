@@ -22,18 +22,21 @@ type ProbeOptions struct {
 	Env     string
 	Queries []string
 
-	Local struct {
-		CLISocket   string
-		APISocket   string
-		StatsSocket string
-	}
-	Docker struct {
-		Host string
-	}
-	Kube struct {
-		Kubeconfig string
-		Context    string
-	}
+	CLISocket   string
+	APISocket   string
+	StatsSocket string
+
+	Kube   KubeOptions
+	Docker DockerOptions
+}
+
+type DockerOptions struct {
+	Host string
+}
+
+type KubeOptions struct {
+	Kubeconfig string
+	Context    string
 }
 
 func (f *ProbeOptions) InstallFlags(flags *pflag.FlagSet) {
@@ -48,15 +51,14 @@ multiple queries (using OR logic) can be defined as additional flag options (e.g
 Parameter types depend on probe environment (defined with --env).
 `)
 
+	flags.StringVar(&f.CLISocket, "clisock", "", "Path to VPP CLIsocket file (used in local env)")
+	flags.StringVar(&f.APISocket, "apisock", "", "Path to VPP binary API socket file (used in local env)")
+	flags.StringVar(&f.StatsSocket, "statsock", "", "Path to VPP stats API socket file (used in local env)\n")
+
 	// kube flags
 	flags.StringVar(&f.Kube.Kubeconfig, "kubeconfig", "", "Path to kubeconfig, defaults to ~/.kube/config (or set via KUBECONFIG) (implies kube env)")
 	flags.StringVar(&f.Kube.Context, "kubecontext", "", "The name of the kubeconfig context to use, multiple contexts separated by a comma `,` (implies kube env)\n")
 
 	// docker flags
 	flags.StringVar(&f.Docker.Host, "dockerhost", "", "Daemon socket(s) to connect to (implies docker env)\n")
-
-	// local flags
-	flags.StringVar(&f.Local.CLISocket, "clisock", "", "Path to VPP CLIsocket file (used in local env)")
-	flags.StringVar(&f.Local.APISocket, "apisock", "", "Path to VPP binary API socket file (used in local env)")
-	flags.StringVar(&f.Local.StatsSocket, "statsock", "", "Path to VPP stats API socket file (used in local env)\n")
 }

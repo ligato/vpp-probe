@@ -54,7 +54,11 @@ func NewClient(config *Config) (*Client, error) {
 }
 
 func (k *Client) String() string {
-	return fmt.Sprintf("%v", k.Context())
+	ca, _ := k.config.ConfigAccess()
+	if ca.GetDefaultFilename() != "" {
+		return fmt.Sprintf("%v:%v", ca.GetDefaultFilename(), k.Context())
+	}
+	return k.Context()
 }
 
 // Clientset returns interface for kubernetes API.
@@ -62,7 +66,7 @@ func (k *Client) Clientset() kubernetes.Interface {
 	return k.client
 }
 
-// Cluster returns the cluster name used for this client.
+// Context returns the context name used for this client.
 func (k *Client) Context() string {
 	ctx, err := k.config.CurrentContext()
 	if err != nil {

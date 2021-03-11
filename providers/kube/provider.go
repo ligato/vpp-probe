@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/sirupsen/logrus"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	"go.ligato.io/vpp-probe/probe"
 	"go.ligato.io/vpp-probe/providers"
@@ -14,20 +13,10 @@ import (
 // Provider finds instances running in Kubernetes pods.
 type Provider struct {
 	client *client.Client
-
-	context string
 }
 
 func NewProvider(kubeconfig string, context string) (*Provider, error) {
-	flags := genericclioptions.NewConfigFlags(true)
-	if kubeconfig != "" {
-		flags.KubeConfig = &kubeconfig
-	}
-	if context != "" {
-		flags.Context = &context
-	}
-
-	cfg := client.NewConfig(flags)
+	cfg := client.NewConfigWith(kubeconfig, context)
 
 	c, err := client.NewClient(cfg)
 	if err != nil {
@@ -35,19 +24,29 @@ func NewProvider(kubeconfig string, context string) (*Provider, error) {
 		return nil, err
 	}
 
-	info, err := c.GetVersionInfo()
-	if err != nil {
-		logrus.Warnf("getting version info for client %v failed: %v", c, err)
-		return nil, err
-	}
-
-	logrus.Debugf("client %s version info: %v", c, info)
-
 	provider := &Provider{
 		client: c,
 	}
 
+	if err := provider.Ping(); err != nil {
+		return nil, err
+	}
+
 	return provider, nil
+}
+
+func (p *Provider) Ping() error {
+	logrus.Tracef("pinging kube provider %v", p.client)
+
+	info, err := p.client.GetVersionInfo()
+	if err != nil {
+		logrus.Warnf("getting version info for client %v failed: %v", p.client, err)
+		return err
+	}
+
+	logrus.Debugf("client %s version info: %v", p.client, info)
+
+	return nil
 }
 
 func (p *Provider) Env() string {
