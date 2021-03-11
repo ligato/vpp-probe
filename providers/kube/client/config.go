@@ -9,6 +9,17 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
+func NewConfigWith(kubeconfig string, context string) *Config {
+	flags := genericclioptions.NewConfigFlags(true)
+	if kubeconfig != "" {
+		flags.KubeConfig = &kubeconfig
+	}
+	if context != "" {
+		flags.Context = &context
+	}
+	return NewConfig(flags)
+}
+
 type Config struct {
 	flags *genericclioptions.ConfigFlags
 

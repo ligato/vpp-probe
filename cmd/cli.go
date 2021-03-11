@@ -96,6 +96,122 @@ func (cli *ProbeCli) In() *streams.In {
 	return cli.in
 }
 
+func initClient(opts ProbeOptions) (*client.Client, error) {
+	env := resolveEnv(opts)
+
+	logrus.Debugf("resolved env: %v", env)
+
+	probeClient, err := client.NewClient()
+	if err != nil {
+		return nil, err
+	}
+
+	provs, err := setupProviders(env, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	logrus.Debugf("adding %v providers", len(provs))
+
+	for _, provider := range provs {
+		if err := probeClient.AddProvider(provider); err != nil {
+			logrus.Warnf("adding provider failed: %v", err)
+			continue
+		}
+		logrus.Debugf("%v provider %q ready", provider.Env(), provider.Name())
+	}
+
+	return probeClient, nil
+}
+
+func resolveEnv(opts ProbeOptions) providers.Env {
+	if opts.Env != "" {
+		return providers.Env(opts.Env)
+	}
+	if opts.Docker.Host != "" {
+		return providers.Docker
+	}
+	if opts.Kube.Kubeconfig != "" || opts.Kube.Context != "" {
+		return providers.Kube
+	}
+	return providers.Local
+}
+
+func setupProviders(env providers.Env, opt ProbeOptions) ([]providers.Provider, error) {
+	switch env {
+	case providers.Local:
+		prov, err := setupLocalEnv(opt)
+		if err != nil {
+			return nil, err
+		}
+		return []providers.Provider{prov}, nil
+	case providers.Kube:
+		return setupKubeEnv(opt)
+	case providers.Docker:
+		return setupDockerEnv(opt)
+	default:
+		return nil, fmt.Errorf("unknown env: %q", env)
+	}
+}
+
+func setupLocalEnv(opt ProbeOptions) (providers.Provider, error) {
+	cfg := local.DefaultConfig()
+
+	if opt.APISocket != "" {
+		cfg.BinapiAddr = opt.APISocket
+	}
+	if opt.StatsSocket != "" {
+		cfg.StatsAddr = opt.StatsSocket
+	}
+	if opt.CLISocket != "" {
+		cfg.CliAddr = opt.CLISocket
+	}
+
+	return local.NewProvider(cfg), nil
+}
+
+func setupKubeEnv(opt ProbeOptions) ([]providers.Provider, error) {
+	// split by comma
+	kubeconfigs := strings.Split(opt.Kube.Kubeconfig, ",")
+	contexts := strings.Split(opt.Kube.Context, ",")
+
+	if len(kubeconfigs) > 1 && (len(contexts) > 1 || contexts[0] != "") {
+		return nil, fmt.Errorf("selecting context(s) is not supported with multiple kubeconfigs")
+	}
+
+	var provs []providers.Provider
+
+	if len(kubeconfigs) > 0 {
+		for _, kubeconfig := range kubeconfigs {
+			provider, err := kube.NewProvider(kubeconfig, "")
+			if err != nil {
+				return nil, err
+			}
+			provs = append(provs, provider)
+		}
+	} else {
+		kubeconfig := kubeconfigs[0]
+		for _, ctx := range contexts {
+			provider, err := kube.NewProvider(kubeconfig, ctx)
+			if err != nil {
+				return nil, err
+			}
+			provs = append(provs, provider)
+		}
+	}
+
+	return provs, nil
+}
+
+func setupDockerEnv(opt ProbeOptions) ([]providers.Provider, error) {
+	provider, err := docker.NewProvider(opt.Docker.Host)
+	if err != nil {
+		return nil, err
+	}
+
+	return []providers.Provider{provider}, nil
+}
+
 func parseQueries(queries []string) []map[string]string {
 	const (
 		queryParamSeparator  = ";"
@@ -117,115 +233,4 @@ func parseQueries(queries []string) []map[string]string {
 		queryParams = append(queryParams, qp)
 	}
 	return queryParams
-}
-
-func initClient(opts ProbeOptions) (*client.Client, error) {
-	env := resolveEnv(opts)
-
-	logrus.Debugf("resolved env: %v", env)
-
-	probeClient, err := client.NewClient()
-	if err != nil {
-		return nil, err
-	}
-
-	pvds, err := setupProviders(env, opts)
-	if err != nil {
-		return nil, err
-	}
-
-	logrus.Debugf("adding %v providers", len(pvds))
-
-	for _, provider := range pvds {
-		if err := probeClient.AddProvider(provider); err != nil {
-			logrus.Warnf("add provider failed: %v", err)
-			continue
-		}
-		logrus.Debugf("%v provider %v connected", provider.Env(), provider.Name())
-	}
-
-	return probeClient, nil
-}
-
-func setupProviders(env providers.Env, opt ProbeOptions) ([]providers.Provider, error) {
-	switch env {
-	case providers.Local:
-		prov, err := setupLocalEnv(opt)
-		if err != nil {
-			return nil, err
-		}
-		return []providers.Provider{prov}, nil
-	case providers.Kube:
-		provs, err := setupKubeEnv(opt.Kube.Kubeconfig, opt.Kube.Context)
-		if err != nil {
-			return nil, err
-		}
-		return provs, nil
-	case providers.Docker:
-		return setupDockerEnv(opt)
-	default:
-		return nil, fmt.Errorf("unknown env: %q", env)
-	}
-}
-
-func resolveEnv(opts ProbeOptions) providers.Env {
-	if opts.Env != "" {
-		return providers.Env(opts.Env)
-	}
-	if opts.Docker.Host != "" {
-		return providers.Docker
-	}
-	if opts.Kube.Kubeconfig != "" || opts.Kube.Context != "" {
-		return providers.Kube
-	}
-	return providers.Local
-}
-
-func setupDockerEnv(opt ProbeOptions) ([]providers.Provider, error) {
-	provider, err := docker.NewProvider(opt.Docker.Host)
-	if err != nil {
-		return nil, err
-	}
-	return []providers.Provider{provider}, nil
-}
-
-func setupLocalEnv(opt ProbeOptions) (providers.Provider, error) {
-	cfg := local.DefaultConfig()
-	if opt.Local.APISocket != "" {
-		cfg.BinapiAddr = opt.Local.APISocket
-	}
-	if opt.Local.StatsSocket != "" {
-		cfg.StatsAddr = opt.Local.StatsSocket
-	}
-	if opt.Local.CLISocket != "" {
-		cfg.CliAddr = opt.Local.CLISocket
-	}
-	return local.NewProvider(cfg), nil
-}
-
-func setupKubeEnv(kubeconfig, context string) ([]providers.Provider, error) {
-	var pvds []providers.Provider
-
-	isSeparator := func(c rune) bool {
-		switch c {
-		case ',', ';', ':':
-			return true
-		}
-		return false
-	}
-	contexts := strings.FieldsFunc(context, isSeparator)
-
-	if len(contexts) == 0 {
-		contexts = []string{""}
-	}
-
-	for _, ctx := range contexts {
-		provider, err := kube.NewProvider(kubeconfig, ctx)
-		if err != nil {
-			return nil, err
-		}
-		pvds = append(pvds, provider)
-	}
-
-	return pvds, nil
 }
