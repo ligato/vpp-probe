@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: vpp-vnf1
+  name: "vpp-vnf1"
   labels:
     app: vpp
 spec:
@@ -25,46 +25,16 @@ spec:
   volumes:
     - name: vpp-config
       configMap:
-        name: vpp-cfg-vnf1
+        name: vpp-cfg-default
     - name: memif-sockets
       hostPath:
         path: /tmp
 
 ---
 apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: vpp-cfg-vnf1
-data:
-  vpp.conf: |
-    unix {
-      nodaemon
-      cli-listen /run/vpp/cli.sock
-      cli-no-pager
-      coredump-size unlimited
-      full-coredump
-      poll-sleep-usec 100
-    }
-    socksvr {
-      default
-    }
-    statseg {
-      default
-    }
-    plugins {
-      plugin dpdk_plugin.so {
-        disable
-      }
-    }
-    nat {
-      endpoint-dependent
-    }
-
----
-apiVersion: v1
 kind: Pod
 metadata:
-  name: vpp-vnf2
+  name: "vpp-vnf2"
   labels:
     app: vpp
 spec:
@@ -87,46 +57,16 @@ spec:
   volumes:
     - name: vpp-config
       configMap:
-        name: vpp-cfg-vnf2
+        name: vpp-cfg-default
     - name: memif-sockets
       hostPath:
         path: /tmp
 
 ---
 apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: vpp-cfg-vnf2
-data:
-  vpp.conf: |
-    unix {
-      nodaemon
-      cli-listen /run/vpp/cli.sock
-      cli-no-pager
-      coredump-size unlimited
-      full-coredump
-      poll-sleep-usec 100
-    }
-    socksvr {
-      default
-    }
-    statseg {
-      default
-    }
-    plugins {
-      plugin dpdk_plugin.so {
-        disable
-      }
-    }
-    nat {
-      endpoint-dependent
-    }
-
----
-apiVersion: v1
 kind: Pod
 metadata:
-  name: vpp-vswitch
+  name: "vpp-vswitch"
   labels:
     app: vpp
 spec:
@@ -162,7 +102,7 @@ spec:
   volumes:
     - name: vpp-config
       configMap:
-        name: vpp-cfg-vswitch
+        name: vpp-cfg-default
     - name: memif-sockets
       hostPath:
         path: /tmp
@@ -171,7 +111,7 @@ spec:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: vpp-cfg-vswitch
+  name: "vpp-cfg-default"
 data:
   vpp.conf: |
     unix {
@@ -183,15 +123,13 @@ data:
       poll-sleep-usec 100
     }
     socksvr {
-      default
+      socket-name /run/vpp/api.sock
     }
     statseg {
-      default
+      socket-name /run/vpp/stats.sock
     }
     plugins {
-      plugin dpdk_plugin.so {
-        disable
-      }
+      plugin dpdk_plugin.so { disable }
     }
     nat {
       endpoint-dependent

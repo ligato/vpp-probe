@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	docker "github.com/fsouza/go-dockerclient"
+	"github.com/sirupsen/logrus"
 
 	"go.ligato.io/vpp-probe/pkg/exec"
 )
@@ -59,7 +60,17 @@ func (c *command) Output() ([]byte, error) {
 
 func (c *command) Run() error {
 	command := fmt.Sprintf("%s %s", c.Cmd, strings.Join(c.Args, " "))
-	return containerExec(c.container.client, c.container.container.ID, command, c.Stdin, c.Stdout, c.Stderr)
+
+	logrus.Tracef("container %s executing command %v", c.container.container.ID, command)
+
+	err := containerExec(c.container.client, c.container.container.ID, command, c.Stdin, c.Stdout, c.Stderr)
+	if err != nil {
+		logrus.Tracef("container %s command failed: %v", c.container.container.ID, err)
+		return err
+	}
+	logrus.Tracef("container %s command succeeded", c.container.container.ID)
+
+	return nil
 }
 
 func containerExec(client *docker.Client, containerID string, command string, stdin io.Reader, stdout, stderr io.Writer) error {
@@ -74,7 +85,7 @@ func containerExec(client *docker.Client, containerID string, command string, st
 		Context:      nil,
 		Privileged:   false,
 	}
-	exec, err := client.CreateExec(createOpts)
+	exe, err := client.CreateExec(createOpts)
 	if err != nil {
 		return err
 	}
@@ -88,13 +99,15 @@ func containerExec(client *docker.Client, containerID string, command string, st
 		Success:      nil,
 		Context:      nil,
 	}
-	if err := client.StartExec(exec.ID, startOpts); err != nil {
+	if err := client.StartExec(exe.ID, startOpts); err != nil {
 		return err
 	}
-	if exe, err := client.InspectExec(exec.ID); err != nil {
+	inspect, err := client.InspectExec(exe.ID)
+	logrus.Tracef("inspect exec: %+v", inspect)
+	if err != nil {
 		return err
-	} else if exe.ExitCode != 0 {
-		return fmt.Errorf("docker exec command failed (exit code %d)", exe.ExitCode)
+	} else if inspect.ExitCode != 0 {
+		return fmt.Errorf("docker exec command '%v' failed (exit code %d)", command, inspect.ExitCode)
 	}
 	return nil
 }

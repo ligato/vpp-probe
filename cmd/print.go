@@ -11,6 +11,8 @@ import (
 	"github.com/gookit/color"
 	linux_namespace "go.ligato.io/vpp-agent/v3/proto/ligato/linux/namespace"
 	vpp_interfaces "go.ligato.io/vpp-agent/v3/proto/ligato/vpp/interfaces"
+	"go.ligato.io/vpp-probe/probe"
+	"go.ligato.io/vpp-probe/providers"
 
 	"go.ligato.io/vpp-probe/vpp/agent"
 )
@@ -33,6 +35,56 @@ var (
 	noteColor           = color.New(color.LightBlue)
 	instanceHeaderColor = color.New(color.LightYellow, color.OpBold)
 )
+
+func renderColor(s string) string {
+	if !color.Enable {
+		s = color.ClearCode(s)
+		return color.ClearTag(s)
+	}
+	str := color.ReplaceTag(s)
+	return str
+}
+
+func printInstanceHeader(out io.Writer, handler probe.Handler) {
+	metadata := handler.Metadata()
+
+	metaKey := func(k string) string {
+		v := metadata[k]
+		return fmt.Sprintf("%s: %v", k, colorize(instanceHeaderColor, v))
+	}
+
+	var header []string
+
+	switch metadata["env"] {
+	case providers.Kube:
+		header = []string{
+			metaKey("pod"),
+			metaKey("namespace"),
+			metaKey("node"),
+			metaKey("cluster"),
+			metaKey("ip"),
+		}
+	case providers.Docker:
+		header = []string{
+			metaKey("container"),
+			metaKey("image"),
+			metaKey("id"),
+		}
+	case providers.Local:
+		header = []string{
+			metaKey("pid"),
+			metaKey("id"),
+		}
+	default:
+		for k := range metadata {
+			header = append(header, metaKey(k))
+		}
+	}
+
+	fmt.Fprintln(out, "----------------------------------------------------------------------------------------------------------------------------------")
+	fmt.Fprintf(out, " %s\n", strings.Join(header, " | "))
+	fmt.Fprintln(out, "----------------------------------------------------------------------------------------------------------------------------------")
+}
 
 const (
 	defaultVppInterfaceName = "local0"

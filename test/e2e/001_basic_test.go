@@ -107,11 +107,11 @@ func (s *BasicTestSuite) TestTracer() {
 	err = cli.Initialize(opts)
 	s.NoError(err)
 
-	tracerOpts := cmd.DefaultTracerOptions
+	tracerOpts := cmd.DefaultTraceOptions
 	tracerOpts.CustomCmd = fmt.Sprintf(
 		"kubectl --context=%s exec -i %s -- ping -c 1 %s", s.kubectx, "vpp-vswitch", "192.168.23.2",
 	)
 
-	err = cmd.RunTracer(cli, tracerOpts)
+	err = cmd.RunTrace(cli, tracerOpts)
 	s.NoError(err)
 }

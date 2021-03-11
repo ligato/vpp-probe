@@ -4,14 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"strings"
 
-	"github.com/gookit/color"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"go.ligato.io/vpp-probe/probe"
-	"go.ligato.io/vpp-probe/providers"
 	"go.ligato.io/vpp-probe/vpp"
 )
 
@@ -58,6 +54,7 @@ func RunDiscover(cli Cli, opts DiscoverOptions) error {
 	}
 
 	instances := cli.Client().Instances()
+
 	logrus.Debugf("discovered %d vpp instances", len(instances))
 
 	for _, instance := range instances {
@@ -90,54 +87,12 @@ func printDiscoverTable(out io.Writer, instance *vpp.Instance) {
 
 	printInstanceHeader(&buf, instance.Handler())
 
-	w := prefixWriter(&buf, defaultPrefix)
-	PrintInstance(w, instance)
+	printDiscoveredInstance(prefixWriter(&buf), instance)
 
-	fmt.Fprint(out, color.ReplaceTag(buf.String()))
+	fmt.Fprint(out, renderColor(buf.String()))
 }
 
-func printInstanceHeader(out io.Writer, handler probe.Handler) {
-	metadata := handler.Metadata()
-
-	metaKey := func(k string) string {
-		v := metadata[k]
-		return fmt.Sprintf("%s: %v", k, colorize(instanceHeaderColor, v))
-	}
-
-	var header []string
-
-	switch metadata["env"] {
-	case providers.Kube:
-		header = []string{
-			metaKey("pod"),
-			metaKey("namespace"),
-			metaKey("node"),
-			metaKey("cluster"),
-			metaKey("ip"),
-		}
-	case providers.Docker:
-		header = []string{
-			metaKey("container"),
-			metaKey("image"),
-			metaKey("id"),
-		}
-	case providers.Local:
-		header = []string{
-			metaKey("pid"),
-			metaKey("id"),
-		}
-	default:
-		for k := range metadata {
-			header = append(header, metaKey(k))
-		}
-	}
-
-	fmt.Fprintln(out, "----------------------------------------------------------------------------------------------------------------------------------")
-	fmt.Fprintf(out, " %s\n", strings.Join(header, " | "))
-	fmt.Fprintln(out, "----------------------------------------------------------------------------------------------------------------------------------")
-}
-
-func PrintInstance(out io.Writer, instance *vpp.Instance) {
+func printDiscoveredInstance(out io.Writer, instance *vpp.Instance) {
 	config := instance.Agent().Config
 
 	// Info
@@ -150,7 +105,7 @@ func PrintInstance(out io.Writer, instance *vpp.Instance) {
 	{
 		if len(config.VPP.Interfaces) > 0 {
 			fmt.Fprintln(out, colorize(headerColor, "VPP"))
-			w := prefixWriter(out, defaultPrefix)
+			w := prefixWriter(out)
 			PrintVPPInterfacesTable(w, config)
 		} else {
 			fmt.Fprintln(out, colorize(nonAvailableColor, "No VPP interfaces configured"))
@@ -162,7 +117,7 @@ func PrintInstance(out io.Writer, instance *vpp.Instance) {
 	{
 		if len(config.Linux.Interfaces) > 0 {
 			fmt.Fprintln(out, headerColor.Sprint("Linux"))
-			w := prefixWriter(out, defaultPrefix)
+			w := prefixWriter(out)
 			PrintLinuxInterfacesTable(w, config)
 		} else {
 			fmt.Fprintln(out, colorize(nonAvailableColor, "No linux interfaces configured"))
