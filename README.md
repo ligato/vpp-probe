@@ -26,6 +26,7 @@ VPP-probe is a command-line tool for inspecting and monitoring of VPP instances.
 * **Instance Discovery** - discover VPP instances in any environment: a Kubernetes pod, a Docker container or just locally on your host
 * **Interactive Inspector** - inspect VPP instances using an interactive terminal UI providing an overview of instances
 * **Packet Tracing** - trace packets from multiple VPP instances while executing ping command between them 
+* **Command Execution** - execute commands on multiple VPP instances
 
 ## Install
 
@@ -33,15 +34,14 @@ VPP-probe is a command-line tool for inspecting and monitoring of VPP instances.
 
 - [Go 1.15+](https://golang.org/doc/install) is required
 
-
 To install latest vpp-probe simply run:
 
 ```sh
 # using go1.16+
-go get go.ligato.io/vpp-probe
+go get go.ligato.io/vpp-probe@master
 
-# using go1.15 and older
-GO111MODULE=on go get go.ligato.io/vpp-probe
+# using go1.15 or older
+GO111MODULE=on go get go.ligato.io/vpp-probe@master
 ```
 
 ## Quick Start
