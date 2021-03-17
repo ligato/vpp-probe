@@ -322,3 +322,12 @@ func HasAnyIPSecConfig(config *Config) bool {
 	}
 	return false
 }
+
+func FindIPSecSA(saIdx uint32, ipsecSas []VppIPSecSA) *VppIPSecSA {
+	for _, sa := range ipsecSas {
+		if saIdx == sa.Value.Index {
+			return &sa
+		}
+	}
+	return nil
+}
