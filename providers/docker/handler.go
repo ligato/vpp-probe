@@ -57,7 +57,7 @@ func (h *ContainerHandler) Close() error {
 
 func (h *ContainerHandler) GetCLI() (probe.CliExecutor, error) {
 	var args []string
-	if err := h.Command("ls", "/run/vpp/cli.sock").Run(); err != nil {
+	if _, err := h.Command("ls", "/run/vpp/cli.sock").Output(); err != nil {
 		args = append(args, "-s", "localhost:5002")
 		logrus.Tracef("checking cli socket error: %v, using flag '%s' for vppctl", err, args)
 	}
@@ -73,7 +73,7 @@ func (h *ContainerHandler) GetCLI() (probe.CliExecutor, error) {
 }
 
 func (h *ContainerHandler) Command(cmd string, args ...string) exec.Cmd {
-	return &command{
+	return &containerCommand{
 		Cmd:       cmd,
 		Args:      args,
 		container: h,

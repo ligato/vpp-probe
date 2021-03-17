@@ -13,7 +13,7 @@ import (
 	"go.ligato.io/vpp-probe/pkg/exec"
 )
 
-type command struct {
+type containerCommand struct {
 	Cmd  string
 	Args []string
 
@@ -24,22 +24,22 @@ type command struct {
 	container *ContainerHandler
 }
 
-func (c *command) SetStdin(in io.Reader) exec.Cmd {
+func (c *containerCommand) SetStdin(in io.Reader) exec.Cmd {
 	c.Stdin = in
 	return c
 }
 
-func (c *command) SetStdout(out io.Writer) exec.Cmd {
+func (c *containerCommand) SetStdout(out io.Writer) exec.Cmd {
 	c.Stdout = out
 	return c
 }
 
-func (c *command) SetStderr(out io.Writer) exec.Cmd {
+func (c *containerCommand) SetStderr(out io.Writer) exec.Cmd {
 	c.Stderr = out
 	return c
 }
 
-func (c *command) Output() ([]byte, error) {
+func (c *containerCommand) Output() ([]byte, error) {
 	if c.Stdout != nil {
 		return nil, errors.New("stdout already set")
 	}
@@ -58,17 +58,21 @@ func (c *command) Output() ([]byte, error) {
 	return stdout.Bytes(), err
 }
 
-func (c *command) Run() error {
+func (c *containerCommand) Run() error {
+	log := logrus.WithFields(map[string]interface{}{
+		"container": c.container.ID(),
+	})
+
 	command := fmt.Sprintf("%s %s", c.Cmd, strings.Join(c.Args, " "))
 
-	logrus.Tracef("container %s executing command %v", c.container.container.ID, command)
+	log.Tracef("executing command: %q %q", c.Cmd, c.Args)
 
 	err := containerExec(c.container.client, c.container.container.ID, command, c.Stdin, c.Stdout, c.Stderr)
 	if err != nil {
-		logrus.Tracef("container %s command failed: %v", c.container.container.ID, err)
+		log.Tracef("command failed: %v", err)
 		return err
 	}
-	logrus.Tracef("container %s command succeeded", c.container.container.ID)
+	log.Tracef("command succeeded")
 
 	return nil
 }
@@ -79,7 +83,7 @@ func containerExec(client *docker.Client, containerID string, command string, st
 		Cmd:          []string{"sh", "-c", command},
 		AttachStdin:  stdin != nil,
 		AttachStdout: stdout != nil,
-		AttachStderr: stderr != nil,
+		AttachStderr: true,
 		Tty:          false,
 		Env:          nil,
 		Context:      nil,
@@ -88,6 +92,9 @@ func containerExec(client *docker.Client, containerID string, command string, st
 	exe, err := client.CreateExec(createOpts)
 	if err != nil {
 		return err
+	}
+	if stderr == nil {
+		stderr = new(bytes.Buffer)
 	}
 	startOpts := docker.StartExecOptions{
 		InputStream:  stdin,

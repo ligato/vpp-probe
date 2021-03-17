@@ -114,11 +114,15 @@ func listContainers(c *docker.Client, listOpts docker.ListContainersOptions) ([]
 
 	var containers []*docker.Container
 	for _, cnt := range cnts {
-		container, err := c.InspectContainer(cnt.ID)
+		container, err := c.InspectContainerWithOptions(docker.InspectContainerOptions{
+			ID: cnt.ID,
+		})
 		if err != nil {
 			logrus.Warnf("inspecting container %v (%v) failed: %v", cnt.ID, cnt.Names, err)
 			continue
 		}
+
+		logrus.Tracef("inspected container: %+v", container)
 		containers = append(containers, container)
 	}
 
