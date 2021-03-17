@@ -1,3 +1,4 @@
+// Package exec contains abstract interface for executing commands.
 package exec
 
 import (

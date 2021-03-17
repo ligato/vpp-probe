@@ -6,6 +6,7 @@ import (
 	stdexec "os/exec"
 )
 
+// Command returns a local command.
 func Command(cmd string, args ...string) Cmd {
 	return (&Local{}).Command(cmd, args...)
 }

@@ -1,3 +1,4 @@
+// Package client contains high-level client for managing instances.
 package client
 
 import (
