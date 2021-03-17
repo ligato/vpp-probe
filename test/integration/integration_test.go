@@ -20,6 +20,7 @@ func init() {
 		ForceColors:               true,
 		EnvironmentOverrideColors: true,
 	})
+	logrus.SetOutput(os.Stdout)
 }
 
 const DefaultVppAgentImage = "ligato/vpp-agent:v3.2.0"

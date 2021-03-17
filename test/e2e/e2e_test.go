@@ -22,6 +22,7 @@ func init() {
 		ForceColors:               true,
 		EnvironmentOverrideColors: true,
 	})
+	logrus.SetOutput(os.Stdout)
 }
 
 func TestMain(m *testing.M) {
