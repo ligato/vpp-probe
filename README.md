@@ -1,19 +1,16 @@
-```
-    ___    _________________                        ______       
-    __ |  / /__  __ \__  __ \   _______________________  /______ 
-    __ | / /__  /_/ /_  /_/ /  ___  __ \_  ___/  __ \_  __ \  _ \
-    __ |/ / _  ____/_  ____/   __  /_/ /  /   / /_/ /  /_/ /  __/
-    _____/  /_/     /_/           .___//_/    \____//_.___/\___/ 
-                                /_/                               
-```
-> Debug VPP instances running anywhere
+<h1 align="center">vpp-probe</h1>
+<p align="center">
+    <a href="https://github.com/ligato/vpp-probe/actions/workflows/ci.yml"><img src="https://github.com/ligato/vpp-probe/actions/workflows/ci.yml/badge.svg"></a>
+</p>
+
+Debug VPP instances running anywhere.
 
 ### Table of Contents
 
-- [Intro](#intro)
-- [Features](#features)
-- [Install](#install)
-- [Quick Start](#quick-start)
+* [Intro](#intro)
+* [Install](#Install)
+* [Quick Start](#quick-start)
+* [Testing](#Testing)
 
 ---
 
@@ -21,7 +18,7 @@
 
 VPP-probe is a command-line tool for inspecting and monitoring of VPP instances. VPP-probe library provides an abstract API for accessing VPP instance(s) running in different host systems; _Kubernetes, Docker, Local_ and the CLI app uses this API to interact with VPP.
 
-## Features
+### Features
 
 * **Instance Discovery** - discover VPP instances in any environment: a Kubernetes pod, a Docker container or just locally on your host
 * **Interactive Inspector** - inspect VPP instances using an interactive terminal UI providing an overview of instances
@@ -30,30 +27,67 @@ VPP-probe is a command-line tool for inspecting and monitoring of VPP instances.
 
 ## Install
 
-### Prerequisites
+#### Prerequisites
 
 - [Go 1.15+](https://golang.org/doc/install) is required
 
 To install latest vpp-probe simply run:
 
 ```sh
-# using go1.16+
-go get go.ligato.io/vpp-probe@master
+GO111MODULE=on go get go.ligato.io/vpp-probe
 
-# using go1.15 or older
-GO111MODULE=on go get go.ligato.io/vpp-probe@master
+vpp-probe version
 ```
 
 ## Quick Start
 
-To specify the environment where VPP is running use option `--env=<ENV>`, supported values are: `local`, `kube` and `docker`.
+### Kubernetes
 
 ```sh
-# Discover VPP instances in your current cluster
+# Discover VPP instances in a cluster
 vpp-probe --env=kube discover
 
-# Run custom command for all VPP instances
-vpp-probe --env=kube exec -- agentctl config history --details
+# Execute a command on all VPP instances
+vpp-probe --env=kube exec -- "agentctl config history --details"
+
+# Trace packets on all VPP instances for 5 seconds
+vpp-probe --env=kube trace "sleep 5"
+
+# Run on different cluster by providing custom kubeconfig and/or context
+vpp-probe --kubeconfig="my.kubeconfig" <command>
+vpp-probe --kubecontext="kind-2"       <command>
+
+# Run on multiple clusters by adding another kubeconfig/context separated by comma
+vpp-probe --kubeconfig="kubeconfig1,kubeconfig2" <command>
+vpp-probe --kubecontext="kind-2,kind-3"          <command>
+```
+
+### Docker
+
+```sh
+# Discover VPP instances in Docker
+vpp-probe --env=docker discover
+
+# Execute a command on all VPP instances
+vpp-probe --env=kube exec -- "agentctl config history --details"
+
+# Trace packets on all VPP instances for 5 seconds
+vpp-probe --env=kube trace "ping -c 1 172.17.0.3"
+
+# Run on different docker host
+vpp-probe --dockerhost="/var/run/docker2.sock" <command>
 ```
 
 For detailed usage information, read [USAGE document](docs/USAGE.md)
+
+## Testing
+
+```sh
+# Run integration tests
+go test ./test/integration
+
+# Run e2e tests
+go test ./test/e2e
+```
+
+For more information about testing, read [TESTING document](docs/TESTING.md)

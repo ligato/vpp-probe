@@ -57,19 +57,24 @@ func RunTests(run func() int) int {
 type E2ETestSuite struct {
 	suite.Suite
 
-	kubectx string
+	resourcesDir string
+	kubectx      string
 }
 
 func Setup() {
-	log.Println("============== [ SETUP CLUSTERS ] ==============")
-	defer log.Println("---------------------")
+	log.Println("---------------------------------------")
+	log.Println("============== [ SETUP ] ==============")
+	log.Println("---------------------------------------")
+	defer log.Println("---------------------------------------")
 
 	createCluster("c1")
 }
 
 func Teardown() {
-	log.Println("-----[ TEARDOWN CLUSTERS ]-----")
-	defer log.Println("======================")
+	log.Println("---------------------------------")
+	log.Println("========= [ TEARDOWN ] ==========")
+	log.Println("---------------------------------")
+	defer log.Println("--------------------------------")
 
 	deleteCluster("c1")
 }

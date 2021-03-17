@@ -84,6 +84,9 @@ func RunTrace(cli Cli, opts TraceOptions) error {
 		traceds = append(traceds, traced)
 	}
 
+	if len(traceds) == 0 {
+		return fmt.Errorf("failed to start trace for instances")
+	}
 	logrus.Infof("tracing started for %d/%d instances", len(traceds), len(instances))
 
 	var commandErr error

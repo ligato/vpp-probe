@@ -2,12 +2,13 @@ package e2e
 
 import (
 	"fmt"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/suite"
 
-	client "go.ligato.io/vpp-probe/client"
+	"go.ligato.io/vpp-probe/client"
 	"go.ligato.io/vpp-probe/cmd"
 	"go.ligato.io/vpp-probe/probe"
 	"go.ligato.io/vpp-probe/providers/kube"
@@ -17,7 +18,8 @@ import (
 func TestBasicTestSuite(t *testing.T) {
 	suite.Run(t, &BasicTestSuite{
 		E2ETestSuite{
-			kubectx: "kind-c1",
+			resourcesDir: "./resources",
+			kubectx:      "kind-c1",
 		},
 	})
 }
@@ -28,19 +30,19 @@ type BasicTestSuite struct {
 
 func (s *BasicTestSuite) SetupSuite() {
 	// setup topology
-	kubectl(s.T(), s.kubectx, "apply", "-f", "../resources/vnf.yml")
+	kubectl(s.T(), s.kubectx, "apply", "-f", filepath.Join(s.resourcesDir, "vnf.yml"))
 	time.Sleep(time.Second * 5)
 	kubectl(s.T(), s.kubectx, "wait", "--for=condition=Ready", "pod/vpp-vnf1", "pod/vpp-vnf2", "pod/vpp-vswitch", "--timeout=120s")
 
 	// copy configs to containers
-	kubectl(s.T(), s.kubectx, "cp", "../resources/vnf1-config.yml", "vpp-vnf1:/")
-	kubectl(s.T(), s.kubectx, "cp", "../resources/vnf2-config.yml", "vpp-vnf2:/")
-	kubectl(s.T(), s.kubectx, "cp", "../resources/vswitch-config.yml", "vpp-vswitch:/")
+	kubectl(s.T(), s.kubectx, "cp", filepath.Join(s.resourcesDir, "vnf1-config.yml"), "vpp-vnf1:/")
+	kubectl(s.T(), s.kubectx, "cp", filepath.Join(s.resourcesDir, "vnf2-config.yml"), "vpp-vnf2:/")
+	kubectl(s.T(), s.kubectx, "cp", filepath.Join(s.resourcesDir, "vswitch-config.yml"), "vpp-vswitch:/")
 }
 
 func (s *BasicTestSuite) TearDownSuite() {
 	// teardown topology
-	execCmd(s.T(), "kubectl", "--context", "kind-c1", "delete", "-f", "../resources/vnf.yml")
+	execCmd(s.T(), "kubectl", "--context", "kind-c1", "delete", "-f", filepath.Join(s.resourcesDir, "vnf.yml"))
 }
 
 func (s *BasicTestSuite) SetupTest() {
