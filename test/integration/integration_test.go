@@ -1,14 +1,26 @@
 package integration
 
 import (
+	"log"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/suite"
 	"go.ligato.io/vpp-probe/cmd"
 	"go.ligato.io/vpp-probe/providers"
 )
+
+func init() {
+	log.SetFlags(0)
+	log.SetOutput(os.Stdout)
+	logrus.SetFormatter(&logrus.TextFormatter{
+		ForceColors:               true,
+		EnvironmentOverrideColors: true,
+	})
+}
 
 const DefaultVppAgentImage = "ligato/vpp-agent:v3.2.0"
 
