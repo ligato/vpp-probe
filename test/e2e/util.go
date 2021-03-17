@@ -30,7 +30,9 @@ func deleteCluster(name string) {
 }
 
 func execCmd(t *testing.T, cmd string, args ...string) {
-	t.Helper()
+	if t != nil {
+		t.Helper()
+	}
 
 	c := exec.Command(cmd, args...)
 	c.Stdout = os.Stdout
