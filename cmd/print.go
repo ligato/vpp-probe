@@ -240,6 +240,39 @@ func PrintCorrelatedIpSec(out io.Writer, correlations *agent.IPSecCorrelations) 
 		}
 	}
 
+	header = []string{
+		"SPI", "dir", "IP in <-> out", "SA", "CRYPTO", "INTEG",
+	}
+	for i, h := range header {
+		if h != "" {
+			header[i] = colorize(color.Bold, h)
+		}
+	}
+	fmt.Fprintln(w, strings.Join(header, "\t"))
+
+	for spi, spList :=  range correlations.SpiOutSrcDestMap {
+		for _, sp := range spList {
+			inSrcIp := sp.Value.LocalAddrStart
+			inSa := agent.FindIPSecSA(sp.Value.SaIndex, correlations.SrcInstanceMap[inSrcIp].Config.VPP.IPSecSAs)
+			cols := []string{
+				fmt.Sprintf("0x%x", spi), "Out", fmt.Sprintf("%s<->%s", inSrcIp, sp.Value.RemoteAddrStart),
+				fmt.Sprint(sp.Value.SaIndex), inSa.Value.CryptoKey, inSa.Value.IntegKey,
+			}
+			fmt.Fprintln(w, strings.Join(cols, "\t"))
+		}
+		if _, ok := correlations.SpiInSrcDestMap[spi]; ok {
+			for _, sp := range correlations.SpiInSrcDestMap[spi] {
+				inSrcIp := sp.Value.LocalAddrStart
+				inSa := agent.FindIPSecSA(sp.Value.SaIndex, correlations.SrcInstanceMap[inSrcIp].Config.VPP.IPSecSAs)
+				cols := []string{
+					fmt.Sprintf("0x%x", spi), "In", fmt.Sprintf("%s<->%s", inSrcIp, sp.Value.RemoteAddrStart),
+					fmt.Sprint(sp.Value.SaIndex), inSa.Value.CryptoKey, inSa.Value.IntegKey,
+				}
+				fmt.Fprintln(w, strings.Join(cols, "\t"))
+			}
+		}
+	}
+
 	if err := w.Flush(); err != nil {
 		log.Println(err)
 		return
