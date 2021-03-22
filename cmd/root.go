@@ -1,3 +1,4 @@
+// Package cmd contains implementation of the CLI commands.
 package cmd
 
 import (
@@ -53,7 +54,7 @@ func NewRootCmd(cli Cli) *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			initOptions(cli, glob)
+			InitOptions(cli, glob)
 
 			return cli.Initialize(opts)
 		},
@@ -92,16 +93,16 @@ func NewRootCmd(cli Cli) *cobra.Command {
 	return cmd
 }
 
-func initOptions(cli Cli, opts GlobalOptions) {
+func InitOptions(cli Cli, opts GlobalOptions) {
 	// color mode
 	switch strings.ToLower(opts.Color) {
 	case "auto", "":
 		if !cli.Out().IsTerminal() {
 			color.Disable()
 		}
-	case "on", "enabled", "always", "1":
+	case "on", "enabled", "always", "1", "true":
 		color.Enable = true
-	case "off", "disabled", "never", "0":
+	case "off", "disabled", "never", "0", "false":
 		color.Disable()
 	default:
 		logrus.Fatalf("invalid color mode: %q", opts.Color)
@@ -116,6 +117,9 @@ func initOptions(cli Cli, opts GlobalOptions) {
 	}
 
 	// log level
+	if loglvl := os.Getenv("VPP_PROBE_LOGLEVEL"); loglvl != "" {
+		opts.LogLevel = loglvl
+	}
 	if opts.LogLevel != "" {
 		if lvl, err := logrus.ParseLevel(opts.LogLevel); err == nil {
 			logrus.SetLevel(lvl)
@@ -132,16 +136,18 @@ func initOptions(cli Cli, opts GlobalOptions) {
 	}
 }
 
+var formatter = &logrus.TextFormatter{
+	EnvironmentOverrideColors: true,
+	CallerPrettyfier: func(frame *runtime.Frame) (function string, file string) {
+		const modulePath = "go.ligato.io/vpp-probe"
+		call := strings.TrimPrefix(frame.Function, modulePath)
+		function = fmt.Sprintf("%s()", strings.TrimPrefix(call, "/"))
+		_, file = filepath.Split(frame.File)
+		file = fmt.Sprintf("%s:%d", file, frame.Line)
+		return color.Debug.Sprint(function), color.Secondary.Sprint(file)
+	},
+}
+
 func init() {
-	logrus.SetFormatter(&logrus.TextFormatter{
-		EnvironmentOverrideColors: true,
-		CallerPrettyfier: func(frame *runtime.Frame) (function string, file string) {
-			const modulePath = "go.ligato.io/vpp-probe"
-			call := strings.TrimPrefix(frame.Function, modulePath)
-			function = fmt.Sprintf("%s()", strings.TrimPrefix(call, "/"))
-			_, file = filepath.Split(frame.File)
-			file = fmt.Sprintf("%s:%d", file, frame.Line)
-			return
-		},
-	})
+	logrus.SetFormatter(formatter)
 }

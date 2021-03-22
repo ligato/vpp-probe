@@ -170,6 +170,7 @@ func setupLocalEnv(opt ProbeOptions) (providers.Provider, error) {
 	return local.NewProvider(cfg), nil
 }
 
+// TODO: add unit test for different combinations of kubeconfigs/contexts
 func setupKubeEnv(opt ProbeOptions) ([]providers.Provider, error) {
 	// split by comma
 	kubeconfigs := strings.Split(opt.Kube.Kubeconfig, ",")
@@ -181,7 +182,7 @@ func setupKubeEnv(opt ProbeOptions) ([]providers.Provider, error) {
 
 	var provs []providers.Provider
 
-	if len(kubeconfigs) > 0 {
+	if len(kubeconfigs) > 0 && kubeconfigs[0] != "" {
 		for _, kubeconfig := range kubeconfigs {
 			provider, err := kube.NewProvider(kubeconfig, "")
 			if err != nil {

@@ -1,3 +1,4 @@
+// Package vpp handles the VPP instance.
 package vpp
 
 import (
@@ -149,13 +150,14 @@ const (
 
 func (v *Instance) initCLI() error {
 	var args []string
-	if err := v.handler.Command("ls", defaultCliSocket).Run(); err != nil {
+	if _, err := v.handler.Command("ls", defaultCliSocket).Output(); err != nil {
 		args = append(args, "-s", defaultCliAddr)
 		logrus.Tracef("checking cli socket error: %v, using flag '%s' for vppctl", err, args)
 	}
 	wrapper := exec.Wrap(v.handler, "/usr/bin/vppctl", args...)
 	cli := vppcli.ExecutorFunc(func(cmd string) (string, error) {
-		out, err := wrapper.Command(cmd).Output()
+		c := `"` + cmd + `"`
+		out, err := wrapper.Command(c).Output()
 		if err != nil {
 			return "", err
 		}

@@ -53,7 +53,7 @@ func (h *PodHandler) Metadata() map[string]string {
 }
 
 func (h *PodHandler) Command(cmd string, args ...string) exec.Cmd {
-	c := &command{
+	c := &podCommand{
 		Cmd:  cmd,
 		Args: args,
 		pod:  h.pod,

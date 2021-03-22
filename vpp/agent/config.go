@@ -133,14 +133,14 @@ func getValues(handler probe.Handler, c *Config) error {
 	if err != nil {
 		return fmt.Errorf("dumping all failed: %w", err)
 	}
-	logrus.Debugf("response %d bytes", len(resp))
+	logrus.Tracef("response %d bytes", len(resp))
 
 	var values []*kvscheduler.BaseValueStatus
 	if err := json.Unmarshal(resp, &values); err != nil {
 		logrus.Tracef("json data: %s", resp)
 		return fmt.Errorf("unmarshaling failed: %w", err)
 	}
-	logrus.Debugf("retrieved %d vales", len(values))
+	logrus.Debugf("retrieved %d values", len(values))
 
 	keys := map[string]int{}
 	for i, iface := range c.VPP.Interfaces {
@@ -168,7 +168,7 @@ func dumpConfig(handler probe.Handler, config *Config, viewType string) error {
 	if err != nil {
 		return fmt.Errorf("dumping all failed: %w", err)
 	}
-	logrus.Debugf("response %d bytes", len(dump))
+	logrus.Tracef("response %d bytes", len(dump))
 
 	var list []KVData
 	if err := json.Unmarshal(dump, &list); err != nil {
