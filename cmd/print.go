@@ -11,14 +11,14 @@ import (
 	"github.com/gookit/color"
 	linux_namespace "go.ligato.io/vpp-agent/v3/proto/ligato/linux/namespace"
 	vpp_interfaces "go.ligato.io/vpp-agent/v3/proto/ligato/vpp/interfaces"
+
 	"go.ligato.io/vpp-probe/probe"
 	"go.ligato.io/vpp-probe/providers"
-
 	"go.ligato.io/vpp-probe/vpp/agent"
 )
 
 const (
-	tunnelDirectionChar = `->`
+	tunnelDirectionChar = `<->`
 	defaultPrefix       = "  "
 )
 
@@ -81,6 +81,12 @@ func printInstanceHeader(out io.Writer, handler probe.Handler) {
 		}
 	}
 
+	fmt.Fprintln(out, "----------------------------------------------------------------------------------------------------------------------------------")
+	fmt.Fprintf(out, " %s\n", strings.Join(header, " | "))
+	fmt.Fprintln(out, "----------------------------------------------------------------------------------------------------------------------------------")
+}
+
+func printSectionHeader(out io.Writer, header []string) {
 	fmt.Fprintln(out, "----------------------------------------------------------------------------------------------------------------------------------")
 	fmt.Fprintf(out, " %s\n", strings.Join(header, " | "))
 	fmt.Fprintln(out, "----------------------------------------------------------------------------------------------------------------------------------")
@@ -163,6 +169,108 @@ func PrintLinuxInterfacesTable(out io.Writer, config *agent.Config) {
 
 		cols := []string{idx, internal, name, typ, state, ips, mtu, config, namespace}
 		fmt.Fprintln(w, strings.Join(cols, "\t"))
+	}
+
+	if err := w.Flush(); err != nil {
+		log.Println(err)
+		return
+	}
+
+	fmt.Fprint(out, buf.String())
+}
+
+func PrintCorrelatedIpSec(out io.Writer, correlations *agent.IPSecCorrelations) {
+	var buf bytes.Buffer
+	w := tabwriter.NewWriter(&buf, 0, 8, 1, '\t', tabwriter.StripEscape|tabwriter.FilterHTML|tabwriter.DiscardEmptyColumns)
+
+	header := []string{
+		"IP in <-> out", "Peer?", "SA", "SA-match?", "SPI", "CRYPTO", "INTEG", "MatchFlags",
+	}
+	for i, h := range header {
+		if h != "" {
+			header[i] = colorize(color.Bold, h)
+		}
+	}
+	fmt.Fprintln(w, strings.Join(header, "\t"))
+
+	// correlate data
+	for inSrcIp, inSpMap := range correlations.InSpSrcDestMap {
+		for inDestIp, inSp := range inSpMap {
+			// check for consistency between the in/out direction SPs for peer IPs
+			srcdestIp := inSrcIp + tunnelDirectionChar + inDestIp
+
+			if outSp, foundPeer := correlations.OutSpSrcDestMap[inDestIp][inSrcIp]; foundPeer {
+				saMatch := "N"
+				if inSp.Value.SaIndex == outSp.Value.SaIndex {
+					// matching SaIndex
+					saMatch = "Y"
+				}
+
+				inSa := agent.FindIPSecSA(inSp.Value.SaIndex, correlations.SrcInstanceMap[inSrcIp].Config.VPP.IPSecSAs)
+				if inSa != nil {
+					paramsMatch := 0
+					if outSa := agent.FindIPSecSA(inSp.Value.SaIndex, correlations.SrcInstanceMap[inDestIp].Config.VPP.IPSecSAs); outSa != nil {
+						if inSa.Value.Spi == outSa.Value.Spi {
+							paramsMatch |= 0x1
+						}
+						if inSa.Value.CryptoKey == outSa.Value.CryptoKey {
+							paramsMatch |= 0x1 << 1
+						}
+						if inSa.Value.IntegKey == outSa.Value.IntegKey {
+							paramsMatch |= 0x1 << 2
+						}
+					}
+
+					cols := []string{
+						srcdestIp, "Y", fmt.Sprint(inSp.Value.SaIndex), saMatch, fmt.Sprint(inSa.Value.Spi), inSa.Value.CryptoKey, inSa.Value.IntegKey, fmt.Sprintf("%03b\n", paramsMatch),
+					}
+					fmt.Fprintln(w, strings.Join(cols, "\t"))
+				} else {
+					cols := []string{
+						srcdestIp, "Y", fmt.Sprint(inSp.Value.SaIndex), saMatch,
+					}
+					fmt.Fprintln(w, strings.Join(cols, "\t"))
+				}
+			} else {
+				cols := []string{
+					srcdestIp, "N", fmt.Sprint(inSp.Value.SaIndex),
+				}
+				fmt.Fprintln(w, strings.Join(cols, "\t"))
+			}
+		}
+	}
+
+	header = []string{
+		"SPI", "dir", "IP in <-> out", "SA", "CRYPTO", "INTEG",
+	}
+	for i, h := range header {
+		if h != "" {
+			header[i] = colorize(color.Bold, h)
+		}
+	}
+	fmt.Fprintln(w, strings.Join(header, "\t"))
+
+	for spi, spList :=  range correlations.SpiOutSrcDestMap {
+		for _, sp := range spList {
+			inSrcIp := sp.Value.LocalAddrStart
+			inSa := agent.FindIPSecSA(sp.Value.SaIndex, correlations.SrcInstanceMap[inSrcIp].Config.VPP.IPSecSAs)
+			cols := []string{
+				fmt.Sprintf("0x%x", spi), "Out", fmt.Sprintf("%s<->%s", inSrcIp, sp.Value.RemoteAddrStart),
+				fmt.Sprint(sp.Value.SaIndex), inSa.Value.CryptoKey, inSa.Value.IntegKey,
+			}
+			fmt.Fprintln(w, strings.Join(cols, "\t"))
+		}
+		if _, ok := correlations.SpiInSrcDestMap[spi]; ok {
+			for _, sp := range correlations.SpiInSrcDestMap[spi] {
+				inSrcIp := sp.Value.LocalAddrStart
+				inSa := agent.FindIPSecSA(sp.Value.SaIndex, correlations.SrcInstanceMap[inSrcIp].Config.VPP.IPSecSAs)
+				cols := []string{
+					fmt.Sprintf("0x%x", spi), "In", fmt.Sprintf("%s<->%s", inSrcIp, sp.Value.RemoteAddrStart),
+					fmt.Sprint(sp.Value.SaIndex), inSa.Value.CryptoKey, inSa.Value.IntegKey,
+				}
+				fmt.Fprintln(w, strings.Join(cols, "\t"))
+			}
+		}
 	}
 
 	if err := w.Flush(); err != nil {

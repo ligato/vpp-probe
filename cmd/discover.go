@@ -7,6 +7,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"go.ligato.io/vpp-probe/vpp/agent"
 
 	"go.ligato.io/vpp-probe/vpp"
 )
@@ -37,11 +38,13 @@ func NewDiscoverCmd(cli Cli) *cobra.Command {
 	}
 	flags := cmd.Flags()
 	flags.StringVarP(&opts.Format, "format", "f", "", "Output format (json, yaml, go-template..)")
+	flags.BoolVar(&opts.IPsecAgg, "ipsec-agg", false, "Print aggregated IPSec info")
 	return cmd
 }
 
 type DiscoverOptions struct {
-	Format string
+	Format   string
+	IPsecAgg bool
 }
 
 func RunDiscover(cli Cli, opts DiscoverOptions) error {
@@ -57,6 +60,8 @@ func RunDiscover(cli Cli, opts DiscoverOptions) error {
 
 	logrus.Debugf("discovered %d vpp instances", len(instances))
 
+	var vppInstances []*agent.Instance
+
 	for _, instance := range instances {
 		if instance.Agent() == nil {
 			logrus.Debugf("agent not found for instance %v", instance.ID())
@@ -69,6 +74,7 @@ func RunDiscover(cli Cli, opts DiscoverOptions) error {
 			logrus.Errorf("instance %v error: %v", instance.ID(), err)
 			continue
 		}
+		vppInstances = append(vppInstances, instance.Agent())
 
 		if format := opts.Format; len(format) == 0 {
 			printDiscoverTable(cli.Out(), instance)
@@ -76,6 +82,17 @@ func RunDiscover(cli Cli, opts DiscoverOptions) error {
 			if err := formatAsTemplate(cli.Out(), format, instance); err != nil {
 				return err
 			}
+		}
+	}
+
+	if opts.IPsecAgg {
+		logrus.Infof("Aggregating IPSec info for instances")
+
+		ipsecAgg, err := agent.CorrelateIPSec(vppInstances)
+		if err != nil {
+			logrus.Warnf("correlating IPSec failed: %v", err)
+		} else {
+			printDiscoverIPSecAggr(cli.Out(), ipsecAgg)
 		}
 	}
 
@@ -124,4 +141,14 @@ func printDiscoveredInstance(out io.Writer, instance *vpp.Instance) {
 		}
 	}
 	fmt.Fprintln(out)
+}
+
+func printDiscoverIPSecAggr(out io.Writer, ipsecCorrelations *agent.IPSecCorrelations) {
+	var buf bytes.Buffer
+
+	printSectionHeader(&buf, []string{"Aggregated IPSec info"})
+
+	PrintCorrelatedIpSec(prefixWriter(&buf), ipsecCorrelations)
+
+	fmt.Fprint(out, renderColor(buf.String()))
 }
