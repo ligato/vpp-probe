@@ -36,7 +36,8 @@ archives:
     format: tar.gz
     wrap_in_directory: true
     files:
-      - ../README.md
+      - README.md
+      - docs/*
     allow_different_binary_count: true
     name_template: "vpp-probe_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
