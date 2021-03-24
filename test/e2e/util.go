@@ -13,6 +13,8 @@ const (
 )
 
 func kubectl(t *testing.T, context string, args ...string) {
+	t.Helper()
+
 	args = append([]string{
 		"--context", context,
 	}, args...)
@@ -28,6 +30,10 @@ func deleteCluster(name string) {
 }
 
 func execCmd(t *testing.T, cmd string, args ...string) {
+	if t != nil {
+		t.Helper()
+	}
+
 	c := exec.Command(cmd, args...)
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr

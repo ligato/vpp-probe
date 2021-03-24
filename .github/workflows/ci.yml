@@ -7,8 +7,9 @@ on:
     branches: [ master ]
 
 jobs:
-  ci:
-    name: ci
+
+  build-test:
+    name: "Build & Test"
     runs-on: ubuntu-latest
 
     steps:
@@ -20,10 +21,75 @@ jobs:
         with:
           go-version: '1.15'
 
-      - name: Build
+      - name: Download Module Deps
         run: |
-          go build -v
+          go mod download
 
-      - name: Test
+      - name: Build Packages
         run: |
-          go test -v ./...
+          go build -v ./...
+
+      - name: Run Unit Tests
+        run: |
+          go test `go list ./... | grep -vE '(integration|e2e)'`
+
+  docker-image:
+    name: "Docker Image"
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_BUILDKIT: 1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Build Image
+        run: |
+          docker build -t vpp-probe .
+
+      - name: Try Image
+        run: |
+          docker run --rm -i vpp-probe
+
+  test-integration:
+    name: "Integration Tests"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Setup Go
+        uses: actions/setup-go@v1
+        with:
+          go-version: '1.15'
+
+      - name: Download Module Deps
+        run: |
+          go mod download
+
+      - name: Run Tests
+        run: |
+          go test -v ./test/integration/...
+
+  test-e2e:
+    name: "E2E Tests"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Setup Go
+        uses: actions/setup-go@v1
+        with:
+          go-version: '1.15'
+
+      - name: Download Module Deps
+        run: |
+          go mod download
+
+      - name: Run Tests
+        run: |
+          go test -v ./test/e2e/...
+

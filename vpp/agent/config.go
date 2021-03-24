@@ -27,6 +27,7 @@ type Config struct {
 		IPSecTunProtects []VppIPSecTunProtect `json:",omitempty"`
 		IPSecSAs         []VppIPSecSA         `json:",omitempty"`
 		IPSecSPDs        []VppIPSecSPD        `json:",omitempty"`
+		IPSecSPs         []VppIPSecSP         `json:",omitempty"`
 	}
 	Linux struct {
 		Interfaces []LinuxInterface
@@ -86,6 +87,11 @@ type VppIPSecSPD struct {
 	Value *vpp_ipsec.SecurityPolicyDatabase
 }
 
+type VppIPSecSP struct {
+	KVData
+	Value *vpp_ipsec.SecurityPolicy
+}
+
 type KVData struct {
 	Key      string
 	Value    json.RawMessage
@@ -127,14 +133,14 @@ func getValues(handler probe.Handler, c *Config) error {
 	if err != nil {
 		return fmt.Errorf("dumping all failed: %w", err)
 	}
-	logrus.Debugf("response %d bytes", len(resp))
+	logrus.Tracef("response %d bytes", len(resp))
 
 	var values []*kvscheduler.BaseValueStatus
 	if err := json.Unmarshal(resp, &values); err != nil {
 		logrus.Tracef("json data: %s", resp)
 		return fmt.Errorf("unmarshaling failed: %w", err)
 	}
-	logrus.Debugf("retrieved %d vales", len(values))
+	logrus.Debugf("retrieved %d values", len(values))
 
 	keys := map[string]int{}
 	for i, iface := range c.VPP.Interfaces {
@@ -162,7 +168,7 @@ func dumpConfig(handler probe.Handler, config *Config, viewType string) error {
 	if err != nil {
 		return fmt.Errorf("dumping all failed: %w", err)
 	}
-	logrus.Debugf("response %d bytes", len(dump))
+	logrus.Tracef("response %d bytes", len(dump))
 
 	var list []KVData
 	if err := json.Unmarshal(dump, &list); err != nil {
@@ -244,6 +250,14 @@ func dumpConfig(handler probe.Handler, config *Config, viewType string) error {
 			}
 			config.VPP.IPSecSPDs = append(config.VPP.IPSecSPDs, value)
 
+		case vpp_ipsec.ModelSecurityPolicy.Name():
+			var value = VppIPSecSP{KVData: item}
+			if err := json.Unmarshal(item.Value, &value.Value); err != nil {
+				logrus.Warnf("unmarshal value failed: %v", err)
+				continue
+			}
+			config.VPP.IPSecSPs = append(config.VPP.IPSecSPs, value)
+
 		default:
 			logrus.Debugf("ignoring value for key %q", item.Key)
 		}
@@ -302,8 +316,18 @@ func HasAnyIPSecConfig(config *Config) bool {
 	switch {
 	case len(config.VPP.IPSecTunProtects) > 0,
 		len(config.VPP.IPSecSAs) > 0,
-		len(config.VPP.IPSecSPDs) > 0:
+		len(config.VPP.IPSecSPDs) > 0,
+		len(config.VPP.IPSecSPs) > 0:
 		return true
 	}
 	return false
+}
+
+func FindIPSecSA(saIdx uint32, ipsecSas []VppIPSecSA) *VppIPSecSA {
+	for _, sa := range ipsecSas {
+		if saIdx == sa.Value.Index {
+			return &sa
+		}
+	}
+	return nil
 }

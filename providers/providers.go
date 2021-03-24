@@ -1,3 +1,4 @@
+// Package providers defines a common API for providers.
 package providers
 
 import (

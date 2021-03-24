@@ -1,3 +1,4 @@
+// Package agent handles VPP-Agent instance data.
 package agent
 
 import (

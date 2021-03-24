@@ -11,7 +11,7 @@ import (
 	"go.ligato.io/vpp-probe/providers/kube/client"
 )
 
-type command struct {
+type podCommand struct {
 	Cmd  string
 	Args []string
 
@@ -22,22 +22,22 @@ type command struct {
 	pod *client.Pod
 }
 
-func (c *command) SetStdin(in io.Reader) exec.Cmd {
+func (c *podCommand) SetStdin(in io.Reader) exec.Cmd {
 	c.Stdin = in
 	return c
 }
 
-func (c *command) SetStdout(out io.Writer) exec.Cmd {
+func (c *podCommand) SetStdout(out io.Writer) exec.Cmd {
 	c.Stdout = out
 	return c
 }
 
-func (c *command) SetStderr(out io.Writer) exec.Cmd {
+func (c *podCommand) SetStderr(out io.Writer) exec.Cmd {
 	c.Stderr = out
 	return c
 }
 
-func (c *command) Output() ([]byte, error) {
+func (c *podCommand) Output() ([]byte, error) {
 	if c.Stdout != nil {
 		return nil, errors.New("stdout already set")
 	}
@@ -51,13 +51,13 @@ func (c *command) Output() ([]byte, error) {
 
 	err := c.Run()
 	if err != nil && captureErr {
-		command := fmt.Sprintf("%s %s", c.Cmd, strings.Join(c.Args, " "))
-		err = fmt.Errorf("command %q error %w: %s", command, err, stderr.Bytes())
+		command := fmt.Sprintf("%q %q", c.Cmd, c.Args)
+		err = fmt.Errorf("pod exec %v error %w: %s", command, err, stderr.Bytes())
 	}
 	return stdout.Bytes(), err
 }
 
-func (c *command) Run() error {
+func (c *podCommand) Run() error {
 	command := fmt.Sprintf("%s %s", c.Cmd, strings.Join(c.Args, " "))
 	return c.pod.Exec(command, c.Stdin, c.Stdout, c.Stderr)
 }
