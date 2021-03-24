@@ -65,6 +65,6 @@ release:
     name: vpp-probe
   ids:
     - vpp-probe-archive
-  prerelease: auto
+  prerelease: true
   name_template: "{{.ProjectName}}-{{.Tag}}"
 
