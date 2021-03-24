@@ -50,7 +50,7 @@ changelog:
 
 dockers:
   - dockerfile: Dockerfile
-    inage_templates:
+    image_templates:
       - "ligato/vpp-probe:{{ .Tag }}"
       - "ligato/vpp-probe:v{{ .Major }}"
       - "ligato/vpp-probe:v{{ .Major }}.{{ .Minor }}"
