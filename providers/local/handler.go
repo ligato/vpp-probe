@@ -14,7 +14,7 @@ import (
 	vppcli "go.ligato.io/vpp-probe/vpp/cli"
 )
 
-// HandlerConfig defines config parameters for Handler.
+// HandlerConfig defines config parameters for ProcessHandler.
 type HandlerConfig struct {
 	CliAddr    string
 	BinapiAddr string
@@ -30,8 +30,8 @@ func DefaultConfig() HandlerConfig {
 	}
 }
 
-// Handler is a handler for local instance.
-type Handler struct {
+// ProcessHandler is a handler for local instance.
+type ProcessHandler struct {
 	HandlerConfig
 
 	pid int
@@ -41,29 +41,29 @@ type Handler struct {
 }
 
 // NewHandler returns a new handler for a local instance specified by PID.
-func NewHandler(pid int, config HandlerConfig) *Handler {
-	return &Handler{
+func NewHandler(pid int, config HandlerConfig) *ProcessHandler {
+	return &ProcessHandler{
 		pid:           pid,
 		HandlerConfig: config,
 	}
 }
 
-func (h *Handler) ID() string {
-	return fmt.Sprintf("local-%d", h.pid)
+func (h *ProcessHandler) ID() string {
+	return fmt.Sprintf("process-%d", h.pid)
 }
 
-func (h *Handler) Metadata() map[string]string {
+func (h *ProcessHandler) Metadata() map[string]string {
 	return map[string]string{
 		"env": providers.Local,
 		"pid": fmt.Sprint(h.pid),
 	}
 }
 
-func (h *Handler) Command(cmd string, args ...string) exec.Cmd {
+func (h *ProcessHandler) Command(cmd string, args ...string) exec.Cmd {
 	return exec.Command(cmd, args...)
 }
 
-func (h *Handler) GetCLI() (probe.CliExecutor, error) {
+func (h *ProcessHandler) GetCLI() (probe.CliExecutor, error) {
 	wrapper := exec.Wrap(h, "/usr/bin/vppctl", "-s", h.CliAddr)
 	cli := vppcli.ExecutorFunc(func(cmd string) (string, error) {
 		out, err := wrapper.Command(cmd).Output()
@@ -75,7 +75,7 @@ func (h *Handler) GetCLI() (probe.CliExecutor, error) {
 	return cli, nil
 }
 
-func (h *Handler) GetAPI() (govppapi.Channel, error) {
+func (h *ProcessHandler) GetAPI() (govppapi.Channel, error) {
 	if h.binapiConn == nil {
 		conn, err := govpp.Connect(h.BinapiAddr)
 		if err != nil {
@@ -91,7 +91,7 @@ func (h *Handler) GetAPI() (govppapi.Channel, error) {
 	return ch, nil
 }
 
-func (h *Handler) GetStats() (govppapi.StatsProvider, error) {
+func (h *ProcessHandler) GetStats() (govppapi.StatsProvider, error) {
 	if h.statsConn == nil {
 		statsAdapter := statsclient.NewStatsClient(h.StatsAddr)
 		conn, err := govppcore.ConnectStats(statsAdapter)
@@ -104,7 +104,7 @@ func (h *Handler) GetStats() (govppapi.StatsProvider, error) {
 	return h.statsConn, nil
 }
 
-func (h *Handler) Close() error {
+func (h *ProcessHandler) Close() error {
 	if h.binapiConn != nil {
 		h.binapiConn.Disconnect()
 		h.binapiConn = nil

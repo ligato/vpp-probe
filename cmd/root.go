@@ -78,6 +78,7 @@ func NewRootCmd(cli Cli) *cobra.Command {
 	cmd.AddCommand(newVersionCmd())
 	cmd.AddCommand(
 		NewInspectorCmd(cli),
+		NewTopologyCmd(cli),
 		NewDiscoverCmd(cli),
 		NewTraceCmd(cli),
 		NewExecCmd(cli),

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"github.com/spf13/pflag"
+	"go.ligato.io/vpp-probe/providers"
 )
 
 type GlobalOptions struct {
@@ -61,4 +62,19 @@ Parameter types depend on probe environment (defined with --env).
 
 	// docker flags
 	flags.StringVar(&f.Docker.Host, "dockerhost", "", "Daemon socket(s) to connect to (implies docker env)\n")
+}
+
+func resolveEnv(opts ProbeOptions) providers.Env {
+	if opts.Env != "" {
+		return providers.Env(opts.Env)
+	}
+
+	if opts.Docker.Host != "" {
+		return providers.Docker
+	}
+	if opts.Kube.Kubeconfig != "" || opts.Kube.Context != "" {
+		return providers.Kube
+	}
+
+	return providers.Local
 }

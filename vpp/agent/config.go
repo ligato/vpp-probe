@@ -1,9 +1,11 @@
 package agent
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 
 	"github.com/sirupsen/logrus"
 	"go.ligato.io/vpp-agent/v3/pkg/models"
@@ -16,6 +18,7 @@ import (
 	vpp_l2 "go.ligato.io/vpp-agent/v3/proto/ligato/vpp/l2"
 	vpp_l3 "go.ligato.io/vpp-agent/v3/proto/ligato/vpp/l3"
 
+	"go.ligato.io/vpp-probe/pkg/exec"
 	"go.ligato.io/vpp-probe/probe"
 )
 
@@ -33,6 +36,24 @@ type Config struct {
 		Interfaces []LinuxInterface
 		Routes     []LinuxRoute `json:",omitempty"`
 	}
+}
+
+func (config *Config) GetVppInterface(name string) *VppInterface {
+	for _, iface := range config.VPP.Interfaces {
+		if iface.Value.Name == name {
+			return &iface
+		}
+	}
+	return nil
+}
+
+func (config *Config) GetLinuxInterface(name string) *LinuxInterface {
+	for _, iface := range config.Linux.Interfaces {
+		if iface.Value.Name == name {
+			return &iface
+		}
+	}
+	return nil
 }
 
 type LinuxInterface struct {
@@ -117,12 +138,19 @@ func retrieveConfigView(handler probe.Handler, cached bool) (*Config, error) {
 
 	var config Config
 
+	// dump actual config data
 	if err := dumpConfig(handler, &config, viewType); err != nil {
 		return nil, err
 	}
 
+	// get current status for config values
 	if err := getValues(handler, &config); err != nil {
 		return nil, err
+	}
+
+	// retrieve additional metadata for correlation
+	if err := retrieveMetadata(handler, &config); err != nil {
+		logrus.Errorf("retrieve metadata failed: %v", err)
 	}
 
 	return &config, nil
@@ -280,6 +308,45 @@ func (c *Config) HasVppInterfaceType(typ vpp_interfaces.Interface_Type) bool {
 	return false
 }
 
+func retrieveMetadata(handler probe.Handler, config *Config) error {
+
+	// VPP interfaces
+	for i, iface := range config.VPP.Interfaces {
+
+		// ensure metadata are initialized
+		if iface.Metadata == nil {
+			iface.Metadata = make(map[string]interface{})
+		}
+
+		// get interface-type specific data
+		switch iface.Value.GetType() {
+
+		case vpp_interfaces.Interface_MEMIF:
+
+			logrus.WithFields(map[string]interface{}{
+				"interface": iface.Value.Name,
+				"instance":  handler.ID(),
+			}).Tracef("getting inode for memif socket: %v", iface.Value.Name)
+
+			socketFile := iface.Value.GetMemif().GetSocketFilename()
+			iface.Metadata["inode"] = getInodeForFile(handler, socketFile)
+
+			config.VPP.Interfaces[i] = iface
+		}
+	}
+	return nil
+}
+
+func getInodeForFile(host exec.Interface, socket string) int {
+	out, err := host.Command("ls", "-li", socket).Output()
+	if err != nil {
+		return 0
+	}
+	logrus.Tracef("file: %s", out)
+	inode, _ := strconv.Atoi(string(bytes.Fields(out)[0]))
+	return inode
+}
+
 func FindL2XconnFor(iface string, l2XConnects []VppL2XConnect) *VppL2XConnect {
 	for _, xconn := range l2XConnects {
 		if iface == xconn.Value.ReceiveInterface ||
@@ -298,6 +365,16 @@ func FindIPSecTunProtectFor(iface string, tunProtects []VppIPSecTunProtect) *Vpp
 	}
 	return nil
 }
+
+/*func FindMemifsFor(iface string, memif []VppInterface) []VppInterface {
+	var list []VppRoute
+	for _, r := range routes {
+		if iface == r.Value.OutgoingInterface {
+			list = append(list, r)
+		}
+	}
+	return list
+}*/
 
 func FindVppRoutesFor(iface string, routes []VppRoute) []VppRoute {
 	var list []VppRoute

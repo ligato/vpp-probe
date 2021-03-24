@@ -124,19 +124,6 @@ func initClient(opts ProbeOptions) (*client.Client, error) {
 	return probeClient, nil
 }
 
-func resolveEnv(opts ProbeOptions) providers.Env {
-	if opts.Env != "" {
-		return providers.Env(opts.Env)
-	}
-	if opts.Docker.Host != "" {
-		return providers.Docker
-	}
-	if opts.Kube.Kubeconfig != "" || opts.Kube.Context != "" {
-		return providers.Kube
-	}
-	return providers.Local
-}
-
 func setupProviders(env providers.Env, opt ProbeOptions) ([]providers.Provider, error) {
 	switch env {
 	case providers.Local:

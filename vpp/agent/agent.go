@@ -41,11 +41,3 @@ func (instance *Instance) UpdateInstanceInfo() (err error) {
 
 	return nil
 }
-
-func runAgentctlCmd(h probe.Handler, args ...string) ([]byte, error) {
-	out, err := h.Command("agentctl", args...).Output()
-	if err != nil {
-		return nil, err
-	}
-	return out, err
-}

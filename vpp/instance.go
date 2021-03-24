@@ -60,6 +60,10 @@ func NewInstance(probe probe.Handler) (*Instance, error) {
 	return h, h.Init()
 }
 
+func (v Instance) String() string {
+	return v.handler.Metadata()["name"]
+}
+
 func (v *Instance) ID() string {
 	return fmt.Sprintf("vpp::%s", v.handler.ID())
 }
