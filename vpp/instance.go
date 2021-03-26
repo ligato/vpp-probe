@@ -210,18 +210,18 @@ func (v *Instance) initBinapi() (err error) {
 		logrus.Warnf("GetVersionInfo error: %v", err)
 	} else {
 		logrus.WithField("instance", v.ID()).Debugf("version info: %+v", info)
-	}
 
-	for version := range binapi.Versions {
-		ver := string(version)
-		if len(ver) > 5 {
-			ver = ver[:5]
-		}
-		logrus.Tracef("checking version %v in %q", ver, info.Version)
-		if strings.Contains(info.Version, ver) {
-			vppClient.version = version
-			logrus.Debugf("found version %v in %q", ver, info.Version)
-			break
+		for version := range binapi.Versions {
+			ver := string(version)
+			if len(ver) > 5 {
+				ver = ver[:5]
+			}
+			logrus.Tracef("checking version %v in %q", ver, info.Version)
+			if strings.Contains(info.Version, ver) {
+				vppClient.version = version
+				logrus.Debugf("found version %v in %q", ver, info.Version)
+				break
+			}
 		}
 	}
 
