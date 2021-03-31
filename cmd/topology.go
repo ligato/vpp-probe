@@ -68,24 +68,32 @@ func RunTopology(cli Cli, opts TopologyOptions) error {
 		return fmt.Errorf("correlation failed: %w", err)
 	}
 
-	logrus.Infof("correlated %v connections ", len(topo.Connections))
+	logrus.Infof("correlated %v connections for %d instances", len(topo.Connections), len(instances))
 
 	if format := opts.Format; len(format) == 0 {
 		printTopologyTable(cli.Out(), instances, topo)
 	} else if format == "dot" {
-		topology.PrintTopologyDot(cli.Out(), instances, topo)
+		return topology.PrintTopologyDot(cli.Out(), instances, topo)
 	} else {
-		if err := formatAsTemplate(cli.Out(), format, topo); err != nil {
-			return err
-		}
+		return formatAsTemplate(cli.Out(), format, topo)
 	}
 
 	return nil
 }
 
-func printTopologyTable(w io.Writer, instance []*vpp.Instance, info *topology.Info) {
+func printTopologyTable(w io.Writer, instances []*vpp.Instance, info *topology.Info) {
+	fmt.Fprintln(w, "Instances")
+	for _, instance := range instances {
+		fmt.Fprintf(w, " - %v\n", instance)
+	}
+
+	fmt.Fprintln(w, "Networks")
+	for _, network := range info.Networks {
+		fmt.Fprintf(w, " * %+v", network)
+	}
+
+	fmt.Fprintln(w, "Connections")
 	for _, conn := range info.Connections {
-		logrus.Infof("* %v", conn)
-		logrus.Debugf("%+v	<->	%+v\n", conn.Source, conn.Destination)
+		fmt.Fprintf(w, " * %+v <=> %+v\n", conn.Source, conn.Destination)
 	}
 }

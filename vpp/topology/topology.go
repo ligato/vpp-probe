@@ -7,6 +7,7 @@ import (
 	linux_interfaces "go.ligato.io/vpp-agent/v3/proto/ligato/linux/interfaces"
 	vpp_interfaces "go.ligato.io/vpp-agent/v3/proto/ligato/vpp/interfaces"
 	"go.ligato.io/vpp-probe/vpp"
+	"go.ligato.io/vpp-probe/vpp/agent"
 )
 
 type Info struct {
@@ -21,9 +22,10 @@ type Network struct {
 
 // Endpoint defines a communication endpoint in a network.
 type Endpoint struct {
-	Instance  *vpp.Instance
 	Interface string
+	Instance  string
 	Network
+	instance *vpp.Instance `json:"-"`
 }
 
 // Connection defines a connection between two endpoints.
@@ -31,6 +33,7 @@ type Endpoint struct {
 type Connection struct {
 	Source      Endpoint
 	Destination Endpoint
+	Metadata    map[string]string
 }
 
 func (c Connection) String() string {
@@ -49,8 +52,8 @@ func (c Connection) String() string {
 	if c.Destination.Namespace != "" {
 		dst += fmt.Sprintf("-NAMESPACE-%s", c.Destination.Namespace)
 	}
-	src = fmt.Sprintf("%v_%v", c.Source.Instance, src)
-	dst = fmt.Sprintf("%v_%v", c.Destination.Instance, dst)
+	src = fmt.Sprintf("%v_%v", c.Source.instance, src)
+	dst = fmt.Sprintf("%v_%v", c.Destination.instance, dst)
 	return fmt.Sprintf("%q -> %q", src, dst)
 }
 
@@ -90,11 +93,11 @@ func Build(instances []*vpp.Instance) (*Info, error) {
 
 		// correlate L2 xconnects
 		for _, l2xc := range instance.Agent().Config.VPP.L2XConnects {
-			s.addConn(Endpoint{
-				Instance:  instance,
+			s.addConn("l2xconn", Endpoint{
+				instance:  instance,
 				Interface: l2xc.Value.TransmitInterface,
 			}, Endpoint{
-				Instance:  instance,
+				instance:  instance,
 				Interface: l2xc.Value.ReceiveInterface,
 			})
 		}
@@ -113,24 +116,34 @@ type scanCtx struct {
 	connections []*Connection
 }
 
-func (s *scanCtx) addConn(src, dst Endpoint) {
+func (s *scanCtx) addConn(typ string, src, dst Endpoint) *Connection {
+	src.Instance = src.instance.ID()
+	dst.Instance = dst.instance.ID()
 	conn := &Connection{
 		Source:      src,
 		Destination: dst,
+		Metadata: map[string]string{
+			"type": typ,
+		},
 	}
 	s.connections = append(s.connections, conn)
+	return conn
 }
 
 func (s *scanCtx) correlateMemif(instance *vpp.Instance, ifaceIdx int) {
 	iface := instance.Agent().Config.VPP.Interfaces[ifaceIdx]
 	memif1 := iface.Value.GetMemif()
 
+	log := logrus.WithFields(map[string]interface{}{
+		"instance": instance.ID(),
+		"ifaceIdx": ifaceIdx,
+		"inode":    iface.Metadata["inode"],
+	})
+	log.Debugf("correlating memif interface: %v", memif1)
+
 	for _, instance2 := range s.instances {
-		if instance.ID() == instance2.ID() {
-			continue
-		}
 		for i, iface2 := range instance2.Agent().Config.VPP.Interfaces {
-			if i == ifaceIdx || iface.Key == iface2.Key {
+			if instance.ID() == instance2.ID() && (i == ifaceIdx || iface.Key == iface2.Key) {
 				continue
 			}
 			if iface2.Value.GetType() != vpp_interfaces.Interface_MEMIF {
@@ -138,6 +151,9 @@ func (s *scanCtx) correlateMemif(instance *vpp.Instance, ifaceIdx int) {
 			}
 
 			memif2 := iface2.Value.GetMemif()
+
+			log.Debugf("found matching memif interface on instance %v: %+v", instance2, memif2)
+
 			if memif1.GetId() != memif2.GetId() {
 				continue
 			}
@@ -145,12 +161,14 @@ func (s *scanCtx) correlateMemif(instance *vpp.Instance, ifaceIdx int) {
 				continue
 			}
 
-			s.addConn(Endpoint{
-				Instance:  instance,
-				Interface: iface.Value.Name,
+			log.Debugf("found matching memif interface on instance %v: %+v", instance2, memif2)
+
+			s.addConn("memif-sock", Endpoint{
+				instance:  instance,
+				Interface: iface.Value.GetName(),
 			}, Endpoint{
-				Instance:  instance2,
-				Interface: iface2.Value.Name,
+				instance:  instance2,
+				Interface: iface2.Value.GetName(),
 			})
 		}
 	}
@@ -158,38 +176,74 @@ func (s *scanCtx) correlateMemif(instance *vpp.Instance, ifaceIdx int) {
 
 func (s *scanCtx) correlateAfPacket(instance *vpp.Instance, ifaceIdx int) {
 	iface := instance.Agent().Config.VPP.Interfaces[ifaceIdx]
+	hostIfName := iface.Value.GetAfpacket().GetHostIfName()
+
+	var hostIface *agent.LinuxInterface
 
 	network := Network{
 		Linux: true,
 	}
-	for _, instance2 := range s.instances {
-		if instance2.ID() == instance.ID() {
+	for _, linuxIface := range instance.Agent().Config.Linux.Interfaces {
+		if linuxIface.Value.GetHostIfName() != hostIfName {
 			continue
 		}
-		for _, linuxIface := range instance2.Agent().Config.Linux.Interfaces {
-			if iface.Key != linuxIface.Key {
-				continue
-			}
-			network.Namespace = linuxIface.Value.GetNamespace().GetReference()
+		if hostIface != nil {
+			logrus.Warnf("found more than one host interface for afpacket %v", iface)
+			continue
 		}
+		ifc := linuxIface
+		hostIface = &ifc
+		network.Namespace = linuxIface.Value.GetNamespace().GetReference()
+	}
+	if hostIface == nil {
+		logrus.Warnf("could not find host interface for afpacket %v", iface)
+		return
 	}
 
-	s.addConn(Endpoint{
-		Instance:  instance,
+	s.addConn("afpacket-to-host", Endpoint{
+		instance:  instance,
 		Interface: iface.Value.Name,
 	}, Endpoint{
-		Instance:  instance,
-		Interface: iface.Value.GetAfpacket().HostIfName,
+		instance:  instance,
+		Interface: hostIface.Value.GetName(),
 		Network:   network,
 	})
-
-	s.addConn(Endpoint{
-		Instance:  instance,
-		Interface: iface.Value.GetAfpacket().HostIfName,
+	s.addConn("host-to-afpacket", Endpoint{
+		instance:  instance,
+		Interface: hostIface.Value.GetName(),
 		Network:   network,
 	}, Endpoint{
-		Instance:  instance,
+		instance:  instance,
 		Interface: iface.Value.Name,
+	})
+}
+
+func (s *scanCtx) correlateVeth(instance *vpp.Instance, ifaceIdx int) {
+	iface := instance.Agent().Config.Linux.Interfaces[ifaceIdx]
+
+	veth2 := instance.Agent().Config.GetLinuxInterface(iface.Value.GetVeth().PeerIfName)
+	if veth2 == nil {
+		logrus.Warnf("could not find peer veth for: %v", iface)
+		return
+	}
+
+	network := Network{
+		Linux:     true,
+		Namespace: iface.Value.GetNamespace().GetReference(),
+	}
+	network2 := Network{
+		Linux:     true,
+		Namespace: veth2.Value.GetNamespace().GetReference(),
+	}
+
+	s.addConn("veth-pair", Endpoint{
+		instance:  instance,
+		Interface: iface.Value.GetName(),
+		Network:   network,
+	}, Endpoint{
+		instance:  instance,
+		Interface: veth2.Value.GetName(),
+		Network:   network2,
 	})
 }
 
@@ -213,45 +267,19 @@ func (s *scanCtx) correlateVxlanTunnel(instance *vpp.Instance, ifaceIdx int) {
 			if vxlan.GetVni() != vxlan2.GetVni() {
 				continue
 			}
-			if srcAddr != vxlan2.GetDstAddress() ||
-				dstAddr != vxlan2.GetSrcAddress() {
+			if srcAddr != vxlan2.GetDstAddress() || dstAddr != vxlan2.GetSrcAddress() {
 				continue
 			}
 
-			s.addConn(Endpoint{
-				Instance:  instance,
+			s.addConn("vxlan-tun", Endpoint{
+				instance:  instance,
 				Interface: iface.Value.Name,
 			}, Endpoint{
-				Instance:  instance2,
+				instance:  instance2,
 				Interface: iface2.Value.Name,
 			})
 		}
 	}
-}
-
-func (s *scanCtx) correlateVeth(instance *vpp.Instance, ifaceIdx int) {
-	iface := instance.Agent().Config.Linux.Interfaces[ifaceIdx]
-
-	veth2 := instance.Agent().Config.GetLinuxInterface(iface.Value.GetVeth().PeerIfName)
-	if veth2 == nil {
-		logrus.Warnf("could not find peer veth for: %v", iface)
-		return
-	}
-
-	network := Network{
-		Linux:     true,
-		Namespace: iface.Value.GetNamespace().GetReference(),
-	}
-
-	s.addConn(Endpoint{
-		Instance:  instance,
-		Interface: iface.Value.Name,
-		Network:   network,
-	}, Endpoint{
-		Instance:  instance,
-		Interface: veth2.Value.Name,
-		Network:   network,
-	})
 }
 
 func (s *scanCtx) correlateTapToVPP(instance *vpp.Instance, ifaceIdx int) {
@@ -268,19 +296,19 @@ func (s *scanCtx) correlateTapToVPP(instance *vpp.Instance, ifaceIdx int) {
 		Namespace: iface.Value.GetNamespace().GetReference(),
 	}
 
-	s.addConn(Endpoint{
-		Instance:  instance,
+	s.addConn("host-to-tap", Endpoint{
+		instance:  instance,
 		Interface: iface.Value.Name,
 		Network:   network,
 	}, Endpoint{
-		Instance:  instance,
+		instance:  instance,
 		Interface: tap2.Value.GetName(),
 	})
-	s.addConn(Endpoint{
-		Instance:  instance,
+	s.addConn("tap-to-host", Endpoint{
+		instance:  instance,
 		Interface: tap2.Value.GetName(),
 	}, Endpoint{
-		Instance:  instance,
+		instance:  instance,
 		Interface: iface.Value.Name,
 		Network:   network,
 	})
