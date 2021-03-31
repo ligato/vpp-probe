@@ -32,15 +32,48 @@ type Instance struct {
 	status *APIStatus
 	info   api.VersionInfo
 }
+type dummyHabndler struct {
+	id       string
+	metadata map[string]string
+}
+
+func (d *dummyHabndler) Command(cmd string, args ...string) exec.Cmd {
+	panic("dummy handler")
+}
+
+func (d *dummyHabndler) GetCLI() (probe.CliExecutor, error) {
+	panic("dummy handler")
+}
+
+func (d *dummyHabndler) GetAPI() (govppapi.Channel, error) {
+	panic("dummy handler")
+}
+
+func (d *dummyHabndler) GetStats() (govppapi.StatsProvider, error) {
+	panic("dummy handler")
+}
+
+func (d *dummyHabndler) ID() string {
+	return d.id
+}
+
+func (d *dummyHabndler) Metadata() map[string]string {
+	return d.metadata
+}
+
+func (d *dummyHabndler) Close() error {
+	return nil
+}
+
+type instanceData struct {
+	ID       string
+	Metadata map[string]string
+	Info     api.VersionInfo
+	Status   *APIStatus
+	Agent    *agent.Instance
+}
 
 func (v *Instance) MarshalJSON() ([]byte, error) {
-	type instanceData struct {
-		ID       string
-		Metadata map[string]string
-		Info     api.VersionInfo
-		Status   *APIStatus
-		Agent    *agent.Instance
-	}
 	instance := instanceData{
 		ID:       v.handler.ID(),
 		Metadata: v.handler.Metadata(),
@@ -49,6 +82,21 @@ func (v *Instance) MarshalJSON() ([]byte, error) {
 		Status:   v.status,
 	}
 	return json.Marshal(instance)
+}
+
+func (v *Instance) UnmarshalJSON(data []byte) error {
+	var instance instanceData
+	if err := json.Unmarshal(data, &instance); err != nil {
+		return err
+	}
+	v.handler = &dummyHabndler{
+		id:       instance.ID,
+		metadata: instance.Metadata,
+	}
+	v.info = instance.Info
+	v.agent = instance.Agent
+	v.status = instance.Status
+	return nil
 }
 
 // NewInstance tries to initialize probe and returns a new Instance on success.

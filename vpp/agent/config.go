@@ -126,6 +126,28 @@ func (v ValueOrigin) MarshalJSON() ([]byte, error) {
 	return json.Marshal(api.ValueOrigin(v).String())
 }
 
+func (v *ValueOrigin) UnmarshalJSON(data []byte) error {
+	var vo api.ValueOrigin
+	err := json.Unmarshal(data, &vo)
+	if err == nil {
+		*v = ValueOrigin(vo)
+		return nil
+	}
+	var origin string
+	if err := json.Unmarshal(data, &origin); err != nil {
+		return err
+	}
+	switch origin {
+	case api.FromNB.String():
+		*v = ValueOrigin(api.FromNB)
+	case api.FromSB.String():
+		*v = ValueOrigin(api.FromSB)
+	default:
+		*v = ValueOrigin(api.UnknownOrigin)
+	}
+	return nil
+}
+
 func RetrieveConfig(handler probe.Handler) (*Config, error) {
 	return retrieveConfigView(handler, false)
 }
