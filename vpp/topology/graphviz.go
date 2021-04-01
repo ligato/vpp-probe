@@ -7,13 +7,21 @@ import (
 
 	"github.com/segmentio/textio"
 	"go.ligato.io/vpp-probe/vpp"
-	"go.ligato.io/vpp-probe/vpp/agent"
+)
+
+const (
+	graphBgColor        = "LightGray"
+	clusterBgColor      = "Snow"
+	hostBgColor         = "OldLace"
+	vppBgColor          = "LightCyan"
+	vppIfaceFillColor   = "LightBlue"
+	linuxIfaceFillColor = "Khaki"
 )
 
 func PrintTopologyDot(w io.Writer, instances []*vpp.Instance, info *Info) error {
-	fprintSection(w, "digraph G", func(writer io.Writer) {
+	fprintSection(w, "digraph G", func(w io.Writer) {
 		fmt.Fprintf(w, "rankdir=%s;\n", "LR")
-		fmt.Fprintf(w, "bgcolor=%s;\n", "WhiteSmoke")
+		fmt.Fprintf(w, "bgcolor=%s;\n", graphBgColor)
 
 		var cluster string
 		for _, instance := range instances {
@@ -28,7 +36,7 @@ func PrintTopologyDot(w io.Writer, instances []*vpp.Instance, info *Info) error 
 				fmt.Fprintf(w, "subgraph \"cluster_%s\" {\n", c)
 				label := fmt.Sprintf("%v [cluster]", c)
 				fmt.Fprintf(w, "label=%q;\n", label)
-				fmt.Fprintf(w, "bgcolor=%s;\n", "OldLace")
+				fmt.Fprintf(w, "bgcolor=%s;\n", clusterBgColor)
 				cluster = c
 			}
 
@@ -40,7 +48,7 @@ func PrintTopologyDot(w io.Writer, instances []*vpp.Instance, info *Info) error 
 
 				label := fmt.Sprintf("%v [host]", instance.String())
 				fmt.Fprintf(w, "label=%q;\n", label)
-				fmt.Fprintf(w, "bgcolor=%s;\n", "LightYellow")
+				fmt.Fprintf(w, "bgcolor=%s;\n", hostBgColor)
 				fmt.Fprintln(w, `node [style="solid,filled"];`)
 
 				// VPP instance
@@ -51,7 +59,7 @@ func PrintTopologyDot(w io.Writer, instances []*vpp.Instance, info *Info) error 
 
 					fmt.Fprintln(w, `label="VPP";`)
 					fmt.Fprintf(w, "style=%s;\n", "solid")
-					fmt.Fprintf(w, "bgcolor=%s;\n", "LightCyan")
+					fmt.Fprintf(w, "bgcolor=%s;\n", vppBgColor)
 					fmt.Fprintln(w)
 					fmt.Fprintln(w, `node [style="solid,filled",fillcolor="lightblue"];`)
 
@@ -60,12 +68,12 @@ func PrintTopologyDot(w io.Writer, instances []*vpp.Instance, info *Info) error 
 						if iface.Index() == 0 {
 							continue
 						}
-						id := fmt.Sprintf("%v_%v", instance, iface.Value.GetName())
+						id := fmt.Sprintf("%v_%v", instance.ID(), iface.Value.GetName())
 						label := fmt.Sprintf("%v\n(%s)", iface.Value.GetName(), iface.Metadata["InternalName"])
 						if ips := iface.Value.GetIpAddresses(); len(ips) > 0 {
 							label += fmt.Sprintf("\n%s", strings.Join(ips, "\n"))
 						}
-						fillcolor := "LightSteelBlue"
+						fillcolor := vppIfaceFillColor
 						fmt.Fprintf(w, "%q [label=%q,fillcolor=%s];\n", id, label, fillcolor)
 					}
 				}
@@ -82,8 +90,8 @@ func PrintTopologyDot(w io.Writer, instances []*vpp.Instance, info *Info) error 
 						name += fmt.Sprintf("-NS-%s", iface.Value.GetNamespace().GetReference())
 						label += fmt.Sprintf("\nNS: %s", iface.Value.GetNamespace().GetReference())
 					}
-					id := fmt.Sprintf("%v_%v", instance, name)
-					fillcolor := "Tortoise"
+					id := fmt.Sprintf("%v_%v", instance.ID(), name)
+					fillcolor := linuxIfaceFillColor
 					fmt.Fprintf(w, "%q [label=%q,style=%q,fillcolor=%q];\n", id, label, "solid,filled", fillcolor)
 				}
 			}
@@ -98,10 +106,10 @@ func PrintTopologyDot(w io.Writer, instances []*vpp.Instance, info *Info) error 
 		for _, c := range info.Connections {
 			src := c.Source.Interface
 			dst := c.Destination.Interface
-			if c.Source.Linux {
+			if c.Source.Type == LinuxNetwork {
 				src = fmt.Sprintf("LINUX-%s", src)
 			}
-			if c.Destination.Linux {
+			if c.Destination.Type == LinuxNetwork {
 				dst = fmt.Sprintf("LINUX-%s", dst)
 			}
 			if c.Source.Namespace != "" {
@@ -110,27 +118,20 @@ func PrintTopologyDot(w io.Writer, instances []*vpp.Instance, info *Info) error 
 			if c.Destination.Namespace != "" {
 				dst += fmt.Sprintf("-NS-%s", c.Destination.Namespace)
 			}
-			src = fmt.Sprintf("%v_%v", c.Source.instance, src)
-			dst = fmt.Sprintf("%v_%v", c.Destination.instance, dst)
+			src = fmt.Sprintf("%v_%v", c.Source.Instance, src)
+			dst = fmt.Sprintf("%v_%v", c.Destination.Instance, dst)
 			label := c.Metadata["type"]
+			color := "black"
+			if strings.Contains(c.Metadata["state"], "down") {
+				color = "orangered"
+			}
 
-			fmt.Fprintf(w, "%q -> %q [label=%q];\n", src, dst, label)
+			fmt.Fprintf(w, "%q -> %q [color=%q,label=%q];\n", src, dst, color, label)
 		}
 
 	})
 
 	return nil
-}
-
-func linuxInterfaceNode(instance *vpp.Instance, iface *agent.LinuxInterface) (id, label string) {
-	label = fmt.Sprintf("%v (%s)", iface.Value.GetName(), iface.Value.HostIfName)
-	name := fmt.Sprintf("LINUX-%v", iface.Value.GetName())
-	if iface.Value.GetNamespace().GetReference() != "" {
-		name += fmt.Sprintf("-NS-%s", iface.Value.GetNamespace().GetReference())
-		label += fmt.Sprintf("\nNS: %s", iface.Value.GetNamespace().GetReference())
-	}
-	id = fmt.Sprintf("%v_%v", instance, name)
-	return id, label
 }
 
 func fprintSection(w io.Writer, section string, fn func(io.Writer)) {

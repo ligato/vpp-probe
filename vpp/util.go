@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 
+	govppapi "git.fd.io/govpp.git/api"
 	"github.com/goccy/go-yaml"
 	"github.com/k0kubun/pp"
+	"go.ligato.io/vpp-probe/pkg/exec"
+	"go.ligato.io/vpp-probe/probe"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -66,4 +69,37 @@ func jsonToYaml(j []byte) ([]byte, error) {
 		return nil, err
 	}
 	return yaml.Marshal(jsonObj)
+}
+
+type dummyHandler struct {
+	id       string
+	metadata map[string]string
+}
+
+func (d *dummyHandler) Command(cmd string, args ...string) exec.Cmd {
+	panic("dummy handler")
+}
+
+func (d *dummyHandler) GetCLI() (probe.CliExecutor, error) {
+	panic("dummy handler")
+}
+
+func (d *dummyHandler) GetAPI() (govppapi.Channel, error) {
+	panic("dummy handler")
+}
+
+func (d *dummyHandler) GetStats() (govppapi.StatsProvider, error) {
+	panic("dummy handler")
+}
+
+func (d *dummyHandler) ID() string {
+	return d.id
+}
+
+func (d *dummyHandler) Metadata() map[string]string {
+	return d.metadata
+}
+
+func (d *dummyHandler) Close() error {
+	return nil
 }

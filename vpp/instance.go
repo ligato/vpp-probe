@@ -32,37 +32,14 @@ type Instance struct {
 	status *APIStatus
 	info   api.VersionInfo
 }
-type dummyHabndler struct {
-	id       string
-	metadata map[string]string
-}
 
-func (d *dummyHabndler) Command(cmd string, args ...string) exec.Cmd {
-	panic("dummy handler")
-}
-
-func (d *dummyHabndler) GetCLI() (probe.CliExecutor, error) {
-	panic("dummy handler")
-}
-
-func (d *dummyHabndler) GetAPI() (govppapi.Channel, error) {
-	panic("dummy handler")
-}
-
-func (d *dummyHabndler) GetStats() (govppapi.StatsProvider, error) {
-	panic("dummy handler")
-}
-
-func (d *dummyHabndler) ID() string {
-	return d.id
-}
-
-func (d *dummyHabndler) Metadata() map[string]string {
-	return d.metadata
-}
-
-func (d *dummyHabndler) Close() error {
-	return nil
+// NewInstance tries to initialize probe and returns a new Instance on success.
+func NewInstance(probe probe.Handler) (*Instance, error) {
+	h := &Instance{
+		handler: probe,
+		status:  &APIStatus{},
+	}
+	return h, h.Init()
 }
 
 type instanceData struct {
@@ -89,7 +66,7 @@ func (v *Instance) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &instance); err != nil {
 		return err
 	}
-	v.handler = &dummyHabndler{
+	v.handler = &dummyHandler{
 		id:       instance.ID,
 		metadata: instance.Metadata,
 	}
@@ -99,21 +76,12 @@ func (v *Instance) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// NewInstance tries to initialize probe and returns a new Instance on success.
-func NewInstance(probe probe.Handler) (*Instance, error) {
-	h := &Instance{
-		handler: probe,
-		status:  &APIStatus{},
-	}
-	return h, h.Init()
-}
-
 func (v Instance) String() string {
 	return v.handler.Metadata()["name"]
 }
 
 func (v *Instance) ID() string {
-	return fmt.Sprintf("vpp::%s", v.handler.ID())
+	return fmt.Sprintf("instance::%s", v.handler.ID())
 }
 
 func (v *Instance) Status() *APIStatus {
