@@ -12,6 +12,10 @@ import (
 )
 
 func TestDotOutput(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipped short test")
+	}
+
 	b, err := ioutil.ReadFile("/home/ondrej/probe-discover-cluster.json")
 	if err != nil {
 		t.Fatal(err)
