@@ -11,6 +11,13 @@ import (
 	"go.ligato.io/vpp-probe/vpp"
 )
 
+const topologyExample = `  # Print correlated connections from two clusters defined in kubeconfig files
+  vpp-probe --kubeconfig="/path/to/kubeconfig1,/path/to/kubeconfig2" topology
+
+  # Discover VPP instances in Docker containers
+  vpp-probe --kubeconfig="/path/to/kubeconfig1,/path/to/kubeconfig2" topology -f dot
+`
+
 func NewTopologyCmd(cli Cli) *cobra.Command {
 	var (
 		opts TopologyOptions
@@ -28,7 +35,7 @@ func NewTopologyCmd(cli Cli) *cobra.Command {
 			}
 			return RunTopology(cli, opts)
 		},
-		Example: discoverExample,
+		Example: topologyExample,
 	}
 	flags := cmd.Flags()
 	flags.StringVarP(&opts.Format, "format", "f", "", "Output format (json, yaml, go-template..)")
@@ -87,9 +94,11 @@ func printTopologyTable(w io.Writer, instances []*vpp.Instance, info *topology.I
 		fmt.Fprintf(w, " - %v\n", instance)
 	}
 
-	fmt.Fprintln(w, "Networks")
-	for _, network := range info.Networks {
-		fmt.Fprintf(w, " * %+v", network)
+	if len(info.Networks) > 0 {
+		fmt.Fprintln(w, "Networks")
+		for _, network := range info.Networks {
+			fmt.Fprintf(w, " * %+v", network)
+		}
 	}
 
 	fmt.Fprintln(w, "Connections")
