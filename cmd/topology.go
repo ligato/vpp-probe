@@ -14,8 +14,12 @@ import (
 const topologyExample = `  # Print correlated connections from two clusters defined in kubeconfig files
   vpp-probe --kubeconfig="/path/to/kubeconfig1,/path/to/kubeconfig2" topology
 
-  # Discover VPP instances in Docker containers
+  # Print correlated connections using Graphviz format
   vpp-probe --kubeconfig="/path/to/kubeconfig1,/path/to/kubeconfig2" topology -f dot
+
+  # Render correlated connections to image
+  vpp-probe --kubeconfig="/path/to/kubeconfig1,/path/to/kubeconfig2" topology -f dot | dot -Tpng -o graph.png
+  NOTE: Graphviz must be installed (apt install graphviz)
 `
 
 func NewTopologyCmd(cli Cli) *cobra.Command {
