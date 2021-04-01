@@ -10,18 +10,20 @@ import (
 )
 
 const (
-	graphBgColor        = "LightGray"
-	clusterBgColor      = "Snow"
-	hostBgColor         = "OldLace"
-	vppBgColor          = "LightCyan"
-	vppIfaceFillColor   = "LightBlue"
-	linuxIfaceFillColor = "Khaki"
+	graphBgColor          = "LightGray"
+	clusterBgColor        = "Snow"
+	hostBgColor           = "OldLace"
+	vppBgColor            = "LightCyan"
+	vppIfaceFillColor     = "LightBlue"
+	linuxIfaceFillColor   = "Khaki"
+	vppIfaceFillColorDown = "Salmon"
 )
 
 func PrintTopologyDot(w io.Writer, instances []*vpp.Instance, info *Info) error {
 	fprintSection(w, "digraph G", func(w io.Writer) {
 		fmt.Fprintf(w, "rankdir=%s;\n", "LR")
 		fmt.Fprintf(w, "bgcolor=%s;\n", graphBgColor)
+		//fmt.Fprintf(w, "newrank=%s;\n", "false")
 
 		var cluster string
 		for _, instance := range instances {
@@ -74,6 +76,9 @@ func PrintTopologyDot(w io.Writer, instances []*vpp.Instance, info *Info) error 
 							label += fmt.Sprintf("\n%s", strings.Join(ips, "\n"))
 						}
 						fillcolor := vppIfaceFillColor
+						if strings.Contains(getVppIfaceState(&iface), "down") {
+							fillcolor = vppIfaceFillColorDown
+						}
 						fmt.Fprintf(w, "%q [label=%q,fillcolor=%s];\n", id, label, fillcolor)
 					}
 				}

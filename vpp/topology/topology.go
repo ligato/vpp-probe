@@ -42,8 +42,17 @@ func newLinuxNetwork(instance *vpp.Instance, namespace string) Network {
 
 // Endpoint defines a communication endpoint in a network.
 type Endpoint struct {
-	Interface string
 	Network
+	Interface string
+	Metadata  map[string]string
+}
+
+func (e *Endpoint) addMetadata(key, value string) *Endpoint {
+	if e.Metadata == nil {
+		e.Metadata = map[string]string{}
+	}
+	e.Metadata[key] = value
+	return e
 }
 
 // Connection defines a connection between two endpoints.

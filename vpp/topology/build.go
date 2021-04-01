@@ -75,6 +75,12 @@ func (s *buildCtx) correlateMemif(instance *vpp.Instance, ifaceIdx int) {
 	iface := instance.Agent().Config.VPP.Interfaces[ifaceIdx]
 	memif1 := iface.Value.GetMemif()
 
+	memifEndpoint := &Endpoint{
+		Network:   newVppNetwork(instance),
+		Interface: iface.Value.GetName(),
+	}
+	memifEndpoint.addMetadata("state", getVppIfaceState(&iface))
+
 	log := logrus.WithFields(map[string]interface{}{
 		"instance": instance.ID(),
 		"ifaceIdx": ifaceIdx,
@@ -82,6 +88,7 @@ func (s *buildCtx) correlateMemif(instance *vpp.Instance, ifaceIdx int) {
 	})
 	log.Debugf("correlating memif interface: %v", memif1)
 
+	var conns []*Connection
 	for _, instance2 := range s.instances {
 		vppNetwork2 := newVppNetwork(instance2)
 		for i, iface2 := range instance2.Agent().Config.VPP.Interfaces {
@@ -105,14 +112,19 @@ func (s *buildCtx) correlateMemif(instance *vpp.Instance, ifaceIdx int) {
 
 			log.Debugf("found matching memif interface on instance %v: %+v", instance2, memif2)
 
-			s.addConn("memif-sock", Endpoint{
-				Network:   newVppNetwork(instance),
-				Interface: iface.Value.GetName(),
-			}, Endpoint{
+			conn := s.addConn("memif-sock", *memifEndpoint, Endpoint{
 				Network:   vppNetwork2,
 				Interface: iface2.Value.GetName(),
-			}).addMetadata("state", getVppIfaceState(&iface))
+			})
+
+			conns = append(conns, conn)
 		}
+	}
+
+	if len(conns) == 0 {
+		s.addConn("memif-sock", *memifEndpoint, Endpoint{
+			Interface: memif1.GetSocketFilename(),
+		}).addMetadata("state", "down")
 	}
 }
 
@@ -150,9 +162,7 @@ func (s *buildCtx) correlateAfPacket(instance *vpp.Instance, ifaceIdx int) {
 		Interface: hostIface.Value.GetName(),
 	}
 
-	s.addConn("afpacket-to-host", afPacketEndpoint, vethEndpoint).
-		addMetadata("state", getVppIfaceState(&iface))
-
+	s.addConn("afpacket-to-host", afPacketEndpoint, vethEndpoint)
 	s.addConn("host-to-afpacket", vethEndpoint, afPacketEndpoint)
 }
 
@@ -206,7 +216,7 @@ func (s *buildCtx) correlateVxlanTunnel(instance *vpp.Instance, ifaceIdx int) {
 			}, Endpoint{
 				Network:   newVppNetwork(instance2),
 				Interface: iface2.Value.Name,
-			}).addMetadata("state", getVppIfaceState(&iface))
+			})
 		}
 	}
 }
@@ -258,7 +268,7 @@ func (s *buildCtx) correlateTapToHost(instance *vpp.Instance, ifaceIdx int) {
 	}, Endpoint{
 		Network:   network,
 		Interface: iface.Value.GetName(),
-	}).addMetadata("state", getVppIfaceState(&iface))
+	})
 }
 
 func (s *buildCtx) correlateL2xconnects(instance *vpp.Instance) {
