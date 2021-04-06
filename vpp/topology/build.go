@@ -1,6 +1,8 @@
 package topology
 
 import (
+	"fmt"
+
 	"github.com/sirupsen/logrus"
 	linux_interfaces "go.ligato.io/vpp-agent/v3/proto/ligato/linux/interfaces"
 	vpp_interfaces "go.ligato.io/vpp-agent/v3/proto/ligato/vpp/interfaces"
@@ -68,6 +70,12 @@ func newBuildCtx(instances []*vpp.Instance) *buildCtx {
 }
 
 func (s *buildCtx) addConn(typ string, src, dst Endpoint) *Connection {
+	if src.Kind == UnknownEndpointType {
+		src.Kind = InterfaceEndpoint
+	}
+	if dst.Kind == UnknownEndpointType {
+		dst.Kind = InterfaceEndpoint
+	}
 	conn := &Connection{
 		Source:      src,
 		Destination: dst,
@@ -90,7 +98,7 @@ func (s *buildCtx) correlateMemif(instance *vpp.Instance, ifaceIdx int) {
 	})
 	log.Debugf("correlating memif interface: %v", memif1)
 
-	memifEndpoint := &Endpoint{
+	memifEndpoint := Endpoint{
 		Network:   newVppNetwork(instance),
 		Interface: iface.Value.GetName(),
 	}
@@ -121,7 +129,7 @@ func (s *buildCtx) correlateMemif(instance *vpp.Instance, ifaceIdx int) {
 
 			log.Debugf("found matching memif interface on instance %v: %+v", instance2, memif2)
 
-			conn := s.addConn("memif-sock", *memifEndpoint, Endpoint{
+			conn := s.addConn("memif-sock", memifEndpoint, Endpoint{
 				Network:   vppNetwork2,
 				Interface: iface2.Value.GetName(),
 			})
@@ -131,9 +139,12 @@ func (s *buildCtx) correlateMemif(instance *vpp.Instance, ifaceIdx int) {
 	}
 
 	if len(conns) == 0 {
-		s.addConn("memif-sock", *memifEndpoint, Endpoint{
-			Interface: memif1.GetSocketFilename(),
-		}).addMetadata("state", "down")
+		inode := fmt.Sprint(iface.Metadata["inode"])
+		s.addConn("memif-sock", memifEndpoint, Endpoint{
+			Interface: fmt.Sprintf("inode %v", inode),
+			Kind:      FileEndpoint,
+		}).addMetadata("state", "down").
+			addMetadata("label", memif1.GetSocketFilename())
 	}
 }
 
@@ -266,7 +277,7 @@ func (s *buildCtx) correlateTapToVPP(instance *vpp.Instance, ifaceIdx int) {
 
 	s.addConn("host-to-tap", Endpoint{
 		Network:   newLinuxNetwork(instance, iface.Value.GetNamespace().GetReference()),
-		Interface: iface.Value.Name,
+		Interface: iface.Value.GetName(),
 	}, Endpoint{
 		Network:   newVppNetwork(instance),
 		Interface: iface2.Value.GetName(),
@@ -306,7 +317,7 @@ func (s *buildCtx) correlateTapToHost(instance *vpp.Instance, ifaceIdx int) {
 		Interface: iface.Value.GetName(),
 	}, Endpoint{
 		Network:   newLinuxNetwork(instance, hostIface.Value.GetNamespace().GetReference()),
-		Interface: iface.Value.GetName(),
+		Interface: hostIface.Value.GetName(),
 	})
 }
 

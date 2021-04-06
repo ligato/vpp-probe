@@ -14,9 +14,9 @@ type Info struct {
 type NetworkType string
 
 const (
-	UnknownNetwork NetworkType = ""
-	VppNetwork                 = "vpp"
-	LinuxNetwork               = "linux"
+	UnknownNetworkType NetworkType = ""
+	VppNetwork                     = "vpp"
+	LinuxNetwork                   = "linux"
 )
 
 type Network struct {
@@ -40,10 +40,19 @@ func newLinuxNetwork(instance *vpp.Instance, namespace string) Network {
 	}
 }
 
+type EndpointType string
+
+const (
+	UnknownEndpointType EndpointType = ""
+	InterfaceEndpoint                = "interface"
+	FileEndpoint                     = "file"
+)
+
 // Endpoint defines a communication endpoint in a network.
 type Endpoint struct {
 	Network
 	Interface string
+	Kind      EndpointType
 	Metadata  map[string]string
 }
 

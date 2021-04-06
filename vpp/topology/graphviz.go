@@ -126,6 +126,9 @@ func PrintTopologyDot(w io.Writer, instances []*vpp.Instance, info *Info) error 
 			src = fmt.Sprintf("%v_%v", c.Source.Instance, src)
 			dst = fmt.Sprintf("%v_%v", c.Destination.Instance, dst)
 			label := c.Metadata["type"]
+			if c.Metadata["label"] != "" {
+				label = c.Metadata["label"]
+			}
 			color := "black"
 			if strings.Contains(c.Metadata["state"], "down") {
 				color = "orangered"
