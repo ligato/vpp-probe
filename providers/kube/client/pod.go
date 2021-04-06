@@ -25,6 +25,7 @@ type Pod struct {
 	Created   time.Time
 	URL       string
 	Image     string
+	ImageID   string
 
 	pod    *corev1.Pod
 	client *Client
@@ -42,6 +43,7 @@ func newPod(client *Client, pod *corev1.Pod) *Pod {
 		Created:   pod.GetCreationTimestamp().Time,
 		URL:       pod.GetSelfLink(),
 		Image:     getPodFirstContainer(pod).Image,
+		ImageID:   getPodFirstContainerStatus(pod).ImageID,
 		pod:       pod,
 		client:    client,
 	}
@@ -81,6 +83,13 @@ func getPodFirstContainer(pod *corev1.Pod) corev1.Container {
 		return corev1.Container{}
 	}
 	return pod.Spec.Containers[0]
+}
+
+func getPodFirstContainerStatus(pod *corev1.Pod) corev1.ContainerStatus {
+	if len(pod.Status.ContainerStatuses) == 0 {
+		return corev1.ContainerStatus{}
+	}
+	return pod.Status.ContainerStatuses[0]
 }
 
 // ExecContainer executes a command in a container of the pod.
