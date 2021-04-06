@@ -30,33 +30,53 @@ type Client struct {
 	ch   govppapi.Channel
 }
 
-func GetVersionInfo(conn govppapi.Connection) (*api.VersionInfo, error) {
+func GetVersionInfo(conn govppapi.Connection) (*api.BuildInfo, error) {
 	version, err := GetVersion(conn)
 	if err != nil {
 		return nil, err
 	}
-	pid, err := GetPID(conn)
-	if err != nil {
-		return nil, err
-	}
-	return &api.VersionInfo{
+	return &api.BuildInfo{
 		Version: version,
-		Pid:     pid,
 	}, nil
 }
 
-func GetVersionInfoChan(ch govppapi.Channel) (*api.VersionInfo, error) {
+func GetVersionInfoChan(ch govppapi.Channel) (*api.BuildInfo, error) {
 	version, err := GetVersionChan(ch)
 	if err != nil {
 		return nil, err
 	}
+	return &api.BuildInfo{
+		Version: version,
+	}, nil
+}
+
+func GetSystemInfo(conn govppapi.Connection) (*api.SystemInfo, error) {
+	pid, err := GetPID(conn)
+	if err != nil {
+		return nil, err
+	}
+	uptime, err := GetSystemTime(conn)
+	if err != nil {
+		return nil, err
+	}
+	return &api.SystemInfo{
+		Pid:    pid,
+		Uptime: uptime,
+	}, nil
+}
+
+func GetSystemInfoChan(ch govppapi.Channel) (*api.SystemInfo, error) {
 	pid, err := GetPIDChan(ch)
 	if err != nil {
 		return nil, err
 	}
-	return &api.VersionInfo{
-		Version: version,
-		Pid:     pid,
+	uptime, err := GetSystemTimeChan(ch)
+	if err != nil {
+		return nil, err
+	}
+	return &api.SystemInfo{
+		Pid:    pid,
+		Uptime: uptime,
 	}, nil
 }
 
@@ -80,6 +100,31 @@ func GetVersionChan(ch govppapi.Channel) (string, error) {
 	}
 
 	return reply.Version, nil
+}
+
+type ShowVersionData struct {
+	Program        string
+	Version        string
+	BuildDate      string
+	BuildDirectory string
+}
+
+func ShowVersion(ch govppapi.Channel) (*ShowVersionData, error) {
+	reply := &vpe.ShowVersionReply{}
+
+	err := ch.SendRequest(&vpe.ShowVersion{}).ReceiveReply(reply)
+	if err != nil {
+		return nil, err
+	}
+
+	data := ShowVersionData{
+		Program:        reply.Program,
+		Version:        reply.Version,
+		BuildDate:      reply.BuildDate,
+		BuildDirectory: reply.BuildDirectory,
+	}
+
+	return &data, nil
 }
 
 func GetPID(conn govppapi.Connection) (int, error) {

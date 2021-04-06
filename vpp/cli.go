@@ -14,8 +14,13 @@ import (
 )
 
 var (
-	cliShowVersionVerbose    = regexp.MustCompile(`Version:\s+(\S+)`)
-	cliShowVersionVerbosePID = regexp.MustCompile(`PID:\s+([0-9]+)`)
+	cliShowVersionVerbose                = regexp.MustCompile(`Version:\s+(\S+)`)
+	cliShowVersionVerboseCompiledBy      = regexp.MustCompile(`Compiled by:\s+(\S+)`)
+	cliShowVersionVerboseCompileHost     = regexp.MustCompile(`Compile host:\s+(\S+)`)
+	cliShowVersionVerboseCompileDate     = regexp.MustCompile(`Compile date:\s+(\S+)`)
+	cliShowVersionVerboseCompileLocation = regexp.MustCompile(`Compile location:\s+(\S+)`)
+	cliShowVersionVerboseCompiler        = regexp.MustCompile(`Compiler:\s+(\S+)`)
+	cliShowVersionVerbosePID             = regexp.MustCompile(`PID:\s+([0-9]+)`)
 )
 
 // vpp# show version verbose
@@ -27,25 +32,86 @@ var (
 // Compiler:                 Clang/LLVM 9.0.0 (tags/RELEASE_900/final)
 // Current PID:              170
 
-func GetVersionInfoCLI(cli probe.CliExecutor) (*api.VersionInfo, error) {
+/*func GetVersionInfoCLI(cli probe.CliExecutor) (*api.BuildInfo, error) {
 	out, err := cli.RunCli("show version verbose")
 	if err != nil {
 		return nil, err
 	}
 
-	info := &api.VersionInfo{}
+	info := &api.BuildInfo{}
 
 	matchVersion := cliShowVersionVerbose.FindStringSubmatch(out)
 	if len(matchVersion) > 1 {
 		info.Version = matchVersion[1]
 	}
 
-	matchPid := cliShowVersionVerbosePID.FindStringSubmatch(out)
-	if len(matchPid) > 1 {
-		info.Pid, _ = strconv.Atoi(matchPid[1])
+	return info, nil
+}*/
+
+type VersionVerboseData struct {
+	Version         string
+	CompiledBy      string
+	CompileHost     string
+	CompileDate     string
+	CompileLocation string
+	Compiler        string
+	CurrentPID      string
+}
+
+func ShowVersionVerboseCLI(cli probe.CliExecutor) (*VersionVerboseData, error) {
+	out, err := cli.RunCli("show version verbose")
+	if err != nil {
+		return nil, err
 	}
 
-	return info, nil
+	data := VersionVerboseData{}
+
+	matchVersion := cliShowVersionVerbose.FindStringSubmatch(out)
+	if len(matchVersion) > 1 {
+		data.Version = matchVersion[1]
+	}
+	matchPid := cliShowVersionVerbosePID.FindStringSubmatch(out)
+	if len(matchPid) > 1 {
+		data.CurrentPID = matchPid[1]
+	}
+	matchCompiledBy := cliShowVersionVerboseCompiledBy.FindStringSubmatch(out)
+	if len(matchCompiledBy) > 1 {
+		data.CompiledBy = matchCompiledBy[1]
+	}
+	matchCompileHost := cliShowVersionVerboseCompileHost.FindStringSubmatch(out)
+	if len(matchCompileHost) > 1 {
+		data.CompiledBy = matchCompileHost[1]
+	}
+	matchCompileDate := cliShowVersionVerboseCompileDate.FindStringSubmatch(out)
+	if len(matchCompileDate) > 1 {
+		data.CompileDate = matchCompileDate[1]
+	}
+	matchCompileLoc := cliShowVersionVerboseCompileLocation.FindStringSubmatch(out)
+	if len(matchCompileLoc) > 1 {
+		data.CompileLocation = matchCompileLoc[1]
+	}
+	matchCompiler := cliShowVersionVerboseCompiler.FindStringSubmatch(out)
+	if len(matchCompiler) > 1 {
+		data.Compiler = matchCompiler[1]
+	}
+
+	return &data, nil
+}
+
+func GetPidCLI(cli probe.CliExecutor) (int, error) {
+	out, err := cli.RunCli("show version verbose")
+	if err != nil {
+		return 0, err
+	}
+
+	var pid int
+
+	matchPid := cliShowVersionVerbosePID.FindStringSubmatch(out)
+	if len(matchPid) > 1 {
+		pid, _ = strconv.Atoi(matchPid[1])
+	}
+
+	return pid, nil
 }
 
 var (

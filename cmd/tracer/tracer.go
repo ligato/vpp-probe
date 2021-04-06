@@ -209,7 +209,7 @@ func SaveTraceData(traceDir string, traced *Traced) (string, error) {
 	fmt.Fprintln(file, "#      Host:", host)
 	fmt.Fprintln(file, "# ----------------------------------------")
 	fmt.Fprintln(file, "#  Instance:", traced.instance.ID())
-	fmt.Fprintln(file, "#   Version:", traced.instance.VersionInfo().Version)
+	fmt.Fprintln(file, "#   Version:", traced.instance.VppInfo().Build.Version)
 	fmt.Fprintln(file, "#   Packets:", len(traced.result.Packets))
 	fmt.Fprintln(file, "# ----------------------------------------")
 	fmt.Fprintln(file)

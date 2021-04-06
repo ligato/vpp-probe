@@ -29,8 +29,8 @@ type Instance struct {
 
 	agent *agent.Instance
 
-	status *APIStatus
-	info   api.VersionInfo
+	status  *APIStatus
+	vppInfo api.VppInfo
 }
 
 // NewInstance tries to initialize probe and returns a new Instance on success.
@@ -45,7 +45,7 @@ func NewInstance(probe probe.Handler) (*Instance, error) {
 type instanceData struct {
 	ID       string
 	Metadata map[string]string
-	Info     api.VersionInfo
+	VppInfo  api.VppInfo
 	Status   *APIStatus
 	Agent    *agent.Instance
 }
@@ -54,7 +54,7 @@ func (v *Instance) MarshalJSON() ([]byte, error) {
 	instance := instanceData{
 		ID:       v.handler.ID(),
 		Metadata: v.handler.Metadata(),
-		Info:     v.info,
+		VppInfo:  v.vppInfo,
 		Agent:    v.agent,
 		Status:   v.status,
 	}
@@ -70,7 +70,7 @@ func (v *Instance) UnmarshalJSON(data []byte) error {
 		id:       instance.ID,
 		metadata: instance.Metadata,
 	}
-	v.info = instance.Info
+	v.vppInfo = instance.VppInfo
 	v.agent = instance.Agent
 	v.status = instance.Status
 	return nil
@@ -96,8 +96,8 @@ func (v *Instance) Agent() *agent.Instance {
 	return v.agent
 }
 
-func (v *Instance) VersionInfo() api.VersionInfo {
-	return v.info
+func (v *Instance) VppInfo() api.VppInfo {
+	return v.vppInfo
 }
 
 func (v *Instance) Init() (err error) {
@@ -112,12 +112,22 @@ func (v *Instance) Init() (err error) {
 		logrus.Debugf("vpp agent not detected")
 	}
 
-	info, err := v.GetVersionInfo()
+	var vppInfo api.VppInfo
+
+	buildInfo, err := v.GetBuildInfo()
 	if err != nil {
 		v.status.LastErr = err
 		return err
 	}
-	v.info = *info
+	vppInfo.Build = *buildInfo
+
+	if sysInfo, err := v.GetSystemInfo(); err != nil {
+		logrus.Debugf("getting system info failed: %v", err)
+	} else {
+		vppInfo.System = *sysInfo
+	}
+
+	v.vppInfo = vppInfo
 
 	return nil
 }
@@ -221,21 +231,21 @@ func (v *Instance) initBinapi() (err error) {
 		logrus.Warnf("binapi.CompatibleVersion error: %v", err)
 	}
 
-	info, err := v.GetVersionInfo()
+	version, err := v.GetVersion()
 	if err != nil {
 		logrus.Warnf("GetVersionInfo error: %v", err)
 	} else {
-		logrus.WithField("instance", v.ID()).Debugf("version info: %+v", info)
+		logrus.WithField("instance", v.ID()).Debugf("version: %q", version)
 
-		for version := range binapi.Versions {
-			ver := string(version)
+		for v := range binapi.Versions {
+			ver := string(v)
 			if len(ver) > 5 {
 				ver = ver[:5]
 			}
-			logrus.Tracef("checking version %v in %q", ver, info.Version)
-			if strings.Contains(info.Version, ver) {
-				vppClient.version = version
-				logrus.Debugf("found version %v in %q", ver, info.Version)
+			logrus.Tracef("checking version %v in %q", ver, version)
+			if strings.Contains(version, ver) {
+				vppClient.version = v
+				logrus.Debugf("found version %v in %q", ver, version)
 				break
 			}
 		}

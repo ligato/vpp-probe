@@ -47,13 +47,13 @@ type VPP struct {
 }
 
 func newVPP(instance *vpp.Instance) *VPP {
-	info := instance.VersionInfo()
+	info := instance.VppInfo()
 	return &VPP{
 		Instance:   instance,
 		ID:         instance.ID(),
 		LastUpdate: time.Now(),
-		Version:    info.Version,
-		Pid:        fmt.Sprint(info.Pid),
+		Version:    info.Build.Version,
+		Pid:        fmt.Sprint(info.System.Pid),
 	}
 }
 

@@ -116,7 +116,7 @@ type VppIPSecSP struct {
 type KVData struct {
 	Key      string
 	Value    json.RawMessage
-	Metadata map[string]interface{}
+	Metadata map[string]interface{} `json:",omitempty"`
 	Origin   ValueOrigin
 }
 

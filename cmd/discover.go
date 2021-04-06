@@ -114,7 +114,8 @@ func printDiscoveredInstance(out io.Writer, instance *vpp.Instance) {
 
 	// Info
 	{
-		fmt.Fprintf(out, "VPP version: %s\n", colorize(noteColor, instance.VersionInfo().Version))
+		vppInfo := instance.VppInfo()
+		fmt.Fprintf(out, "VPP version: %s\n", colorize(noteColor, vppInfo.Build.Version))
 	}
 	fmt.Fprintln(out)
 
