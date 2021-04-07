@@ -72,20 +72,20 @@ func isVppProcess(pid int) bool {
 		return false
 	}
 	const cgroupPids = "pids"
-	cgroup, err := getCgroup(pid, cgroupPids)
+	cgroup, err := getProcessCgroup(pid, cgroupPids)
 	if err != nil {
 		logrus.Debugf("getCgroup failed: %v", err)
 		return false
 	}
-	if cgroup != getCgroupSelf(cgroupPids) && strings.Contains(cgroup, "docker") {
+	if cgroup != getSelfCgroup(cgroupPids) && strings.Contains(cgroup, "docker") {
 		return false
 	}
 	return true
 }
 
-func getCgroup(pid int, typ string) (string, error) {
-	cgroupPath := fmt.Sprintf("/proc/%d/cgroup", pid)
-	cgroup, err := ioutil.ReadFile(cgroupPath)
+func getProcessCgroup(pid int, typ string) (string, error) {
+	path := fmt.Sprintf("/proc/%d/cgroup", pid)
+	cgroup, err := ioutil.ReadFile(path)
 	if err != nil {
 		return "", err
 	}
@@ -100,7 +100,7 @@ func getCgroup(pid int, typ string) (string, error) {
 	return "", fmt.Errorf("cgroup %q not found", typ)
 }
 
-func getCgroupSelf(typ string) string {
-	c, _ := getCgroup(os.Getpid(), typ)
+func getSelfCgroup(typ string) string {
+	c, _ := getProcessCgroup(os.Getpid(), typ)
 	return c
 }

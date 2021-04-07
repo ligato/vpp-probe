@@ -98,7 +98,7 @@ const (
 
 func PrintVPPInterfacesTable(out io.Writer, config *agent.Config) {
 	var buf bytes.Buffer
-	w := tabwriter.NewWriter(&buf, 0, 8, 1, '\t', tabwriter.StripEscape|tabwriter.FilterHTML|tabwriter.DiscardEmptyColumns)
+	w := tabwriter.NewWriter(&buf, 0, 1, 4, ' ', tabwriter.StripEscape|tabwriter.FilterHTML|tabwriter.DiscardEmptyColumns)
 
 	header := []string{
 		"Idx", "Internal", "Interface", "Type", "State", "IP", " MTU", "Config", "Related",
@@ -250,7 +250,7 @@ func PrintCorrelatedIpSec(out io.Writer, correlations *agent.IPSecCorrelations) 
 	}
 	fmt.Fprintln(w, strings.Join(header, "\t"))
 
-	for spi, spList :=  range correlations.SpiOutSrcDestMap {
+	for spi, spList := range correlations.SpiOutSrcDestMap {
 		for _, sp := range spList {
 			inSrcIp := sp.Value.LocalAddrStart
 			inSa := agent.FindIPSecSA(sp.Value.SaIndex, correlations.SrcInstanceMap[inSrcIp].Config.VPP.IPSecSAs)

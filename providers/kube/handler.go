@@ -47,6 +47,7 @@ func (h *PodHandler) Metadata() map[string]string {
 		"ip":        h.pod.IP,
 		"host_ip":   h.pod.HostIP,
 		"image":     h.pod.Image,
+		"image_id":  h.pod.ImageID,
 		"uid":       string(h.pod.UID),
 		"created":   h.pod.Created.Format(time.UnixDate),
 	}

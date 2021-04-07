@@ -5,13 +5,25 @@ import (
 )
 
 type (
-	VersionInfo struct {
-		Version string
-		Pid     int
+	VppInfo struct {
+		Build   BuildInfo
+		System  SystemInfo
+		Plugins []PluginInfo `json:",omitempty"`
+	}
+
+	BuildInfo struct {
+		Version       string
+		BuildUser     string    `json:",omitempty"`
+		BuildHost     string    `json:",omitempty"`
+		BuildDate     time.Time `json:",omitempty"`
+		BuildLocation string    `json:",omitempty"`
+		Compiler      string    `json:",omitempty"`
 	}
 
 	SystemInfo struct {
-		Clock time.Time
+		Pid    int
+		Uptime time.Duration `json:",omitempty"`
+		Clock  time.Time     `json:",omitempty"`
 	}
 
 	PluginInfo struct {

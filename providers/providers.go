@@ -25,3 +25,9 @@ type Provider interface {
 	// of Handler for
 	Query(params ...map[string]string) ([]probe.Handler, error)
 }
+
+type Provider2 interface {
+	Metadata() map[string]string
+	PortFoward(target int) (local int, err error)
+	ListHost()
+}

@@ -3,6 +3,8 @@ package client
 import (
 	"fmt"
 
+	"github.com/mitchellh/go-homedir"
+	"github.com/sirupsen/logrus"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -12,12 +14,22 @@ import (
 func NewConfigWith(kubeconfig string, context string) *Config {
 	flags := genericclioptions.NewConfigFlags(true)
 	if kubeconfig != "" {
+		kubeconfig = expandPath(kubeconfig)
 		flags.KubeConfig = &kubeconfig
 	}
 	if context != "" {
 		flags.Context = &context
 	}
 	return NewConfig(flags)
+}
+
+func expandPath(path string) string {
+	expanded, err := homedir.Expand(path)
+	if err != nil {
+		logrus.Warnf("expanding path %v failed: %v", path, err)
+		return path
+	}
+	return expanded
 }
 
 type Config struct {

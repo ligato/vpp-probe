@@ -9,16 +9,94 @@ import (
 	"go.ligato.io/vpp-probe/vpp/binapi"
 )
 
-func (v *Instance) GetVersionInfo() (*api.VersionInfo, error) {
+const versionCompileDateLayout = "2006-01-02T15:04:05"
+
+func (v *Instance) GetVersion() (string, error) {
 	if v.api != nil {
-		versionInfo, err := binapi.GetVersionInfoChan(v.api)
+		data, err := binapi.ShowVersion(v.api)
 		if err != nil {
-			logrus.Warnf("getting version via API failed: %v", err)
+			logrus.Debugf("getting version via API failed: %v", err)
 		} else {
-			return versionInfo, nil
+			return data.Version, nil
 		}
 	}
-	return GetVersionInfoCLI(v.cli)
+
+	versionData, err := ShowVersionVerboseCLI(v.cli)
+	if err != nil {
+		return "", err
+	}
+
+	return versionData.Version, nil
+}
+
+func (v *Instance) GetBuildInfo() (*api.BuildInfo, error) {
+	if v.api != nil {
+		data, err := binapi.ShowVersion(v.api)
+		if err != nil {
+			logrus.Debugf("getting version via API failed: %v", err)
+		} else {
+			buildDate, _ := time.Parse(versionCompileDateLayout, data.BuildDate)
+			versionInfo := api.BuildInfo{
+				Version:       data.Version,
+				BuildDate:     buildDate,
+				BuildLocation: data.BuildDirectory,
+			}
+			return &versionInfo, nil
+		}
+	}
+
+	versionData, err := ShowVersionVerboseCLI(v.cli)
+	if err != nil {
+		return nil, err
+	}
+
+	buildDate, _ := time.Parse(versionCompileDateLayout, versionData.CompileDate)
+
+	versionInfo := api.BuildInfo{
+		Version:       versionData.Version,
+		BuildUser:     versionData.CompiledBy,
+		BuildHost:     versionData.CompileHost,
+		BuildDate:     buildDate,
+		BuildLocation: versionData.CompileLocation,
+		Compiler:      versionData.Compiler,
+	}
+
+	return &versionInfo, nil
+}
+
+func (v *Instance) GetSystemInfo() (*api.SystemInfo, error) {
+	if v.api != nil {
+		pid, err := binapi.GetPIDChan(v.api)
+		if err != nil {
+			logrus.Debugf("getting pid via API failed: %v", err)
+		} else {
+			sysInfo := api.SystemInfo{
+				Pid:    pid,
+				Uptime: 0,
+				Clock:  time.Time{},
+			}
+			return &sysInfo, nil
+		}
+	}
+
+	pid, err := GetPidCLI(v.cli)
+	if err != nil {
+		return nil, err
+	}
+
+	sysInfo := api.SystemInfo{
+		Pid:    pid,
+		Uptime: 0,
+		Clock:  time.Time{},
+	}
+
+	if uptime, err := GetUptimeCLI(v.cli); err != nil {
+		logrus.Debugf("getting uptime via CLI failed: %v", err)
+	} else {
+		sysInfo.Uptime = uptime
+	}
+
+	return &sysInfo, nil
 }
 
 func (v *Instance) ListInterfaces() ([]*api.Interface, error) {

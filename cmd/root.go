@@ -78,6 +78,7 @@ func NewRootCmd(cli Cli) *cobra.Command {
 	cmd.AddCommand(newVersionCmd())
 	cmd.AddCommand(
 		NewInspectorCmd(cli),
+		NewTopologyCmd(cli),
 		NewDiscoverCmd(cli),
 		NewTraceCmd(cli),
 		NewExecCmd(cli),
@@ -95,6 +96,10 @@ func NewRootCmd(cli Cli) *cobra.Command {
 
 func InitOptions(cli Cli, opts GlobalOptions) {
 	// color mode
+	if opts.Color == "" && os.Getenv("NO_COLOR") != "" {
+		// https://no-color.org/
+		opts.Color = "never"
+	}
 	switch strings.ToLower(opts.Color) {
 	case "auto", "":
 		if !cli.Out().IsTerminal() {
