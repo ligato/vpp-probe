@@ -67,5 +67,5 @@ release:
   ids:
     - vpp-probe-archive
   prerelease: true
-  name_template: "{{.ProjectName}}-{{.Tag}}"
+  name_template: "{{.Tag}}"
 
