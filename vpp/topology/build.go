@@ -118,8 +118,6 @@ func (s *buildCtx) correlateMemif(instance *vpp.Instance, ifaceIdx int) {
 
 			memif2 := iface2.Value.GetMemif()
 
-			log.Debugf("found matching memif interface on instance %v: %+v", instance2, memif2)
-
 			if memif1.GetId() != memif2.GetId() {
 				continue
 			}

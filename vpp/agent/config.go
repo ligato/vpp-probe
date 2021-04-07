@@ -344,11 +344,10 @@ func retrieveMetadata(handler probe.Handler, config *Config) error {
 		switch iface.Value.GetType() {
 
 		case vpp_interfaces.Interface_MEMIF:
-
 			logrus.WithFields(map[string]interface{}{
 				"interface": iface.Value.Name,
 				"instance":  handler.ID(),
-			}).Tracef("getting inode for memif socket: %v", iface.Value.Name)
+			}).Tracef("getting metadata for memif interface: %v", iface.Value.Name)
 
 			socketFile := iface.Value.GetMemif().GetSocketFilename()
 			iface.Metadata["inode"] = getInodeForFile(handler, socketFile)
@@ -356,6 +355,7 @@ func retrieveMetadata(handler probe.Handler, config *Config) error {
 			config.VPP.Interfaces[i] = iface
 		}
 	}
+
 	return nil
 }
 
