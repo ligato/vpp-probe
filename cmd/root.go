@@ -132,6 +132,7 @@ func InitOptions(cli Cli, opts GlobalOptions) {
 				logrus.SetReportCaller(true)
 				infralogrus.DefaultLogger().SetLevel(logging.LogLevel(lvl))
 			}
+			logrus.Tracef("log level set to %v", lvl)
 		} else {
 			logrus.Fatalf("log level invalid: %v", err)
 		}

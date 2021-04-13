@@ -60,6 +60,7 @@ func NewTraceCmd(cli Cli) *cobra.Command {
 	flags.BoolVar(&opts.PrintResult, "print", opts.PrintResult, "Print results from tracing to stdout")
 	return cmd
 }
+
 func RunTrace(cli Cli, opts TraceOptions) error {
 	if err := cli.Client().DiscoverInstances(cli.Queries()...); err != nil {
 		return err

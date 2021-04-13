@@ -16,6 +16,7 @@ func NewInspectorCmd(cli Cli) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runInspector(cli)
 		},
+		Hidden: true,
 	}
 	return cmd
 }
