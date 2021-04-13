@@ -26,7 +26,7 @@ import (
 // even with bare go build/install.
 var (
 	name       = "vpp-probe"
-	version    = "v0.1.0-dev"
+	version    = "v0.1.0-release"
 	commit     = "unknown"
 	branch     = "HEAD"
 	buildUser  = "unknown"
