@@ -45,7 +45,6 @@ jobs:
         with:
           version: latest
           args: release --rm-dist
-          workdir: release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOSTNAME: github

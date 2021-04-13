@@ -1,4 +1,4 @@
-# Developer Guide
+# Developing vpp-probe
 
 This guide contains information for developers.
  
@@ -9,7 +9,7 @@ The core components of vpp-probe are:
 **Environment**
 - defines environment where VPP is running
 
-**Controller**
+**Client**
 - handles setup of running environment
 
 **Provider**

@@ -1,4 +1,4 @@
-# Testing VPP-Probe
+# Testing vpp-probe
 
 The VPP-Probe provides integration and e2e tests.
 

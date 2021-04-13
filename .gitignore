@@ -4,6 +4,6 @@
 *.test
 
 .idea/
+dist/
 
 /vpp-probe
-/release/dist

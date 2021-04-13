@@ -6,7 +6,6 @@ project_name: vpp-probe
 
 build:
   id: vpp-probe-build
-  dir: ../
   binary: vpp-probe
   goos:
     - linux
@@ -36,8 +35,8 @@ archives:
     format: tar.gz
     wrap_in_directory: true
     files:
-      - ../README.md
-      - ../docs/*
+      - README.md
+      - docs/*
     allow_different_binary_count: true
     name_template: "vpp-probe_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
@@ -50,7 +49,7 @@ changelog:
       - typo
 
 dockers:
-  - dockerfile: Dockerfile
+  - dockerfile: Dockerfile.release
     image_templates:
       - "ligato/vpp-probe:{{ .Tag }}"
       - "ligato/vpp-probe:v{{ .Major }}"
