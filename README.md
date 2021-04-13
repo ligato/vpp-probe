@@ -7,7 +7,7 @@
 
 ## Intro
 
-VPP-probe is a command-line tool for inspecting and monitoring of VPP instances. VPP-probe library provides an abstract API for accessing VPP instance(s) running in different host systems; _Kubernetes_, _Docker, _Local_ and the CLI app uses this API to interact with VPP.
+VPP-probe is a command-line tool for inspecting and monitoring of VPP instances running in any kind of environment (_Kubernetes_, _Docker_, _Local_). It aims to help during debugging of issues that occur in the distributed systems containing several VPP instances.
 
 ### Features
 
