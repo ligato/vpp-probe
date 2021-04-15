@@ -52,7 +52,6 @@ dockers:
   - dockerfile: Dockerfile.release
     image_templates:
       - "ligato/vpp-probe:{{ .Tag }}"
-      - "ligato/vpp-probe:v{{ .Major }}"
       - "ligato/vpp-probe:v{{ .Major }}.{{ .Minor }}"
       - "ligato/vpp-probe:latest"
     ids:
