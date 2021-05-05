@@ -10,19 +10,19 @@ The core components of vpp-probe are:
 - defines environment where VPP is running
 
 **Client**
-- handles setup of running environment
+- manages active providers
+- handles concurrent requests for providers
 
 **Provider**
 - searches for VPP instances
 - initializes and manages access to VPP instances
 
-**Instance**
-- provides a common interface for accessing VPP
+**Handler**
+- provides a common interface for accessing VPP APIs
   - CLI
   - Stats
   - Binary API
-- provides a common interface for executing commands
-- can have different implementation for each env
+- provides abstract interface for executing commands on a host system
 
 **VPP Handler**
 - represents running VPP instance
