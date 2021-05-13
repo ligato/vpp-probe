@@ -11,6 +11,7 @@ import (
 	govppapi "git.fd.io/govpp.git/api"
 	"github.com/sirupsen/logrus"
 	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi"
+	"go.ligato.io/vpp-probe/pkg/log"
 
 	"go.ligato.io/vpp-probe/pkg/exec"
 	"go.ligato.io/vpp-probe/probe"
@@ -29,8 +30,9 @@ type Instance struct {
 
 	agent *agent.Instance
 
-	status  *APIStatus
-	vppInfo api.VppInfo
+	status   *APIStatus
+	vppInfo  api.VppInfo
+	vppStats *api.VppStats
 }
 
 // NewInstance tries to initialize probe and returns a new Instance on success.
@@ -39,14 +41,15 @@ func NewInstance(probe probe.Handler) (*Instance, error) {
 		handler: probe,
 		status:  &APIStatus{},
 	}
-	return h, h.Init()
+	return h, nil
 }
 
 type instanceData struct {
 	ID       string
 	Metadata map[string]string
-	VppInfo  api.VppInfo
 	Status   *APIStatus
+	VppInfo  api.VppInfo
+	VppStats *api.VppStats
 	Agent    *agent.Instance
 }
 
@@ -57,6 +60,7 @@ func (v *Instance) MarshalJSON() ([]byte, error) {
 		VppInfo:  v.vppInfo,
 		Agent:    v.agent,
 		Status:   v.status,
+		VppStats: v.vppStats,
 	}
 	return json.Marshal(instance)
 }
@@ -100,8 +104,19 @@ func (v *Instance) VppInfo() api.VppInfo {
 	return v.vppInfo
 }
 
+func (v *Instance) VppStats() *api.VppStats {
+	return v.vppStats
+}
+
 func (v *Instance) Init() (err error) {
-	logrus.Tracef("init vpp instance: %v", v.ID())
+	l := logrus.WithFields(map[string]interface{}{
+		"instance": v.ID(),
+	})
+
+	defer log.TraceElapsed(l, "init vpp instance")()
+
+	//l.Tracef("init vpp instance")
+	//t := time.Now()
 
 	if err = v.initVPP(); err != nil {
 		v.status.LastErr = err
@@ -109,7 +124,7 @@ func (v *Instance) Init() (err error) {
 	}
 
 	if err = v.initAgent(); err != nil {
-		logrus.Debugf("vpp agent not detected")
+		l.Debugf("vpp agent not detected")
 	}
 
 	var vppInfo api.VppInfo
@@ -122,12 +137,22 @@ func (v *Instance) Init() (err error) {
 	vppInfo.Build = *buildInfo
 
 	if sysInfo, err := v.GetSystemInfo(); err != nil {
-		logrus.Debugf("getting system info failed: %v", err)
+		l.Debugf("getting system info failed: %v", err)
 	} else {
-		vppInfo.System = *sysInfo
+		vppInfo.Runtime = *sysInfo
 	}
 
 	v.vppInfo = vppInfo
+
+	if stats, err := v.DumpStats(); err != nil {
+		l.Debugf("dumping VPP stats failed: %v", err)
+	} else {
+		v.vppStats = stats
+	}
+
+	/*logrus.WithFields(map[string]interface{}{
+		"instance": v.ID(),
+	}).Tracef("vpp instance initialized (took %v)", time.Since(t).Round(time.Millisecond))*/
 
 	return nil
 }

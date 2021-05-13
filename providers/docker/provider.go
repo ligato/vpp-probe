@@ -23,16 +23,16 @@ func NewProvider(endpoint string) (*Provider, error) {
 		if err != nil {
 			return nil, err
 		}
-		return newProvider(c)
+		return NewProviderClient(c)
 	}
 	c, err := docker.NewClient(endpoint)
 	if err != nil {
 		return nil, err
 	}
-	return newProvider(c)
+	return NewProviderClient(c)
 }
 
-func newProvider(c *docker.Client) (*Provider, error) {
+func NewProviderClient(c *docker.Client) (*Provider, error) {
 	if err := c.Ping(); err != nil {
 		return nil, err
 	}

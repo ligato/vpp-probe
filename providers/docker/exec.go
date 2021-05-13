@@ -78,7 +78,7 @@ func (c *containerCommand) Run() error {
 }
 
 func containerExec(client *docker.Client, containerID string, command string, stdin io.Reader, stdout, stderr io.Writer) error {
-	createOpts := docker.CreateExecOptions{
+	opts := docker.CreateExecOptions{
 		Container:    containerID,
 		Cmd:          []string{"sh", "-c", command},
 		AttachStdin:  stdin != nil,
@@ -89,7 +89,7 @@ func containerExec(client *docker.Client, containerID string, command string, st
 		Context:      nil,
 		Privileged:   false,
 	}
-	exe, err := client.CreateExec(createOpts)
+	exe, err := client.CreateExec(opts)
 	if err != nil {
 		return err
 	}
@@ -106,6 +106,11 @@ func containerExec(client *docker.Client, containerID string, command string, st
 		Success:      nil,
 		Context:      nil,
 	}
+
+	logrus.WithFields(logrus.Fields{
+		"container": containerID,
+	}).Tracef("running container exec: %+v", opts.Cmd)
+
 	if err := client.StartExec(exe.ID, startOpts); err != nil {
 		return err
 	}

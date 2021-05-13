@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/sirupsen/logrus"
@@ -165,8 +166,7 @@ func (c *Config) RESTConfig() (*restclient.Config, error) {
 	if c.restConfig, err = c.flags.ToRESTConfig(); err != nil {
 		return nil, err
 	}
-	c.restConfig.QPS = 50
-	c.restConfig.Burst = 50
+	c.setConfigParams(c.restConfig)
 	return c.restConfig, nil
 }
 
@@ -175,4 +175,11 @@ func (c *Config) ensureConfig() {
 		return
 	}
 	c.clientConfig = c.flags.ToRawKubeConfigLoader()
+}
+
+func (c *Config) setConfigParams(config *restclient.Config) {
+	config.QPS = 50
+	config.Burst = 50
+	config.Timeout = time.Second * 120
+	logrus.Tracef("restclient.Config: %+v", config)
 }

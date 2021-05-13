@@ -60,6 +60,9 @@ func ParseTracePackets(trace string) (packets []Packet, err error) {
 			if len(packet.Captures) == 0 {
 				continue
 			}
+			if strings.Contains(packet.Captures[len(packet.Captures)-1].Content, "ACL deny packets") {
+				continue
+			}
 			packets = append(packets, packet)
 
 		}

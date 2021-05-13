@@ -53,8 +53,13 @@ func Build(instances []*vpp.Instance) (*Info, error) {
 		}
 	}
 
+	connections := make([]Connection, 0, len(s.connections))
+	for _, conn := range s.connections {
+		connections = append(connections, *conn)
+	}
+
 	info := &Info{
-		Connections: s.connections,
+		Connections: connections,
 	}
 
 	return info, nil

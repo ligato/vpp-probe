@@ -37,6 +37,7 @@ func (h *PodHandler) ID() string {
 }
 
 func (h *PodHandler) Metadata() map[string]string {
+	// TODO: include provider name in metadata
 	return map[string]string{
 		"env":       providers.Kube,
 		"pod":       h.pod.Name,
@@ -49,7 +50,7 @@ func (h *PodHandler) Metadata() map[string]string {
 		"image":     h.pod.Image,
 		"image_id":  h.pod.ImageID,
 		"uid":       string(h.pod.UID),
-		"created":   h.pod.Created.Format(time.UnixDate),
+		"created":   h.pod.Created.Format(time.RFC3339),
 	}
 }
 
@@ -127,6 +128,15 @@ func (h *PodHandler) connectProxy() error {
 	}
 
 	h.vppProxy = c
+
+	go func() {
+		select {
+		case err := <-h.portFwder.Done():
+			logrus.Tracef("port forwarder done (err: %v)", err)
+			h.portFwder.Stop()
+			h.vppProxy = nil
+		}
+	}()
 
 	return nil
 }
