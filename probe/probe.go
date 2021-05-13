@@ -46,7 +46,7 @@ type CliExecutor interface {
 }
 
 // TODO
-//  - move Handler.Metadata() to Host interface ?
+//  - add Metadata() to Host interface ?
 //  - add more useful methods to Host ?
 //    - for accessing filesystem
 //    - network namespace

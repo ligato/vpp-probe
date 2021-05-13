@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"go.ligato.io/vpp-probe/pkg/exec"
+	"go.ligato.io/vpp-probe/pkg/strutil"
 	"go.ligato.io/vpp-probe/vpp"
 )
 
@@ -87,7 +88,7 @@ func printExecInstance(out io.Writer, instance *ExecInstance) {
 	printInstanceHeader(&buf, instance.Instance.Handler())
 	fmt.Fprintln(&buf)
 
-	printExecutedCommands(prefixWriter(&buf), instance.Commands)
+	printExecutedCommands(strutil.IndentedWriter(&buf), instance.Commands)
 
 	fmt.Fprint(out, renderColor(buf.String()))
 }
@@ -95,7 +96,7 @@ func printExecInstance(out io.Writer, instance *ExecInstance) {
 func printExecutedCommands(out io.Writer, commands []ExecutedCommand) {
 	for _, cmd := range commands {
 		fmt.Fprintf(out, "# %s (took %v)\n\n", colorize(color.Yellow, cmd.Command), cmd.Took)
-		fmt.Fprintln(prefixWriter(out), cmd.Output)
+		fmt.Fprintln(strutil.IndentedWriter(out), cmd.Output)
 	}
 }
 

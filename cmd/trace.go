@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -12,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"go.ligato.io/vpp-probe/cmd/tracer"
+	"go.ligato.io/vpp-probe/pkg/strutil"
 )
 
 const traceExample = `  # Trace packets while running ping
@@ -140,7 +142,14 @@ func RunTrace(cli Cli, opts TraceOptions) error {
 			if result == nil {
 				continue
 			}
-			tracer.PrintTraceResult(traced)
+
+			var buf bytes.Buffer
+
+			printInstanceHeader(&buf, traced.Instance.Handler())
+
+			tracer.PrintTraceResult(strutil.IndentedWriter(&buf), traced)
+
+			fmt.Fprint(cli.Out(), renderColor(buf.String()))
 		}
 	}
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/sirupsen/logrus"
+	"go.ligato.io/vpp-probe/pkg/log"
 
 	"go.ligato.io/vpp-probe/probe"
 )
@@ -28,12 +29,16 @@ func (instance *Instance) Init() error {
 		return err
 	}
 
-	logrus.Debugf("agent status:\n%s", out)
+	logrus.Tracef("agent status:\n%s", out)
 
 	return nil
 }
 
 func (instance *Instance) UpdateInstanceInfo() (err error) {
+	defer log.TraceElapsed(logrus.WithFields(map[string]interface{}{
+		"instance": instance.handler.ID(),
+	}), "updating instance info")()
+
 	instance.Config, err = RetrieveConfig(instance.handler)
 	if err != nil {
 		return fmt.Errorf("retrieving config failed: %w", err)

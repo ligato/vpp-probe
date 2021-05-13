@@ -1,13 +1,16 @@
 package tracer
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/gookit/color"
+	"github.com/segmentio/textio"
 	"github.com/sirupsen/logrus"
 
 	"go.ligato.io/vpp-probe/vpp"
@@ -51,7 +54,7 @@ func (p *Packet) LastCapture() *vpptrace.Capture {
 }
 
 type Traced struct {
-	instance   *vpp.Instance
+	Instance   *vpp.Instance
 	traceNodes []string
 	tracer     *vpptrace.Tracer
 	result     *Result
@@ -66,7 +69,7 @@ func NewTraced(instance *vpp.Instance, traceNodes []string, numPackets uint) (*T
 	tracer.SetNumPackets(int(numPackets))
 
 	traced := &Traced{
-		instance:   instance,
+		Instance:   instance,
 		traceNodes: traceNodes,
 		tracer:     tracer,
 		result:     nil,
@@ -75,7 +78,7 @@ func NewTraced(instance *vpp.Instance, traceNodes []string, numPackets uint) (*T
 }
 
 func (t Traced) String() string {
-	return fmt.Sprintf("%v", t.instance.ID())
+	return fmt.Sprintf("%v", t.Instance.ID())
 }
 
 func (t *Traced) StartTracing() error {
@@ -146,31 +149,35 @@ func (c *captureNode) String() string {
 	return strings.Join(cptFields, " | ")
 }
 
-func formatDurTimestamp(dur time.Duration) string {
-	var t time.Time
-	t = t.Add(dur)
-	return t.Format("15:04:05.00000")
-}
-
-func PrintTraceResult(traced *Traced) {
+func PrintTraceResult(w io.Writer, traced *Traced) {
 	result := traced.result
 
-	logrus.Infof("= instance %v: traced %d packets", traced, len(result.Packets))
+	fmt.Fprintf(w, "%d packets traced\n", len(result.Packets))
+	fmt.Fprintln(w)
 
 	for _, packet := range result.Packets {
 		p := &packetNode{
 			packet: Packet(packet),
 		}
-		var capture string
+		var buf bytes.Buffer
+		fmt.Fprintf(&buf, "# %v", p)
+		fmt.Fprintln(&buf)
+		pw := textio.NewPrefixWriter(&buf, "  ")
 		for _, c := range packet.Captures {
-			cinfo := ""
+			var cinfo string
 			if d := c.Start - p.packet.Start(); d > 0 {
 				cinfo = fmt.Sprintf(" (+%v)", d)
 			}
-			capture += fmt.Sprintf("- %v\n%v", color.Yellow.Sprint(c.Name)+cinfo, prefixString(c.Content, "\t"))
+			fmt.Fprintf(pw, "- %v\n%v", color.Yellow.Sprint(c.Name)+cinfo, prefixString(c.Content, "\t"))
 		}
-		fmt.Fprintf(os.Stdout, "# %v\n%v", p, capture)
+		fmt.Fprintln(w, buf.String())
 	}
+}
+
+func formatDurTimestamp(dur time.Duration) string {
+	var t time.Time
+	t = t.Add(dur)
+	return t.Format("15:04:05.00000")
 }
 
 func prefixString(s, prefix string) string {
@@ -208,8 +215,8 @@ func SaveTraceData(traceDir string, traced *Traced) (string, error) {
 	fmt.Fprintln(file, "#      Time:", traced.timestamp.Format(time.UnixDate))
 	fmt.Fprintln(file, "#      Host:", host)
 	fmt.Fprintln(file, "# ----------------------------------------")
-	fmt.Fprintln(file, "#  Instance:", traced.instance.ID())
-	fmt.Fprintln(file, "#   Version:", traced.instance.VppInfo().Build.Version)
+	fmt.Fprintln(file, "#  Instance:", traced.Instance.ID())
+	fmt.Fprintln(file, "#   Version:", traced.Instance.VppInfo().Build.Version)
 	fmt.Fprintln(file, "#   Packets:", len(traced.result.Packets))
 	fmt.Fprintln(file, "# ----------------------------------------")
 	fmt.Fprintln(file)
@@ -221,7 +228,7 @@ func SaveTraceData(traceDir string, traced *Traced) (string, error) {
 
 func getResultFilename(traced *Traced) string {
 	t := traced.timestamp.Format("20060102T150405")
-	s := getInstanceString(traced.instance)
+	s := getInstanceString(traced.Instance)
 	filename := fmt.Sprintf("vpptrace_%s_%s.txt", s, t)
 	return strings.ToLower(filename)
 }

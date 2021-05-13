@@ -50,7 +50,7 @@ func GetVersionInfoChan(ch govppapi.Channel) (*api.BuildInfo, error) {
 	}, nil
 }
 
-func GetSystemInfo(conn govppapi.Connection) (*api.SystemInfo, error) {
+func GetSystemInfo(conn govppapi.Connection) (*api.RuntimeInfo, error) {
 	pid, err := GetPID(conn)
 	if err != nil {
 		return nil, err
@@ -59,13 +59,13 @@ func GetSystemInfo(conn govppapi.Connection) (*api.SystemInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &api.SystemInfo{
+	return &api.RuntimeInfo{
 		Pid:    pid,
-		Uptime: uptime,
+		Uptime: api.Uptime(uptime), //uint64(uptime / time.Second),
 	}, nil
 }
 
-func GetSystemInfoChan(ch govppapi.Channel) (*api.SystemInfo, error) {
+func GetSystemInfoChan(ch govppapi.Channel) (*api.RuntimeInfo, error) {
 	pid, err := GetPIDChan(ch)
 	if err != nil {
 		return nil, err
@@ -74,9 +74,9 @@ func GetSystemInfoChan(ch govppapi.Channel) (*api.SystemInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &api.SystemInfo{
+	return &api.RuntimeInfo{
 		Pid:    pid,
-		Uptime: uptime,
+		Uptime: api.Uptime(uptime), //uint64(uptime / time.Second),
 	}, nil
 }
 

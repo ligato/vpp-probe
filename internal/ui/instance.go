@@ -53,7 +53,7 @@ func newVPP(instance *vpp.Instance) *VPP {
 		ID:         instance.ID(),
 		LastUpdate: time.Now(),
 		Version:    info.Build.Version,
-		Pid:        fmt.Sprint(info.System.Pid),
+		Pid:        fmt.Sprint(info.Runtime.Pid),
 	}
 }
 

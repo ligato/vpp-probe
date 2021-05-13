@@ -15,9 +15,9 @@ import (
 
 func init() {
 	klogger := logrus.StandardLogger()
-	klogger.WithField("logger", "kube")
+	logWriter := klogger.WithField("logger", "kube").WriterLevel(logrus.DebugLevel)
 	klog.InitFlags(nil)
-	klog.SetOutput(klogger.Writer())
+	klog.SetOutput(logWriter)
 	if err := flag.Set("logtostderr", "false"); err != nil {
 		logrus.Error(err)
 	}

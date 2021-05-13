@@ -20,7 +20,7 @@ require (
 	github.com/sirupsen/logrus v1.7.0
 	github.com/spf13/cobra v1.0.0
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.4.0
+	github.com/stretchr/testify v1.7.0
 	gitlab.com/tslocum/cview v1.5.1
 	go.ligato.io/cn-infra/v2 v2.5.0-alpha.0.20200313154441-b0d4c1b11c73
 	go.ligato.io/vpp-agent/v3 v3.2.0
@@ -32,3 +32,6 @@ require (
 	k8s.io/klog v1.0.0
 	k8s.io/utils v0.0.0-20200731180307-f00132d28269 // indirect
 )
+
+//replace github.com/sirupsen/logrus => github.com/ondrej-fabry/logrus v1.8.2-0.20210506144144-3ce5a96d0119
+replace github.com/sirupsen/logrus => /home/ondrej/Projects/logrus
