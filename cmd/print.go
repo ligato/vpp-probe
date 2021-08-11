@@ -281,6 +281,37 @@ func PrintCorrelatedIpSec(out io.Writer, correlations *agent.IPSecCorrelations) 
 	fmt.Fprint(out, buf.String())
 }
 
+func PrintCorrelatedIfInfo(out io.Writer, connCorrelations *agent.ForwarderConnCorrelations) {
+	var buf bytes.Buffer
+	w := tabwriter.NewWriter(&buf, 0, 8, 1, '\t', tabwriter.StripEscape|tabwriter.FilterHTML|tabwriter.DiscardEmptyColumns)
+
+	header := []string{
+		"Conn", "Complete?",
+	}
+	for i, h := range header {
+		if h != "" {
+			header[i] = colorize(color.Bold, h)
+		}
+	}
+	fmt.Fprintln(w, strings.Join(header, "\t"))
+
+	// Print connection chains
+	for _, connChain := range connCorrelations.Connections {
+		var cols []string
+		for _, intf := range connChain.IntfPath {
+			cols = append(cols, fmt.Sprintf("%s/%s(%s)", intf.Owner.Pod, intf.IfName, intf.NormalizedType))
+		}
+		fmt.Fprintln(w, strings.Join(cols, "<->"))
+	}
+
+	if err := w.Flush(); err != nil {
+		log.Println(err)
+		return
+	}
+
+	fmt.Fprint(out, buf.String())
+}
+
 func linuxInterfaceType(iface agent.LinuxInterface) string {
 	return iface.Value.Type.String()
 }
