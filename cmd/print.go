@@ -286,7 +286,7 @@ func PrintCorrelatedIfInfo(out io.Writer, connCorrelations *agent.ForwarderConnC
 	w := tabwriter.NewWriter(&buf, 0, 8, 1, '\t', tabwriter.StripEscape|tabwriter.FilterHTML|tabwriter.DiscardEmptyColumns)
 
 	header := []string{
-		"Conn", "Complete?",
+		"Connection Chain -- [Abbrev. pod name]/[intf] <-[connect type]-> ...",
 	}
 	for i, h := range header {
 		if h != "" {
@@ -297,11 +297,24 @@ func PrintCorrelatedIfInfo(out io.Writer, connCorrelations *agent.ForwarderConnC
 
 	// Print connection chains
 	for _, connChain := range connCorrelations.Connections {
-		var cols []string
-		for _, intf := range connChain.IntfPath {
-			cols = append(cols, fmt.Sprintf("%s/%s(%s)", intf.Owner.Pod, intf.IfName, intf.NormalizedType))
+		var chain string
+		for i, intf := range connChain.IntfPath {
+			if i > 0 {
+				conStr := intf.NormalizedType.String()
+				if intf.NormalizedType != connChain.IntfPath[i-1].NormalizedType {
+					conStr = "XCON"
+				}
+				chain += fmt.Sprintf(" <-%s-> ", conStr)
+			}
+			if intf.IfContextType == agent.ForwarderContextLinux {
+				chain += fmt.Sprintf("LinuxPod/%s", intf.InternalIfName)
+			} else {
+				podNameParts := strings.Split(intf.Owner.Pod, "-")
+				displayPodInfo := strings.Join(podNameParts[0:2], "-") + "-" + podNameParts[len(podNameParts)-1]
+				chain += fmt.Sprintf("%s/%s", displayPodInfo, intf.IfName)
+			}
 		}
-		fmt.Fprintln(w, strings.Join(cols, "<->"))
+		fmt.Fprintln(w, chain)
 	}
 
 	if err := w.Flush(); err != nil {
