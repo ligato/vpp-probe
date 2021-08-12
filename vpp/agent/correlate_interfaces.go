@@ -14,6 +14,7 @@ type ForwarderConnectionType int
 const (
 	TapHead ForwarderConnectionType = iota
 	MemifHead
+	VxlanHead
 )
 
 type ForwarderIfContextType int
@@ -53,6 +54,7 @@ type ForwarderIf struct {
 	InternalIfName string
 	NormalizedType NormalizedIfType
 	NormalizedConfig ForwarderIfNormalizedConfig // socket:tag, vxlan:src/dest VNI, tap name
+	CorrelatedConnection *ForwarderConnection
 }
 
 type ForwarderConnection struct {
@@ -468,10 +470,14 @@ func (c *ForwarderConnCorrelations) VppInstanceToIfs(cluster, node, pod string, 
 }
 
 func (c *ForwarderConnCorrelations) AddConnectionChain(chainType ForwarderConnectionType, conChain []*ForwarderIf) {
-	c.Connections = append(c.Connections, &ForwarderConnection{
+	newConn := &ForwarderConnection{
 		Type: chainType,
 		IntfPath: conChain,
-	})
+	}
+	c.Connections = append(c.Connections, newConn)
+	for _, intf := range conChain {
+		intf.CorrelatedConnection = newConn
+	}
 }
 
 // Build Connection Chains
@@ -519,7 +525,7 @@ func (c *ForwarderConnCorrelations) BuildConnectionChains() {
 	for _, memifInterConn := range c.IfInterconnects[MEMIF] {
 		var curChain []*ForwarderIf
 		var startXconIntf *ForwarderIf
-		// Start at Linux owned interfaces as head of chain
+		// Start at memif with no xconn as head of chain
 		if len(memifInterConn) < 2 {
 			if len(memifInterConn) == 1 {
 				logrus.Warnf("Interconnect with intf %s/%s not fully built--len %d",
@@ -545,8 +551,26 @@ func (c *ForwarderConnCorrelations) BuildConnectionChains() {
 			}
 			curChain = append(curChain, firstIntf)
 		}
+		if startXconIntf.CorrelatedConnection != nil {
+			logrus.Infof("Connection correlation already done for starting intf %s/%s",
+				startXconIntf.Owner.Pod, startXconIntf.IfName)
+			continue
+		}
 		curChain = append(curChain, c.IfToXconnVwireChain(startXconIntf)...)
 		c.AddConnectionChain(MemifHead, curChain)
+	}
+
+	// Add any dangling vxlan interconnects that are not part of tap/memif connections
+	for _, vxlanifInterConn := range c.IfInterconnects[VXLAN] {
+		if vxlanifInterConn[0].CorrelatedConnection ==  nil {
+			// This vxlan wasn't correlated to a connection
+			// add it to a connection with its interconnect
+			var curChain []*ForwarderIf
+			for _, intf := range vxlanifInterConn {
+				curChain = append(curChain, intf)
+			}
+			c.AddConnectionChain(VxlanHead, curChain)
+		}
 	}
 }
 
