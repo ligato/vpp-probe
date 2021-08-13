@@ -83,7 +83,8 @@ type ForwarderConnCorrelations struct {
 
 type MemifNormalizedConfig struct {
 	socketFile string
-	id string
+	id uint32
+	inode string
 	isMaster bool
 }
 func (m MemifNormalizedConfig) IsEqual(normIf ForwarderIfNormalizedConfig) bool {
@@ -100,11 +101,12 @@ func (m MemifNormalizedConfig) ToString() string {
 	if (m.isMaster) {
 		fmt.Sprintf("%s (master)", m.socketFile)
 	}
-	return fmt.Sprintf("%s", m.socketFile)
+	return fmt.Sprintf("%s:%s", m.socketFile, m.inode)
 }
 func (m MemifNormalizedConfig) MatchKey() string {
-	dirComps := strings.Split(m.socketFile, "/")
-	return fmt.Sprintf("%s", strings.Join(dirComps[len(dirComps)-2:], "/"))
+	//dirComps := strings.Split(m.socketFile, "/")
+	// return fmt.Sprintf("%s:%d", strings.Join(dirComps[len(dirComps)-2:], "/"), m.id)
+	return m.inode
 }
 
 type VxlanNormalizedConfig struct {
@@ -155,7 +157,7 @@ func (v VxlanNormalizedConfig) IsEqual(normIf ForwarderIfNormalizedConfig) bool 
 	return false
 }
 func (v VxlanNormalizedConfig) ToString() string {
-	return fmt.Sprintf("%s <-> %s (%s)", v.src, v.dst, v.vni)
+	return fmt.Sprintf("%s <-> %s (%d)", v.src, v.dst, v.vni)
 }
 func (v VxlanNormalizedConfig) MatchKey() string {
 	// Normalize for match key
@@ -166,7 +168,7 @@ func (v VxlanNormalizedConfig) MatchKey() string {
 		srcAddr = dstAddr
 		dstAddr = v.srcNodeAddresses[0]
 	}
-	return fmt.Sprintf("%s,%s/%s", srcAddr, dstAddr, v.vni)
+	return fmt.Sprintf("%s,%s/%d", srcAddr, dstAddr, v.vni)
 }
 
 type TapNormalizedConfig struct {
@@ -294,7 +296,11 @@ func (c *ForwarderConnCorrelations) vppInterfaceInfo(iface VppInterface) (Normal
 	switch iface.Value.Type {
 	case vpp_interfaces.Interface_MEMIF:
 		memif := iface.Value.GetMemif()
-		return MEMIF, MemifNormalizedConfig{ socketFile: memif.GetSocketFilename(), isMaster: memif.Master }
+		return MEMIF, MemifNormalizedConfig{ socketFile: memif.GetSocketFilename(),
+			id: memif.Id,
+			inode: fmt.Sprint(iface.Metadata["inode"]),
+			isMaster: memif.Master,
+		}
 
 	case vpp_interfaces.Interface_VXLAN_TUNNEL:
 		//vxlan := iface.Value.GetVxlan()
