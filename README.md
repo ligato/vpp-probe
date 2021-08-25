@@ -18,7 +18,7 @@ VPP-probe is a command-line tool for inspecting and monitoring of VPP instances 
 
 ## Install
 
-You can get vpp-probe by downloading a pre-compiled binary, using the official Docker image or build it from source.
+You can get vpp-probe by downloading a pre-compiled binary, using the official Docker image or building it from source.
 
 ### Download a pre-compiled binary
 
@@ -26,7 +26,9 @@ Go to [GitHub Releases](https://github.com/ligato/vpp-probe/releases) and downlo
 
 ### Get Docker image
 
-#### Prerequisites
+Go to [DockerHub Tags](https://hub.docker.com/r/ligato/vpp-probe/tags) for list of available tags.
+
+##### Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/) is required
 
@@ -40,7 +42,7 @@ docker run --rm -it ligato/vpp-probe version
 
 ### Build from source
 
-#### Prerequisites
+##### Prerequisites
 
 - [Go 1.15+](https://golang.org/doc/install) is required
 
@@ -48,7 +50,8 @@ To install vpp-probe from source simply run:
 
 ```sh
 # Install the latest version
-GO111MODULE=on go get go.ligato.io/vpp-probe
+go install go.ligato.io/vpp-probe@latest
+# if you have Go older than 1.16 run: GO111MODULE=on go get go.ligato.io/vpp-probe
 
 # Print version
 vpp-probe version
@@ -60,7 +63,7 @@ Where is your VPP running?
 
 <details>
 
-<summary>Kubernetes</summary>
+<summary><h2>Kubernetes</h2></summary>
 
 Basic commands for VPP running in a Kubernetes pod
 
