@@ -42,6 +42,8 @@ docker run --rm -it ligato/vpp-probe version
 
 ### Build from source
 
+Go to [GitHub](https://github.com/ligato/vpp-probe) to get the source code.
+
 ##### Prerequisites
 
 - [Go 1.15+](https://golang.org/doc/install) is required
@@ -49,9 +51,13 @@ docker run --rm -it ligato/vpp-probe version
 To install vpp-probe from source simply run:
 
 ```sh
+# Clone the repository
+git clone https://github.com/ligato/vpp-probe.git
+# if you use git with ssh: git clone git@github.com:ligato/vpp-probe.git
+
 # Install the latest version
 go install go.ligato.io/vpp-probe@latest
-# if you have Go older than 1.16 run: GO111MODULE=on go get go.ligato.io/vpp-probe
+# if you have Go 1.15 and older: GO111MODULE=on go get go.ligato.io/vpp-probe
 
 # Print version
 vpp-probe version
@@ -63,7 +69,9 @@ Where is your VPP running?
 
 <details>
 
-<summary><h2>Kubernetes</h2></summary>
+<summary><b>Kubernetes</b></summary>
+
+---
 
 Basic commands for VPP running in a Kubernetes pod
 
@@ -97,11 +105,15 @@ When running vpp-probe from Docker image
 docker run -it --net=host --volume "$HOME/.kube/config:/.kube/config" ligato/vpp-probe --env=kube <command>
 ```
 
+---
+
 </details>
 
 <details>
 
-<summary>Docker</summary>
+<summary><b>Docker</b></summary>
+
+---
 
 Basic commands for VPP running in a Docker container
 
@@ -130,11 +142,15 @@ When running vpp-probe from Docker image
 docker run -it --net=host --volume "/var/run/docker.sock:/var/run/docker.sock" ligato/vpp-probe --env=docker <command>
 ```
 
+---
+
 </details>
 
 <details>
 
-<summary>Local</summary>
+<summary><b>Local</b></summary>
+
+---
 
 Basic commands for VPP running locally
 
@@ -156,9 +172,9 @@ When running vpp-probe from Docker image
 docker run -it --net=host --pid=host --volume "/run/vpp:/run/vpp" ligato/vpp-probe --env=local <command>
 ```
 
-</details>
-
 ---
+
+</details>
 
 For more detailed usage information, read [docs/USAGE.md](docs/USAGE.md)
 
