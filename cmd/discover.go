@@ -39,12 +39,14 @@ func NewDiscoverCmd(cli Cli) *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVarP(&opts.Format, "format", "f", "", "Output format (json, yaml, go-template..)")
 	flags.BoolVar(&opts.IPsecAgg, "ipsec-agg", false, "Print aggregated IPSec info")
+	flags.BoolVar(&opts.IfInfoAgg, "ifinfo-agg", false, "Print aggregated interface info")
 	return cmd
 }
 
 type DiscoverOptions struct {
 	Format   string
 	IPsecAgg bool
+	IfInfoAgg bool
 }
 
 func RunDiscover(cli Cli, opts DiscoverOptions) error {
@@ -93,6 +95,17 @@ func RunDiscover(cli Cli, opts DiscoverOptions) error {
 			logrus.Warnf("correlating IPSec failed: %v", err)
 		} else {
 			printDiscoverIPSecAggr(cli.Out(), ipsecAgg)
+		}
+	}
+
+	if opts.IfInfoAgg {
+		logrus.Infof("Aggregating Interface info for instances")
+
+		forwarderConnInfo, err := agent.CorrelateNsmForwarderConnections(vppInstances)
+		if err != nil {
+			logrus.Warnf("correlating IPSec failed: %v", err)
+		} else {
+			printDiscoverForwarderConnInfo(cli.Out(), forwarderConnInfo)
 		}
 	}
 
@@ -150,6 +163,16 @@ func printDiscoverIPSecAggr(out io.Writer, ipsecCorrelations *agent.IPSecCorrela
 	printSectionHeader(&buf, []string{"Aggregated IPSec info"})
 
 	PrintCorrelatedIpSec(prefixWriter(&buf), ipsecCorrelations)
+
+	fmt.Fprint(out, renderColor(buf.String()))
+}
+
+func printDiscoverForwarderConnInfo(out io.Writer, forwarderConnCorrelations *agent.ForwarderConnCorrelations) {
+	var buf bytes.Buffer
+
+	printSectionHeader(&buf, []string{"Aggregated Interface info"})
+
+	PrintCorrelatedIfInfo(prefixWriter(&buf), forwarderConnCorrelations)
 
 	fmt.Fprint(out, renderColor(buf.String()))
 }

@@ -26,9 +26,11 @@ type Pod struct {
 	URL       string
 	Image     string
 	ImageID   string
+	HostNetwork bool
 
 	pod    *corev1.Pod
 	client *Client
+	Node   *corev1.Node
 }
 
 func newPod(client *Client, pod *corev1.Pod) *Pod {
@@ -44,6 +46,7 @@ func newPod(client *Client, pod *corev1.Pod) *Pod {
 		URL:       pod.GetSelfLink(),
 		Image:     getPodFirstContainer(pod).Image,
 		ImageID:   getPodFirstContainerStatus(pod).ImageID,
+		HostNetwork: pod.Spec.HostNetwork,
 		pod:       pod,
 		client:    client,
 	}

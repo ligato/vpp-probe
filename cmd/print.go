@@ -281,6 +281,50 @@ func PrintCorrelatedIpSec(out io.Writer, correlations *agent.IPSecCorrelations) 
 	fmt.Fprint(out, buf.String())
 }
 
+func PrintCorrelatedIfInfo(out io.Writer, connCorrelations *agent.ForwarderConnCorrelations) {
+	var buf bytes.Buffer
+	w := tabwriter.NewWriter(&buf, 0, 8, 1, '\t', tabwriter.StripEscape|tabwriter.FilterHTML|tabwriter.DiscardEmptyColumns)
+
+	header := []string{
+		"Connection Chain -- [Abbrev. pod name]/[intf] <-[connect type]-> ...",
+	}
+	for i, h := range header {
+		if h != "" {
+			header[i] = colorize(color.Bold, h)
+		}
+	}
+	fmt.Fprintln(w, strings.Join(header, "\t"))
+
+	// Print connection chains
+	for _, connChain := range connCorrelations.Connections {
+		var chain string
+		for i, intf := range connChain.IntfPath {
+			if i > 0 {
+				conStr := intf.NormalizedType.String()
+				if intf.NormalizedType != connChain.IntfPath[i-1].NormalizedType {
+					conStr = "XCON"
+				}
+				chain += fmt.Sprintf(" <-%s-> ", conStr)
+			}
+			if intf.IfContextType == agent.ForwarderContextLinux {
+				chain += fmt.Sprintf("LinuxPod/%s", intf.InternalIfName)
+			} else {
+				podNameParts := strings.Split(intf.Owner.Pod, "-")
+				displayPodInfo := strings.Join(podNameParts[0:2], "-") + "-" + podNameParts[len(podNameParts)-1]
+				chain += fmt.Sprintf("%s/%s", displayPodInfo, intf.IfName)
+			}
+		}
+		fmt.Fprintln(w, chain)
+	}
+
+	if err := w.Flush(); err != nil {
+		log.Println(err)
+		return
+	}
+
+	fmt.Fprint(out, buf.String())
+}
+
 func linuxInterfaceType(iface agent.LinuxInterface) string {
 	return iface.Value.Type.String()
 }

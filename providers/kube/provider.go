@@ -83,6 +83,12 @@ func (p *Provider) Query(params ...map[string]string) ([]probe.Handler, error) {
 
 	var handlers []probe.Handler
 	for _, pod := range pods {
+		node, err := p.client.GetNode(pod.NodeName)
+		if err != nil {
+			logrus.Errorf("Unable to get node %s for pod %s: %v", pod.NodeName, pod.Name, err)
+		} else {
+			pod.Node = node
+		}
 		handlers = append(handlers, NewHandler(pod))
 	}
 

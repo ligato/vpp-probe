@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -139,4 +140,14 @@ func (k *Client) ListPods(namespace string, labelSelector, fieldSelector string)
 		list = append(list, pod)
 	}
 	return list, nil
+}
+
+// GetNode calls the API to get node with name.
+func (k *Client) GetNode(name string) (*corev1.Node, error) {
+
+	node, err := k.client.CoreV1().Nodes().Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return node, nil
 }

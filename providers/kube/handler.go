@@ -2,6 +2,7 @@ package kube
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	govppapi "git.fd.io/govpp.git/api"
@@ -37,6 +38,13 @@ func (h *PodHandler) ID() string {
 }
 
 func (h *PodHandler) Metadata() map[string]string {
+	var addresses []string
+	if h.pod.HostNetwork {
+		for _, nodeAddress := range h.pod.Node.Status.Addresses {
+			addresses = append(addresses, nodeAddress.Address)
+		}
+	}
+
 	return map[string]string{
 		"env":       providers.Kube,
 		"pod":       h.pod.Name,
@@ -50,6 +58,7 @@ func (h *PodHandler) Metadata() map[string]string {
 		"image_id":  h.pod.ImageID,
 		"uid":       string(h.pod.UID),
 		"created":   h.pod.Created.Format(time.UnixDate),
+		"hostnet_addresses": strings.Join(addresses, ","),
 	}
 }
 
