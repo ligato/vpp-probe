@@ -64,36 +64,35 @@ func (v *Instance) GetBuildInfo() (*api.BuildInfo, error) {
 	return &versionInfo, nil
 }
 
-func (v *Instance) GetSystemInfo() (*api.SystemInfo, error) {
+func (v *Instance) GetSystemInfo() (*api.RuntimeInfo, error) {
+	var sysInfo api.RuntimeInfo
+
 	if v.api != nil {
 		pid, err := binapi.GetPIDChan(v.api)
 		if err != nil {
 			logrus.Debugf("getting pid via API failed: %v", err)
 		} else {
-			sysInfo := api.SystemInfo{
-				Pid:    pid,
-				Uptime: 0,
-				Clock:  time.Time{},
-			}
-			return &sysInfo, nil
+			sysInfo.Pid = pid
 		}
 	}
-
-	pid, err := GetPidCLI(v.cli)
-	if err != nil {
-		return nil, err
-	}
-
-	sysInfo := api.SystemInfo{
-		Pid:    pid,
-		Uptime: 0,
-		Clock:  time.Time{},
+	if sysInfo.Pid == 0 {
+		pid, err := GetPidCLI(v.cli)
+		if err != nil {
+			return nil, err
+		} else {
+			sysInfo.Pid = pid
+		}
 	}
 
 	if uptime, err := GetUptimeCLI(v.cli); err != nil {
 		logrus.Debugf("getting uptime via CLI failed: %v", err)
 	} else {
-		sysInfo.Uptime = uptime
+		sysInfo.Uptime = api.Uptime(uptime / time.Second) //uint64(uptime / time.Second)
+	}
+	if clock, err := GetClockCLI(v.cli); err != nil {
+		logrus.Debugf("getting clock via CLI failed: %v", err)
+	} else {
+		sysInfo.Clock = &clock
 	}
 
 	return &sysInfo, nil
@@ -131,4 +130,11 @@ func (v *Instance) ListStats() ([]string, error) {
 		return nil, ErrStatsUnavailable
 	}
 	return ListStats(v.stats)
+}
+
+func (v *Instance) DumpStats() (*api.VppStats, error) {
+	if v.stats == nil {
+		return nil, ErrStatsUnavailable
+	}
+	return DumpStats(v.stats)
 }

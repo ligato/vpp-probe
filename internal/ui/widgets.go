@@ -113,9 +113,9 @@ func (v *InfoPanel) SetInstance(vpp *VPP) {
 		updated = fmt.Sprintf("last update [%s]%v[-]", updatedColor(sinceUpdate), shortHumanDuration(sinceUpdate))
 	}
 	info = append(info, []string{
-		fmt.Sprintf("Version: [yellow]%v[-]", vpp.Version),
-		fmt.Sprintf("Uptime:  [yellow]%v[-]", vpp.Uptime),
-		fmt.Sprintf("PID:     [yellow]%v[-]", vpp.Pid),
+		fmt.Sprintf("Version: [lightblue]%v[-]", vpp.Version),
+		fmt.Sprintf("Uptime:  [lightblue]%v[-]", vpp.Uptime),
+		fmt.Sprintf("PID:     [lightblue]%v[-]", vpp.Pid),
 		"",
 		updated,
 	}...)

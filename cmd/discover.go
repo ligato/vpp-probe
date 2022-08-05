@@ -7,6 +7,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"go.ligato.io/vpp-probe/client"
+	"go.ligato.io/vpp-probe/pkg/strutil"
 	"go.ligato.io/vpp-probe/vpp/agent"
 
 	"go.ligato.io/vpp-probe/vpp"
@@ -60,21 +62,19 @@ func RunDiscover(cli Cli, opts DiscoverOptions) error {
 
 	logrus.Debugf("discovered %d vpp instances", len(instances))
 
-	var vppInstances []*agent.Instance
+	instch := make(chan *agent.Instance, len(instances))
 
-	for _, instance := range instances {
+	if err := client.RunOnInstances(instances, func(instance *vpp.Instance) error {
 		if instance.Agent() == nil {
-			logrus.Debugf("agent not found for instance %v", instance.ID())
-			continue
+			return fmt.Errorf("agent not found for instance %v", instance.ID())
 		}
 		logrus.Debugf("- updating vpp info %+v: %v", instance.ID(), instance.Status())
 
 		err := instance.Agent().UpdateInstanceInfo()
 		if err != nil {
-			logrus.Errorf("instance %v error: %v", instance.ID(), err)
-			continue
+			return fmt.Errorf("instance %v error: %v", instance.ID(), err)
 		}
-		vppInstances = append(vppInstances, instance.Agent())
+		instch <- instance.Agent()
 
 		if format := opts.Format; len(format) == 0 {
 			printDiscoverTable(cli.Out(), instance)
@@ -83,12 +83,21 @@ func RunDiscover(cli Cli, opts DiscoverOptions) error {
 				return err
 			}
 		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	close(instch)
+
+	var agentInstances []*agent.Instance
+	for inst := range instch {
+		agentInstances = append(agentInstances, inst)
 	}
 
 	if opts.IPsecAgg {
 		logrus.Infof("Aggregating IPSec info for instances")
 
-		ipsecAgg, err := agent.CorrelateIPSec(vppInstances)
+		ipsecAgg, err := agent.CorrelateIPSec(agentInstances)
 		if err != nil {
 			logrus.Warnf("correlating IPSec failed: %v", err)
 		} else {
@@ -104,7 +113,7 @@ func printDiscoverTable(out io.Writer, instance *vpp.Instance) {
 
 	printInstanceHeader(&buf, instance.Handler())
 
-	printDiscoveredInstance(prefixWriter(&buf), instance)
+	printDiscoveredInstance(strutil.IndentedWriter(&buf), instance)
 
 	fmt.Fprint(out, renderColor(buf.String()))
 }
@@ -115,7 +124,7 @@ func printDiscoveredInstance(out io.Writer, instance *vpp.Instance) {
 	// Info
 	{
 		vppInfo := instance.VppInfo()
-		fmt.Fprintf(out, "VPP version: %s\n", colorize(noteColor, vppInfo.Build.Version))
+		fmt.Fprintf(out, "VPP version: %s | uptime: %v\n", colorize(noteColor, vppInfo.Build.Version), colorize(noteColor, vppInfo.Runtime.Uptime))
 	}
 	fmt.Fprintln(out)
 
@@ -123,8 +132,8 @@ func printDiscoveredInstance(out io.Writer, instance *vpp.Instance) {
 	{
 		if len(config.VPP.Interfaces) > 0 {
 			fmt.Fprintln(out, colorize(headerColor, "VPP"))
-			w := prefixWriter(out)
-			PrintVPPInterfacesTable(w, config)
+			w := strutil.IndentedWriter(out)
+			PrintVPPInterfacesTable(w, instance)
 		} else {
 			fmt.Fprintln(out, colorize(nonAvailableColor, "No VPP interfaces configured"))
 		}
@@ -135,8 +144,8 @@ func printDiscoveredInstance(out io.Writer, instance *vpp.Instance) {
 	{
 		if len(config.Linux.Interfaces) > 0 {
 			fmt.Fprintln(out, headerColor.Sprint("Linux"))
-			w := prefixWriter(out)
-			PrintLinuxInterfacesTable(w, config)
+			w := strutil.IndentedWriter(out)
+			PrintLinuxInterfacesTable(w, instance)
 		} else {
 			fmt.Fprintln(out, colorize(nonAvailableColor, "No linux interfaces configured"))
 		}
@@ -149,7 +158,7 @@ func printDiscoverIPSecAggr(out io.Writer, ipsecCorrelations *agent.IPSecCorrela
 
 	printSectionHeader(&buf, []string{"Aggregated IPSec info"})
 
-	PrintCorrelatedIpSec(prefixWriter(&buf), ipsecCorrelations)
+	PrintCorrelatedIpSec(strutil.IndentedWriter(&buf), ipsecCorrelations)
 
 	fmt.Fprint(out, renderColor(buf.String()))
 }

@@ -6,14 +6,9 @@ import (
 	stdexec "os/exec"
 )
 
-// Command returns a local command.
-func Command(cmd string, args ...string) Cmd {
-	return (&Local{}).Command(cmd, args...)
-}
+type LocalCmder struct{}
 
-type Local struct{}
-
-func (l *Local) Command(cmd string, args ...string) Cmd {
+func (l *LocalCmder) Command(cmd string, args ...string) Cmd {
 	return &LocalCmd{
 		Cmd: stdexec.Command(cmd, args...),
 	}

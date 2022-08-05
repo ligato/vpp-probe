@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/segmentio/textio"
+	"go.ligato.io/vpp-probe/pkg/strutil"
 	"go.ligato.io/vpp-probe/vpp"
 )
 
@@ -20,6 +20,8 @@ const (
 )
 
 func PrintTopologyDot(w io.Writer, instances []*vpp.Instance, info *Info) error {
+	// TODO: use graphviz library to build graph
+
 	fprintSection(w, "digraph G", func(w io.Writer) {
 		fmt.Fprintf(w, "rankdir=%s;\n", "LR")
 		fmt.Fprintf(w, "bgcolor=%s;\n", graphBgColor)
@@ -46,7 +48,7 @@ func PrintTopologyDot(w io.Writer, instances []*vpp.Instance, info *Info) error 
 			fmt.Fprintln(w)
 			fmt.Fprintf(w, "subgraph \"cluster_%s\" {\n", instance.ID())
 			{
-				w := prefixWriter(w)
+				w := strutil.IndentedWriter(w)
 
 				label := fmt.Sprintf("%v [host]", instance.String())
 				fmt.Fprintf(w, "label=%q;\n", label)
@@ -57,7 +59,7 @@ func PrintTopologyDot(w io.Writer, instances []*vpp.Instance, info *Info) error 
 				fmt.Fprintln(w)
 				fmt.Fprintf(w, "subgraph \"cluster_%s_vpp\" {\n", instance.ID())
 				{
-					w := prefixWriter(w)
+					w := strutil.IndentedWriter(w)
 
 					fmt.Fprintln(w, `label="VPP";`)
 					fmt.Fprintf(w, "style=%s;\n", "solid")
@@ -111,10 +113,10 @@ func PrintTopologyDot(w io.Writer, instances []*vpp.Instance, info *Info) error 
 		for _, c := range info.Connections {
 			src := c.Source.Interface
 			dst := c.Destination.Interface
-			if c.Source.Type == LinuxNetwork {
+			if c.Source.Type == KernelNetwork {
 				src = fmt.Sprintf("LINUX-%s", src)
 			}
-			if c.Destination.Type == LinuxNetwork {
+			if c.Destination.Type == KernelNetwork {
 				dst = fmt.Sprintf("LINUX-%s", dst)
 			}
 			if c.Source.Namespace != "" {
@@ -145,12 +147,8 @@ func PrintTopologyDot(w io.Writer, instances []*vpp.Instance, info *Info) error 
 func fprintSection(w io.Writer, section string, fn func(io.Writer)) {
 	fmt.Fprintln(w, section, "{")
 	{
-		w := prefixWriter(w)
+		w := strutil.IndentedWriter(w)
 		fn(w)
 	}
 	fmt.Fprintln(w, "}")
-}
-
-func prefixWriter(w io.Writer) *textio.PrefixWriter {
-	return textio.NewPrefixWriter(w, "  ")
 }

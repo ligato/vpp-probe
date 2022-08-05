@@ -9,7 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/deprecated/scheme"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/remotecommand"
 )
 
@@ -114,12 +114,15 @@ func podExec(client *Client, namespace, podName, container string,
 		Name(podName).
 		Namespace(namespace).
 		SubResource("exec").
-		VersionedParams(opts, scheme.ParameterCodec)
+		VersionedParams(opts, scheme.ParameterCodec).
+		Timeout(time.Second * 120)
 
 	logrus.WithFields(logrus.Fields{
-		"command":   opts.Command,
 		"container": opts.Container,
-	}).Tracef("pod %s running exec: %+v", podName, req.URL())
+		"pod":       podName,
+		"namespace": namespace,
+		"client":    client.String(),
+	}).Tracef("running pod exec: %+v", opts.Command)
 
 	exec, err := remotecommand.NewSPDYExecutor(client.restConfig, "POST", req.URL())
 	if err != nil {

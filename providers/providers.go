@@ -8,9 +8,9 @@ import (
 type Env string
 
 const (
-	Local  = "local"
-	Kube   = "kube"
-	Docker = "docker"
+	Local  = "local"  // running as local process
+	Kube   = "kube"   // running in Kubernetes pod
+	Docker = "docker" // running in Docker container
 )
 
 // Provider provides ways to discover instances.

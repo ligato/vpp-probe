@@ -25,8 +25,10 @@ type PortForwarder struct {
 	portFwd *portforward.PortForwarder
 	ports   []portforward.ForwardedPort
 	stopCh  chan struct{}
+	doneCh  <-chan error
 }
 
+// PortForward starts port forwarding for a port and returns the PortForwarder.
 func PortForward(client *Client, opt PortForwardOptions) (*PortForwarder, error) {
 	var port string
 	if opt.LocalPort == 0 {
@@ -37,6 +39,13 @@ func PortForward(client *Client, opt PortForwardOptions) (*PortForwarder, error)
 
 	path := fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/portforward", opt.PodNamespace, opt.PodName)
 	hostIP := strings.TrimLeft(client.restConfig.Host, "htps:/")
+
+	log := logrus.WithFields(map[string]interface{}{
+		"pod":       opt.PodName,
+		"namespace": opt.PodNamespace,
+		"cluster":   client.Cluster(),
+		"port":      port,
+	})
 
 	transport, upgrader, err := spdy.RoundTripperFor(client.restConfig)
 	if err != nil {
@@ -57,14 +66,19 @@ func PortForward(client *Client, opt PortForwardOptions) (*PortForwarder, error)
 	}
 
 	go func() {
+		var err error
+
+		defer log.Tracef("stopped forwarding ports (err: %v)", err)
+
 		defer func() {
-			if err := recover(); err != nil {
-				logrus.Errorf("PANIC: %v", err)
+			if e := recover(); e != nil {
+				err = fmt.Errorf("recovered panic: %v", e)
 			}
+			errCh <- err
 		}()
 
-		if err := fw.ForwardPorts(); err != nil {
-			errCh <- err
+		if err = fw.ForwardPorts(); err != nil {
+			log.Debugf("ForwardPorts error: %v", err)
 			return
 		}
 	}()
@@ -79,17 +93,14 @@ func PortForward(client *Client, opt PortForwardOptions) (*PortForwarder, error)
 		}
 	}
 
-	logrus.WithFields(map[string]interface{}{
-		"pod":       opt.PodName,
-		"namespace": opt.PodNamespace,
-		"cluster":   client.Cluster(),
-	}).Debugf("forwarding ports: %+v", ports)
+	log.Debugf("started forwarding ports: %+v", ports)
 
 	return &PortForwarder{
 		Streams: streams,
 		portFwd: fw,
 		ports:   ports,
 		stopCh:  stopCh,
+		doneCh:  errCh,
 	}, nil
 }
 
@@ -106,4 +117,9 @@ func (pf *PortForwarder) Stop() {
 	}
 	close(pf.stopCh)
 	pf.stopCh = nil
+	pf.doneCh = nil
+}
+
+func (pf *PortForwarder) Done() <-chan error {
+	return pf.doneCh
 }

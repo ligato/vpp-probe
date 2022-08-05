@@ -3,12 +3,25 @@ package client
 
 import (
 	"fmt"
+	"sort"
+	"sync"
+	"time"
 
 	"github.com/sirupsen/logrus"
 
 	"go.ligato.io/vpp-probe/providers"
 	"go.ligato.io/vpp-probe/vpp"
 )
+
+// API defines client API interface.
+type API interface {
+	AddProvider(provider providers.Provider) error
+	GetProvider(name string) providers.Provider
+	GetProviders() []providers.Provider
+	Instances() []*vpp.Instance
+	DiscoverInstances(queryParams ...map[string]string) error
+	Close() error
+}
 
 // Client is a client for managing providers and instances.
 type Client struct {
@@ -33,6 +46,19 @@ func (c *Client) Close() error {
 		handler := instance.Handler()
 		if err := handler.Close(); err != nil {
 			logrus.Debugf("closing handler %v failed: %v", handler.ID(), err)
+		}
+	}
+	return nil
+}
+
+// GetProvider returns provider with name or nil if not found.
+func (c *Client) GetProvider(name string) providers.Provider {
+	if c == nil {
+		return nil
+	}
+	for _, p := range c.providers {
+		if p.Name() == name {
+			return p
 		}
 	}
 	return nil
@@ -74,7 +100,14 @@ func (c *Client) DiscoverInstances(queryParams ...map[string]string) error {
 		return fmt.Errorf("no providers available")
 	}
 
-	instanceChan := make(chan []*vpp.Instance)
+	type discovery struct {
+		provider  providers.Provider
+		instances []*vpp.Instance
+		err       error
+	}
+	discoveryChan := make(chan discovery)
+
+	logrus.Debugf("running instance discovery for %d providers", len(c.providers))
 
 	for _, p := range c.providers {
 		go func(provider providers.Provider) {
@@ -82,18 +115,30 @@ func (c *Client) DiscoverInstances(queryParams ...map[string]string) error {
 			if err != nil {
 				logrus.Warnf("provider %q discover error: %v", provider.Name(), err)
 			}
-			instanceChan <- instances
+			discoveryChan <- discovery{
+				provider:  provider,
+				instances: instances,
+				err:       err,
+			}
 		}(p)
 	}
 
-	var instanceList []*vpp.Instance
-
+	discoveries := make(map[providers.Provider]discovery)
 	for range c.providers {
-		instances := <-instanceChan
-		if len(instances) > 0 {
-			instanceList = append(instanceList, instances...)
+		d := <-discoveryChan
+		discoveries[d.provider] = d
+	}
+
+	var instanceList []*vpp.Instance
+	for _, p := range c.providers {
+		d := discoveries[p]
+		if len(d.instances) > 0 {
+			instanceList = append(instanceList, d.instances...)
 		}
 	}
+
+	// sort instances by ID
+	sort.Slice(instanceList, func(i, j int) bool { return instanceList[i].ID() < instanceList[j].ID() })
 
 	c.instances = instanceList
 	if len(c.instances) == 0 {
@@ -111,22 +156,115 @@ func DiscoverInstances(provider providers.Provider, queryParams ...map[string]st
 		return nil, err
 	}
 
-	var instances []*vpp.Instance
-
-	// TODO
-	//  - run this in parallel (with throttle) to make it faster
-	//  - persist failed handlers to skip in the next run
-
+	var initInstances []*vpp.Instance
 	for _, handler := range handlers {
+		log := logrus.WithField("instance", handler.ID())
+
 		inst, err := vpp.NewInstance(handler)
 		if err != nil {
-			logrus.WithField("instance", handler.ID()).
-				Debugf("vpp instance init failed: %v", err)
+			log.Debugf("vpp instance init failed: %v", err)
 			continue
 		}
 
+		initInstances = append(initInstances, inst)
+	}
+
+	instch := make(chan *vpp.Instance, len(initInstances))
+
+	if err := RunOnInstances(initInstances, func(instance *vpp.Instance) error {
+		err := instance.Init()
+		if err == nil {
+			instch <- instance
+		}
+		return err
+	}); err != nil {
+		return nil, err
+	}
+	close(instch)
+
+	var instances []*vpp.Instance
+	for inst := range instch {
 		instances = append(instances, inst)
 	}
 
 	return instances, nil
+}
+
+const defaultNumWorkers = 10
+
+func RunOnInstances(instances []*vpp.Instance, workFn func(*vpp.Instance) error) error {
+	if len(instances) == 0 {
+		return fmt.Errorf("at least one instance required")
+	}
+	numWorkers := defaultNumWorkers
+	if numWorkers > len(instances) {
+		numWorkers = len(instances)
+	}
+
+	start := time.Now()
+
+	// create work channel to send all instances
+	workch := make(chan *vpp.Instance)
+	go func() {
+		for _, inst := range instances {
+			workch <- inst
+		}
+		close(workch)
+	}()
+
+	type Result struct {
+		Instance *vpp.Instance
+		Error    error
+		Elapsed  time.Duration
+	}
+	resultch := make(chan *Result)
+
+	// start workers to run for instances from work channel
+	var wg sync.WaitGroup
+	wg.Add(numWorkers)
+	for i := 0; i < numWorkers; i++ {
+		go func() {
+			defer wg.Done()
+			for instance := range workch {
+				t := time.Now()
+				logrus.Tracef("processing instance: %v", instance)
+				err := workFn(instance)
+				resultch <- &Result{
+					Instance: instance,
+					Error:    err,
+					Elapsed:  time.Since(t),
+				}
+			}
+		}()
+	}
+	// close result channel when all workers are done
+	go func() {
+		wg.Wait()
+		close(resultch)
+	}()
+
+	logrus.Debugf("waiting for results from %d instances", len(instances))
+
+	var results []*Result
+	// process completed from result channel
+	var anyOk bool
+	for res := range resultch {
+		if res.Error == nil {
+			anyOk = true
+		}
+		results = append(results, res)
+	}
+	if !anyOk {
+		return fmt.Errorf("all instances encountered errors")
+	}
+
+	logrus.Debugf("%d instances finished", len(instances))
+	var total time.Duration
+	for _, res := range results {
+		logrus.Debugf("- %+v", res)
+		total += res.Elapsed
+	}
+	logrus.Tracef("elapsed time %v (total time: %v)", time.Since(start).Round(time.Second), total.Round(time.Second))
+
+	return nil
 }

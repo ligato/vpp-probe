@@ -12,15 +12,19 @@ import (
 	"github.com/sirupsen/logrus"
 	_ "go.ligato.io/cn-infra/v2/logging/logrus"
 
-	interfaces "go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2005/interface"
-	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2005/interface_types"
-	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2005/ip"
-	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2005/memclnt"
-	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2005/vpe"
+	//"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2202/vlib"
 
-	_ "go.ligato.io/vpp-agent/v3/plugins/govppmux/vppcalls/vpp2001"
-	_ "go.ligato.io/vpp-agent/v3/plugins/govppmux/vppcalls/vpp2005"
-	_ "go.ligato.io/vpp-agent/v3/plugins/govppmux/vppcalls/vpp2009"
+	interfaces "go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2106/interface"
+	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2106/interface_types"
+	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2106/ip"
+	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2106/memclnt"
+
+	//"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2202/vlib"
+	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2106/vpe"
+
+	_ "go.ligato.io/vpp-agent/v3/plugins/govppmux/vppcalls/vpp2101"
+	_ "go.ligato.io/vpp-agent/v3/plugins/govppmux/vppcalls/vpp2106"
+	_ "go.ligato.io/vpp-agent/v3/plugins/govppmux/vppcalls/vpp2202"
 
 	"go.ligato.io/vpp-probe/vpp/api"
 )
@@ -50,7 +54,7 @@ func GetVersionInfoChan(ch govppapi.Channel) (*api.BuildInfo, error) {
 	}, nil
 }
 
-func GetSystemInfo(conn govppapi.Connection) (*api.SystemInfo, error) {
+func GetSystemInfo(conn govppapi.Connection) (*api.RuntimeInfo, error) {
 	pid, err := GetPID(conn)
 	if err != nil {
 		return nil, err
@@ -59,13 +63,13 @@ func GetSystemInfo(conn govppapi.Connection) (*api.SystemInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &api.SystemInfo{
+	return &api.RuntimeInfo{
 		Pid:    pid,
-		Uptime: uptime,
+		Uptime: api.Uptime(uptime), //uint64(uptime / time.Second),
 	}, nil
 }
 
-func GetSystemInfoChan(ch govppapi.Channel) (*api.SystemInfo, error) {
+func GetSystemInfoChan(ch govppapi.Channel) (*api.RuntimeInfo, error) {
 	pid, err := GetPIDChan(ch)
 	if err != nil {
 		return nil, err
@@ -74,9 +78,9 @@ func GetSystemInfoChan(ch govppapi.Channel) (*api.SystemInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &api.SystemInfo{
+	return &api.RuntimeInfo{
 		Pid:    pid,
-		Uptime: uptime,
+		Uptime: api.Uptime(uptime), //uint64(uptime / time.Second),
 	}, nil
 }
 
