@@ -9,7 +9,8 @@ import (
 )
 
 const (
-	waitCreateCluster = time.Minute
+	waitCreateCluster = time.Second * 90
+	waitPodReady      = time.Second * 120
 )
 
 func kubectl(t *testing.T, context string, args ...string) {
@@ -19,6 +20,10 @@ func kubectl(t *testing.T, context string, args ...string) {
 		"--context", context,
 	}, args...)
 	execCmd(t, "kubectl", args...)
+}
+
+func contextName(name string) string {
+	return "kind-" + name
 }
 
 func createCluster(name string) {

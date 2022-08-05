@@ -18,7 +18,7 @@ import (
 
 type Cli interface {
 	Initialize(opts ProbeOptions) error
-	Client() *client.Client
+	Client() client.API
 	Queries() []map[string]string
 
 	Out() *streams.Out
@@ -76,7 +76,7 @@ func (cli *ProbeCli) Apply(opt ...CliOption) error {
 	return nil
 }
 
-func (cli *ProbeCli) Client() *client.Client {
+func (cli *ProbeCli) Client() client.API {
 	return cli.client
 }
 

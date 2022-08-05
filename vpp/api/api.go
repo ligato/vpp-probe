@@ -4,17 +4,18 @@ import (
 	"time"
 )
 
+//
 type VPP interface {
 	// --------------
 	// Runtime
 	// --------------
 
 	GetBuildInfo() (*BuildInfo, error)
-	GetSystemInfo() (*SystemInfo, error)
-	GetUptime() (time.Duration, error)
+	GetSystemInfo() (*RuntimeInfo, error)
 	// StartupConfig() (string, error)
 	// Plugins() ([]string, error)
 
+	// --------------
 	// System
 	// --------------
 
@@ -27,15 +28,18 @@ type VPP interface {
 	// UnixFiles() ([]string, error)
 	// ShowLog(LogFilter) ([]LogEntry, error)
 
+	// --------------
 	// Interfaces
 	// --------------
 
 	ListInterfaces() ([]*Interface, error)
 
+	// --------------
 	// Stats
 	// --------------
 
 	ListStats() ([]string, error)
+	DumpStats() (*VppStats, error)
 	// GetCounter(counter string) (string, error)
 	// GetInterfaceStats(iface string) (string, error)
 }

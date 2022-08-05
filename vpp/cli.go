@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
-
 	"go.ligato.io/vpp-probe/probe"
 	"go.ligato.io/vpp-probe/vpp/api"
 )
@@ -31,22 +29,6 @@ var (
 // Compile location:         /w/workspace/vpp-merge-master-ubuntu1804
 // Compiler:                 Clang/LLVM 9.0.0 (tags/RELEASE_900/final)
 // Current PID:              170
-
-/*func GetVersionInfoCLI(cli probe.CliExecutor) (*api.BuildInfo, error) {
-	out, err := cli.RunCli("show version verbose")
-	if err != nil {
-		return nil, err
-	}
-
-	info := &api.BuildInfo{}
-
-	matchVersion := cliShowVersionVerbose.FindStringSubmatch(out)
-	if len(matchVersion) > 1 {
-		info.Version = matchVersion[1]
-	}
-
-	return info, nil
-}*/
 
 type VersionVerboseData struct {
 	Version         string
@@ -99,48 +81,115 @@ func ShowVersionVerboseCLI(cli probe.CliExecutor) (*VersionVerboseData, error) {
 }
 
 func GetPidCLI(cli probe.CliExecutor) (int, error) {
-	out, err := cli.RunCli("show version verbose")
+	data, err := ShowVersionVerboseCLI(cli)
 	if err != nil {
 		return 0, err
 	}
-
-	var pid int
-
-	matchPid := cliShowVersionVerbosePID.FindStringSubmatch(out)
-	if len(matchPid) > 1 {
-		pid, _ = strconv.Atoi(matchPid[1])
+	pid, err := strconv.Atoi(data.CurrentPID)
+	if err != nil {
+		return 0, err
 	}
-
 	return pid, nil
 }
 
-var (
-	cliShowClock = regexp.MustCompile(`Time\s+now\s+([0-9\.]+),\s+(\S+)`)
+const (
+	vppClockLayout = "Mon, 2 Jan 2006 15:04:05 MST"
 )
 
-// vpp# show click
+var (
+	cliShowClock = regexp.MustCompile(`Time\s+now\s+([0-9.]+),\s+([^\n]+)`)
+)
+
+// vpp# show clock
 // Time now 3180.278756, Tue, 1 Dec 2020 11:52:45 GMT
 
-func GetUptimeCLI(cli probe.CliExecutor) (time.Duration, error) {
+/*
+	Time now 7481.803097, Tue, 2 Aug 2022 7:37:38 GMT
+	Time last barrier release 0.000000000
+	0: Time now 7481.803110
+	Thread 0 offset 0.000000000 error 0.000000000
+*/
+
+type ClockData struct {
+	Uptime string
+	Clock  string
+}
+
+func ShowClockCLI(cli probe.CliExecutor) (*ClockData, error) {
 	out, err := cli.RunCli("show clock")
+	if err != nil {
+		return nil, err
+	}
+
+	data := ClockData{}
+
+	matches := cliShowClock.FindStringSubmatch(strings.TrimSpace(out))
+	if len(matches) <= 2 {
+		return nil, fmt.Errorf("unable to parse input: %q", out)
+	}
+	if len(matches) > 1 {
+		data.Uptime = matches[1]
+	}
+	if len(matches) > 2 {
+		data.Clock = matches[2]
+	}
+
+	return &data, nil
+}
+
+func GetUptimeCLI(cli probe.CliExecutor) (time.Duration, error) {
+	data, err := ShowClockCLI(cli)
 	if err != nil {
 		return 0, err
 	}
 
-	var uptime time.Duration
-
-	matchUptime := cliShowClock.FindStringSubmatch(out)
-	if len(matchUptime) > 1 {
-		rawUptime := matchUptime[1]
-		floatUptime, err := strconv.ParseFloat(rawUptime, 64)
-		if err != nil {
-			logrus.Debugf("parse float %v error: %v", rawUptime, err)
-		} else {
-			uptime = time.Duration(floatUptime * float64(time.Second))
-		}
+	floatUptime, err := strconv.ParseFloat(data.Uptime, 64)
+	if err != nil {
+		return 0, fmt.Errorf("parse float %v error: %v", data.Uptime, err)
 	}
+	uptime := time.Duration(floatUptime * float64(time.Second))
 
 	return uptime, nil
+}
+
+func GetClockCLI(cli probe.CliExecutor) (time.Time, error) {
+	data, err := ShowClockCLI(cli)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	clock, err := time.Parse(vppClockLayout, data.Clock)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("parse time %v error: %v", data.Clock, err)
+	}
+
+	return clock, nil
+}
+
+func parseUptime(raw string) (time.Duration, error) {
+	matches := cliShowClock.FindStringSubmatch(raw)
+	if len(matches) <= 1 {
+		return 0, fmt.Errorf("invalid input: %q", raw)
+	}
+	rawUptime := matches[1]
+	floatUptime, err := strconv.ParseFloat(rawUptime, 64)
+	if err != nil {
+		return 0, fmt.Errorf("parse float %v error: %v", rawUptime, err)
+	}
+	return time.Duration(floatUptime * float64(time.Second)), nil
+}
+
+func parseClock(raw string) (time.Time, error) {
+	matches := cliShowClock.FindStringSubmatch(raw)
+	if len(matches) <= 2 {
+		return time.Time{}, fmt.Errorf("invalid input: %q", raw)
+	}
+	rawClock := matches[2]
+	clock, err := time.Parse(vppClockLayout, rawClock)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("parse time %v error: %v", rawClock, err)
+	}
+	return clock, nil
 }
 
 var (
@@ -164,7 +213,7 @@ func DumpLogsCLI(cli probe.CliExecutor) ([]string, error) {
 	return logs, nil
 }
 
-func ShowPluginsCLI(cli probe.CliExecutor) ([]api.PluginInfo, error) {
+func ShowPluginsCLI(cli probe.CliExecutor) ([]api.Plugin, error) {
 	const (
 		pluginPathPrefix = "Plugin path is:"
 		pluginNameSuffix = "_plugin.so"
@@ -188,7 +237,7 @@ func ShowPluginsCLI(cli probe.CliExecutor) ([]api.PluginInfo, error) {
 		return nil, fmt.Errorf("plugin path not found in output for 'show plugins'")
 	}
 
-	var plugins []api.PluginInfo
+	var plugins []api.Plugin
 	for _, line := range lines {
 		fields := strings.Fields(line)
 		if len(fields) < 3 {
@@ -201,7 +250,7 @@ func ShowPluginsCLI(cli probe.CliExecutor) ([]api.PluginInfo, error) {
 		if i <= 0 {
 			continue
 		}
-		plugin := api.PluginInfo{
+		plugin := api.Plugin{
 			Name:        strings.TrimSuffix(fields[1], pluginNameSuffix),
 			Path:        fields[1],
 			Version:     fields[2],

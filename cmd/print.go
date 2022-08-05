@@ -11,6 +11,9 @@ import (
 	"github.com/gookit/color"
 	linux_namespace "go.ligato.io/vpp-agent/v3/proto/ligato/linux/namespace"
 	vpp_interfaces "go.ligato.io/vpp-agent/v3/proto/ligato/vpp/interfaces"
+	"google.golang.org/protobuf/reflect/protoreflect"
+
+	"go.ligato.io/vpp-probe/vpp"
 
 	"go.ligato.io/vpp-probe/probe"
 	"go.ligato.io/vpp-probe/providers"
@@ -18,8 +21,7 @@ import (
 )
 
 const (
-	tunnelDirectionChar = `<->`
-	defaultPrefix       = "  "
+	tunnelDirectionChar = `->`
 )
 
 var (
@@ -96,12 +98,12 @@ const (
 	defaultVppInterfaceName = "local0"
 )
 
-func PrintVPPInterfacesTable(out io.Writer, config *agent.Config) {
+func PrintVPPInterfacesTable(out io.Writer, instance *vpp.Instance) {
 	var buf bytes.Buffer
-	w := tabwriter.NewWriter(&buf, 0, 1, 4, ' ', tabwriter.StripEscape|tabwriter.FilterHTML|tabwriter.DiscardEmptyColumns)
+	w := tabwriter.NewWriter(&buf, 0, 1, 2, ' ', tabwriter.StripEscape|tabwriter.FilterHTML|tabwriter.DiscardEmptyColumns)
 
 	header := []string{
-		"Idx", "Internal", "Interface", "Type", "State", "IP", " MTU", "Config", "Related",
+		"Idx", "Internal", "Interface", "Type", "State", "IP", "MTU", "MAC", "Config", "Related", "Stats",
 	}
 	for i, h := range header {
 		if h != "" {
@@ -109,6 +111,8 @@ func PrintVPPInterfacesTable(out io.Writer, config *agent.Config) {
 		}
 	}
 	fmt.Fprintln(w, strings.Join(header, "\t"))
+
+	config := instance.Agent().Config
 
 	for _, v := range config.VPP.Interfaces {
 		if v.Metadata["InternalName"] == defaultVppInterfaceName {
@@ -120,14 +124,16 @@ func PrintVPPInterfacesTable(out io.Writer, config *agent.Config) {
 		internal := colorize(highlightColor, interfaceInternalName(v))
 		name := colorize(interfaceColor, iface.Name)
 		typ := vppInterfaceType(v)
-		state := interfaceStatus(v)
-		ips := interfaceIPs(iface.IpAddresses, iface.Vrf)
+		state := vppInterfaceStatus(v, config.VPP.Interfaces)
+		ips := vppInterfaceIPs(iface)
 		mtu := interfaceMTU(iface.Mtu)
+		mac := interfaceMAC(iface.PhysAddress)
 		info := vppInterfaceInfo(v)
-		other := otherInfo(config, v)
+		other := relatedInfo(config, v)
+		stats := vppInterfaceStats(instance, v)
 
 		cols := []string{
-			idx, internal, name, typ, state, ips, mtu, info, other,
+			idx, internal, name, typ, state, ips, mtu, mac, info, other, stats,
 		}
 		fmt.Fprintln(w, strings.Join(cols, "\t"))
 	}
@@ -140,12 +146,19 @@ func PrintVPPInterfacesTable(out io.Writer, config *agent.Config) {
 	fmt.Fprint(out, buf.String())
 }
 
-func PrintLinuxInterfacesTable(out io.Writer, config *agent.Config) {
+func interfaceMAC(address string) string {
+	if address == "00:00:00:00:00:00" {
+		return "-"
+	}
+	return address
+}
+
+func PrintLinuxInterfacesTable(out io.Writer, instance *vpp.Instance) {
 	var buf bytes.Buffer
-	w := tabwriter.NewWriter(&buf, 0, 8, 1, '\t', tabwriter.StripEscape|tabwriter.FilterHTML|tabwriter.DiscardEmptyColumns)
+	w := tabwriter.NewWriter(&buf, 0, 1, 2, ' ', tabwriter.StripEscape|tabwriter.FilterHTML|tabwriter.DiscardEmptyColumns)
 
 	header := []string{
-		"Idx", "Internal", "Interface", "Type", "State", "IP", " MTU", "Config", "Namespace",
+		"Idx", "Internal", "Interface", "Type", "State", "IP", "MTU", "MAC", "Config", "Namespace",
 	}
 	for i, h := range header {
 		if h != "" {
@@ -153,6 +166,8 @@ func PrintLinuxInterfacesTable(out io.Writer, config *agent.Config) {
 		}
 	}
 	fmt.Fprintln(w, strings.Join(header, "\t"))
+
+	config := instance.Agent().Config
 
 	for _, v := range config.Linux.Interfaces {
 		iface := v.Value
@@ -164,10 +179,11 @@ func PrintLinuxInterfacesTable(out io.Writer, config *agent.Config) {
 		state := linuxInterfaceStatus(v)
 		ips := interfaceIPs(iface.IpAddresses, 0)
 		mtu := interfaceMTU(iface.Mtu)
-		config := linuxInterfaceInfo(v)
+		mac := interfaceMAC(iface.PhysAddress)
+		config := interfaceLinkInfo(v.Value.ProtoReflect()) //linuxInterfaceInfo(v)
 		namespace := linuxIfaceNamespace(iface.Namespace)
 
-		cols := []string{idx, internal, name, typ, state, ips, mtu, config, namespace}
+		cols := []string{idx, internal, name, typ, state, ips, mtu, mac, config, namespace}
 		fmt.Fprintln(w, strings.Join(cols, "\t"))
 	}
 
@@ -300,6 +316,28 @@ func interfaceMTU(mtu uint32) string {
 	return fmt.Sprintf("%4d", mtu)
 }
 
+func vppInterfaceIPs(iface *vpp_interfaces.Interface) string {
+	ips := iface.GetIpAddresses()
+	vrf := iface.GetVrf()
+	unnum := iface.GetUnnumbered()
+	ip := "-"
+	if len(ips) > 0 {
+		ipsclr := []string{}
+		for _, ipaddr := range ips {
+			ipsclr = append(ipsclr, colorize(ipAddressColor, ipaddr))
+		}
+
+		ip = strings.Join(ipsclr, ", ")
+	}
+	if unnum != nil {
+		ip = fmt.Sprintf("unnumbered: %s", unnum.GetInterfaceWithIp())
+	}
+	if vrf > 0 {
+		ip += fmt.Sprintf(" (VRF %v)", colorize(color.Cyan, vrf))
+	}
+	return ip
+}
+
 func interfaceIPs(ips []string, vrf uint32) string {
 	ip := "-"
 	if len(ips) > 0 {
@@ -337,54 +375,25 @@ func linuxInterfaceIndex(iface agent.LinuxInterface) string {
 }
 
 func linuxInterfaceStatus(iface agent.LinuxInterface) string {
-	if iface.Value.Enabled {
-		return colorize(statusUpColor, "up")
-	}
-	return colorize(statusDownColor, "down")
+	return colorizedUpDown(iface.Value.Enabled)
 }
 
-func colorizedStatus(status bool) string {
+func colorizedUpDown(status bool) string {
 	if status {
 		return colorize(statusUpColor, "up")
 	}
 	return colorize(statusDownColor, "down")
 }
 
-func interfaceStatus(iface agent.VppInterface) string {
-	adminStatus := colorizedStatus(iface.Value.Enabled)
-	linkState := iface.GetLinkState()
-	if linkState != iface.Value.Enabled {
-		return fmt.Sprintf("%v (link %v)", adminStatus, colorizedStatus(linkState))
+func vppInterfaceStatus(iface agent.VppInterface, interfaces []agent.VppInterface) string {
+	adminStatus := colorizedUpDown(iface.Value.Enabled)
+	if iface.Value.GetSub() == nil {
+		linkState := iface.GetLinkState()
+		if linkState != iface.Value.Enabled {
+			return fmt.Sprintf("link %v", colorizedUpDown(linkState))
+		}
 	}
 	return adminStatus
-}
-
-func otherInfo(conf *agent.Config, iface agent.VppInterface) string {
-	info := []string{}
-
-	// L2 Xconnect
-	if xconn := agent.FindL2XconnFor(iface.Value.Name, conf.VPP.L2XConnects); xconn != nil {
-		toIface := xconn.Value.ReceiveInterface
-		if iface.Value.Name == xconn.Value.ReceiveInterface {
-			toIface = xconn.Value.TransmitInterface
-		}
-		info = append(info, fmt.Sprintf("l2xc to: %v", colorize(interfaceColor, toIface)))
-	}
-
-	// IPSec
-	if tp := agent.FindIPSecTunProtectFor(iface.Value.Name, conf.VPP.IPSecTunProtects); tp != nil {
-		info = append(info, fmt.Sprintf("ipsec-sa in:%v out:%v", colorize(color.Cyan, tp.Value.SaIn), colorize(color.Cyan, tp.Value.SaOut)))
-	}
-
-	// Routes
-	/*for _, r := range agent.FindVppRoutesFor(iface.Value.Name, conf.VPP.Routes) {
-		if r.Origin != api.FromNB {
-			continue
-		}
-		info = append(info, fmt.Sprintf("route:%v", colorize(color.Cyan, r.Value.DstNetwork)))
-	}*/
-
-	return strings.Join(info, ", ")
 }
 
 func vppInterfaceInfo(iface agent.VppInterface) string {
@@ -416,9 +425,7 @@ func vppInterfaceInfo(iface agent.VppInterface) string {
 		tap := iface.Value.GetTap()
 		pr := tap.ProtoReflect()
 		m := protoFieldsToMap(pr.Descriptor().Fields(), pr)
-		fieldsStr := mapKeyValString(m, func(k string, v string) string {
-			return fmt.Sprintf("%s:%s", k, colorize(valueColor, v))
-		})
+		fieldsStr := mapValuesColorized(m, valueColor)
 		return fmt.Sprintf("host_if_name:%s %v", colorize(valueColor, iface.Metadata["TAPHostIfName"]), fieldsStr)
 
 	case vpp_interfaces.Interface_IPIP_TUNNEL:
@@ -428,33 +435,95 @@ func vppInterfaceInfo(iface agent.VppInterface) string {
 		return info
 	}
 
-	ref := iface.Value.ProtoReflect()
-	ld := ref.Descriptor().Oneofs().ByName("link")
-	wd := ref.WhichOneof(ld)
-	if wd == nil {
-		return ""
-	}
-	d := wd.Message()
-	link := ref.Get(wd).Message()
-
-	m := protoFieldsToMap(d.Fields(), link)
-	return mapKeyValString(m, func(k string, v string) string {
-		return fmt.Sprintf("%s:%s", k, colorize(valueColor, v))
-	})
+	return interfaceLinkInfo(iface.Value.ProtoReflect())
 }
 
-func linuxInterfaceInfo(iface agent.LinuxInterface) string {
-	ref := iface.Value.ProtoReflect()
-	ld := ref.Descriptor().Oneofs().ByName("link")
-	wd := ref.WhichOneof(ld)
+func relatedInfo(conf *agent.Config, iface agent.VppInterface) string {
+	var info []string
+
+	// L2 Xconnect
+	if xconn := agent.FindL2XconnFor(iface.Value.Name, conf.VPP.L2XConnects); xconn != nil {
+		toIface := xconn.Value.ReceiveInterface
+		if iface.Value.Name == xconn.Value.ReceiveInterface {
+			toIface = xconn.Value.TransmitInterface
+		}
+		info = append(info, fmt.Sprintf("l2xc to: %v", colorize(interfaceColor, toIface)))
+	}
+
+	// IPSec
+	if tp := agent.FindIPSecTunProtectFor(iface.Value.Name, conf.VPP.IPSecTunProtects); tp != nil {
+		info = append(info, fmt.Sprintf("ipsec SA in:%v out:%v", colorize(color.Cyan, tp.Value.SaIn), colorize(color.Cyan, tp.Value.SaOut)))
+	}
+	if tp := agent.FindIPSecSPFor(iface.Value.Name, conf); tp != nil {
+		info = append(info, fmt.Sprintf("ipsec SPs: %v", colorize(color.Cyan, len(tp))))
+	}
+
+	// Routes
+	if routes := agent.FindVppRoutesFor(iface.Value.Name, conf.VPP.Routes); routes != nil {
+		info = append(info, fmt.Sprintf("routes %v", colorize(color.Cyan, len(routes))))
+	}
+
+	return strings.Join(info, ", ")
+}
+
+func vppInterfaceStats(instance *vpp.Instance, iface agent.VppInterface) string {
+	stats := instance.VppStats()
+	if stats == nil {
+		return "-"
+	}
+
+	var s string
+
+	padnum := func(num uint64) string {
+		return fmt.Sprintf("%5d", num)
+	}
+
+	if ifaceStats, ok := stats.Interfaces[interfaceInternalName(iface)]; ok {
+		var tx, rx string
+		if ifaceStats.Tx != nil {
+			tx = fmt.Sprintf("%v pkts / %v bytes", colorize(color.LightCyan, padnum(ifaceStats.Tx.Packets)), colorize(color.LightCyan, padnum(ifaceStats.Tx.Bytes)))
+		}
+		if ifaceStats.TxErrors > 0 {
+			tx += fmt.Sprintf(", %v errors", colorize(color.LightRed, ifaceStats.TxErrors))
+		}
+		if ifaceStats.Rx != nil {
+			rx = fmt.Sprintf("%v pkts / %v bytes", colorize(color.LightCyan, padnum(ifaceStats.Rx.Packets)), colorize(color.LightCyan, padnum(ifaceStats.Rx.Bytes)))
+		}
+		if ifaceStats.RxErrors > 0 {
+			rx += fmt.Sprintf(", %v errors", colorize(color.LightRed, ifaceStats.RxErrors))
+		}
+		statsStr := fmt.Sprintf("%v: %24v | %v: %24v", colorize(color.LightWhite, "TX"), tx, colorize(color.LightWhite, "RX"), rx)
+		if ifaceStats.Drops > 0 {
+			statsStr += fmt.Sprintf(" | %v drops", colorize(color.LightYellow, ifaceStats.Drops))
+		}
+		return statsStr
+
+		/*b, err := json.Marshal(ifaceStats)
+		  if err != nil {
+		  	logrus.Warnf("failed to marshal vpp interface stats: %v", err)
+		  	return fmt.Sprintf("%+v", ifaceStats)
+		  }
+		  b = bytes.TrimPrefix(b, []byte("{"))
+		  b = bytes.TrimSuffix(b, []byte("}"))
+		  b = bytes.Replace(b, []byte(`"`), []byte(""), -1)
+		  return string(b)*/
+	}
+
+	return s
+}
+
+func interfaceLinkInfo(ifaceMsg protoreflect.Message) string {
+	ld := ifaceMsg.Descriptor().Oneofs().ByName("link")
+	if ld == nil {
+		panic(fmt.Sprintf("message %v does not have oneof with name 'link'", string(ifaceMsg.Descriptor().FullName())))
+	}
+	wd := ifaceMsg.WhichOneof(ld)
 	if wd == nil {
 		return ""
 	}
 	d := wd.Message()
-	link := ref.Get(wd).Message()
+	link := ifaceMsg.Get(wd).Message()
 
 	m := protoFieldsToMap(d.Fields(), link)
-	return mapKeyValString(m, func(k string, v string) string {
-		return fmt.Sprintf("%s:%s", k, colorize(valueColor, v))
-	})
+	return mapValuesColorized(m, valueColor)
 }

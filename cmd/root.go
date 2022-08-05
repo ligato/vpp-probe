@@ -4,8 +4,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/gookit/color"
@@ -58,7 +56,8 @@ func NewRootCmd(cli Cli) *cobra.Command {
 
 			return cli.Initialize(opts)
 		},
-		TraverseChildren: true,
+		TraverseChildren:  true,
+		CompletionOptions: cobra.CompletionOptions{HiddenDefaultCmd: true},
 	}
 
 	cmd.SetIn(cli.In())
@@ -77,6 +76,7 @@ func NewRootCmd(cli Cli) *cobra.Command {
 
 	cmd.AddCommand(newVersionCmd())
 	cmd.AddCommand(
+		NewInstancesCmd(cli),
 		NewInspectorCmd(cli),
 		NewTopologyCmd(cli),
 		NewDiscoverCmd(cli),
@@ -117,9 +117,6 @@ func InitOptions(cli Cli, opts GlobalOptions) {
 	if os.Getenv("VPP_PROBE_DEBUG") != "" {
 		opts.Debug = true
 	}
-	if opts.Debug {
-		logrus.SetLevel(logrus.DebugLevel)
-	}
 
 	// log level
 	if loglvl := os.Getenv("VPP_PROBE_LOGLEVEL"); loglvl != "" {
@@ -136,24 +133,10 @@ func InitOptions(cli Cli, opts GlobalOptions) {
 		} else {
 			logrus.Fatalf("log level invalid: %v", err)
 		}
-	} else if !opts.Debug {
+	} else if opts.Debug {
+		logrus.SetLevel(logrus.DebugLevel)
+	} else {
 		logrus.SetLevel(logrus.InfoLevel)
 		infralogrus.DefaultLogger().SetLevel(logging.ErrorLevel)
 	}
-}
-
-var formatter = &logrus.TextFormatter{
-	EnvironmentOverrideColors: true,
-	CallerPrettyfier: func(frame *runtime.Frame) (function string, file string) {
-		const modulePath = "go.ligato.io/vpp-probe"
-		call := strings.TrimPrefix(frame.Function, modulePath)
-		function = fmt.Sprintf("%s()", strings.TrimPrefix(call, "/"))
-		_, file = filepath.Split(frame.File)
-		file = fmt.Sprintf("%s:%d", file, frame.Line)
-		return color.Debug.Sprint(function), color.Secondary.Sprint(file)
-	},
-}
-
-func init() {
-	logrus.SetFormatter(formatter)
 }
