@@ -7,10 +7,12 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
+
 	"go.ligato.io/vpp-probe/cmd"
 )
 
 func TestMultiClusterTestSuite(t *testing.T) {
+	t.Skip("skip multi cluster tests for now")
 	suite.Run(t, &MultiClusterTestSuite{
 		E2ETestSuite{
 			resourcesDir: "./resources",
