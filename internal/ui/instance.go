@@ -53,7 +53,7 @@ func newVPP(instance *vpp.Instance) *VPP {
 		ID:         instance.ID(),
 		LastUpdate: time.Now(),
 		Version:    info.Build.Version,
-		Pid:        fmt.Sprint(info.System.Pid),
+		Pid:        fmt.Sprint(info.Runtime.Pid),
 	}
 }
 
@@ -98,7 +98,7 @@ func (a *App) update(index int) {
 					instance.Uptime = err.Error()
 					log.Errorf("GetUptime failed: %v", err)
 				} else {
-					instance.Uptime = uptime.String()
+					instance.Uptime = uptime.Round(time.Second).String()
 				}
 			})
 		}

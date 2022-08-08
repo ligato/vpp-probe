@@ -60,6 +60,9 @@ func ParseTracePackets(trace string) (packets []Packet, err error) {
 			if len(packet.Captures) == 0 {
 				continue
 			}
+			/*if strings.Contains(packet.Captures[len(packet.Captures)-1].Content, "ACL deny packets") {
+				continue
+			}*/
 			packets = append(packets, packet)
 
 		}
@@ -68,7 +71,7 @@ func ParseTracePackets(trace string) (packets []Packet, err error) {
 	return packets, nil
 }
 
-// ParseResult parses a raw packet data from trace output and returns parsed Capture(s)
+// ParseTraceCaptures parses a raw packet data from trace output and returns parsed Capture(s)
 // or error if the packet from trace data cannot be parsed.
 func ParseTraceCaptures(pkt string) ([]Capture, error) {
 	var captures []Capture

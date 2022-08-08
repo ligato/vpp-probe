@@ -14,7 +14,7 @@ build:
     - amd64
   ignore:
     - goos: darwin
-      goarch: 386
+      goarch: "386"
   flags:
     - -trimpath
   ldflags:
@@ -61,9 +61,10 @@ dockers:
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
       - "--label=org.opencontainers.image.source={{.GitURL}}"
+      - "--platform=linux/arm64"
     ids:
       - vpp-probe-build
-    use_buildx: true
+    use: buildx
 
 release:
   github:
@@ -71,6 +72,6 @@ release:
     name: vpp-probe
   ids:
     - vpp-probe-archive
-  prerelease: true
+  prerelease: auto
   name_template: "{{.Tag}}"
 

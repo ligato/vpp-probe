@@ -2,12 +2,11 @@ package cmd
 
 import (
 	"fmt"
-	"io"
-	"strings"
 
 	"github.com/gookit/color"
-	"github.com/segmentio/textio"
 	"google.golang.org/protobuf/reflect/protoreflect"
+
+	"go.ligato.io/vpp-probe/pkg/strutil"
 )
 
 // nocolor is override for controling color in test
@@ -72,22 +71,6 @@ func colorize(x Colorer, v interface{}) string {
 	return color.WrapTag(fmt.Sprint(v), tag)
 }
 
-func prefixWriter(w io.Writer) *textio.PrefixWriter {
-	return textio.NewPrefixWriter(w, defaultPrefix)
-}
-
-func mapKeyValString(m map[string]string, f func(k string, v string) string) string {
-	ss := make([]string, 0, len(m))
-	for k, v := range m {
-		s := f(k, v)
-		if s == "" {
-			continue
-		}
-		ss = append(ss, s)
-	}
-	return strings.Join(ss, " ")
-}
-
 func protoFieldsToMap(fields protoreflect.FieldDescriptors, pb protoreflect.Message) map[string]string {
 	m := map[string]string{}
 	for i := 0; i < fields.Len(); i++ {
@@ -95,9 +78,19 @@ func protoFieldsToMap(fields protoreflect.FieldDescriptors, pb protoreflect.Mess
 		if pb.Has(fd) {
 			f := pb.Get(fd)
 			if f.IsValid() {
-				m[string(fd.Name())] = f.String()
+				str := f.String()
+				if fd.Enum() != nil {
+					str = string(fd.Enum().Values().ByNumber(f.Enum()).Name())
+				}
+				m[fd.TextName()] = str
 			}
 		}
 	}
 	return m
+}
+
+func mapValuesColorized(m map[string]string, clr Colorer) string {
+	return strutil.MapKeyValString(m, func(k string, v string) string {
+		return fmt.Sprintf("%s:%s", k, colorize(clr, v))
+	})
 }

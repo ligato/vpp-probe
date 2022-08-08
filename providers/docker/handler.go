@@ -20,15 +20,21 @@ import (
 type ContainerHandler struct {
 	client    *docker.Client
 	container *docker.Container
+	info      *docker.DockerInfo
 
 	vppProxy *proxy.Client
 }
 
 // NewHandler returns a new handler for an instance running in a pod.
 func NewHandler(client *docker.Client, container *docker.Container) *ContainerHandler {
+	info := &docker.DockerInfo{}
+	if x, err := client.Info(); err == nil {
+		info = x
+	}
 	return &ContainerHandler{
 		client:    client,
 		container: container,
+		info:      info,
 	}
 }
 
@@ -41,11 +47,14 @@ func (h *ContainerHandler) Metadata() map[string]string {
 	id := getContainerID(h.container)
 	return map[string]string{
 		"env":       providers.Docker,
+		"clientId":  h.info.ID,
+		"client":    h.info.Name,
+		"endpoint":  h.client.Endpoint(),
 		"name":      name,
 		"container": name,
 		"id":        id,
 		"image":     h.container.Config.Image,
-		"created":   h.container.Created.Format(time.UnixDate),
+		"created":   h.container.Created.Format(time.RFC3339),
 	}
 }
 

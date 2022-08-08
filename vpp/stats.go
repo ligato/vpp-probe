@@ -6,6 +6,8 @@ import (
 
 	govppapi "git.fd.io/govpp.git/api"
 	"github.com/sirupsen/logrus"
+
+	"go.ligato.io/vpp-probe/vpp/api"
 )
 
 func ListStats(stats govppapi.StatsProvider) ([]string, error) {
@@ -45,4 +47,79 @@ func ListStats(stats govppapi.StatsProvider) ([]string, error) {
 	s := strings.Split(str, "\n")
 
 	return s, nil
+}
+
+func DumpStats(stats govppapi.StatsProvider) (*api.VppStats, error) {
+	var sys govppapi.SystemStats
+	if err := stats.GetSystemStats(&sys); err != nil {
+		return nil, err
+	}
+
+	var nodestats govppapi.NodeStats
+	if err := stats.GetNodeStats(&nodestats); err != nil {
+		return nil, err
+	}
+
+	var ifacestats govppapi.InterfaceStats
+	if err := stats.GetInterfaceStats(&ifacestats); err != nil {
+		return nil, err
+	}
+	interfaces := map[string]api.InterfaceStats{}
+	for _, c := range ifacestats.Interfaces {
+		ifaceCounters := api.InterfaceStats{
+			Rx:          toCombined(c.Rx),
+			Tx:          toCombined(c.Tx),
+			RxErrors:    c.RxErrors,
+			TxErrors:    c.TxErrors,
+			RxUnicast:   toCombined(c.RxUnicast),
+			RxMulticast: toCombined(c.RxMulticast),
+			RxBroadcast: toCombined(c.RxBroadcast),
+			TxUnicast:   toCombined(c.TxUnicast),
+			TxMulticast: toCombined(c.TxMulticast),
+			TxBroadcast: toCombined(c.TxBroadcast),
+			Drops:       c.Drops,
+			Punts:       c.Punts,
+			IP4:         c.IP4,
+			IP6:         c.IP6,
+			RxNoBuf:     c.RxNoBuf,
+			RxMiss:      c.RxMiss,
+			Mpls:        c.Mpls,
+		}
+		interfaces[c.InterfaceName] = ifaceCounters
+	}
+
+	var errstats govppapi.ErrorStats
+	if err := stats.GetErrorStats(&errstats); err != nil {
+		return nil, err
+	}
+	counters := map[string]uint64{}
+	for _, c := range errstats.Errors {
+		var value uint64
+		for _, val := range c.Values {
+			value += val
+		}
+		if value > 0 {
+			counters[c.CounterName] = value
+		}
+	}
+
+	s := &api.VppStats{
+		System: sys,
+		Nodes:  nodestats.Nodes,
+		//NodeStats:  nodestats,
+		Interfaces: interfaces,
+		Counters:   counters,
+	}
+
+	return s, nil
+}
+
+func toCombined(cc govppapi.InterfaceCounterCombined) *api.InterfaceCounter {
+	if cc.Bytes == 0 && cc.Packets == 0 {
+		return nil
+	}
+	return &api.InterfaceCounter{
+		Packets: cc.Packets,
+		Bytes:   cc.Bytes,
+	}
 }

@@ -58,7 +58,9 @@ func RunTopology(cli Cli, opts TopologyOptions) error {
 	}
 	instances := cli.Client().Instances()
 
-	logrus.Debugf("discovered %d vpp instances", len(instances))
+	logrus.Infof("discovered %d vpp instances", len(instances))
+
+	var errs []error
 
 	for _, instance := range instances {
 		if instance.Agent() == nil {
@@ -69,9 +71,14 @@ func RunTopology(cli Cli, opts TopologyOptions) error {
 
 		err := instance.Agent().UpdateInstanceInfo()
 		if err != nil {
+			errs = append(errs, err)
 			logrus.Errorf("instance %v error: %v", instance.ID(), err)
 			continue
 		}
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("cannot build topology, %d/%d instances failed to update info", len(errs), len(instances))
 	}
 
 	topo, err := topology.Build(instances)
@@ -92,21 +99,21 @@ func RunTopology(cli Cli, opts TopologyOptions) error {
 	return nil
 }
 
-func printTopologyTable(w io.Writer, instances []*vpp.Instance, info *topology.Info) {
-	fmt.Fprintln(w, "Instances")
+func printTopologyTable(w io.Writer, instances []*vpp.Instance, topop *topology.Info) {
+	fmt.Fprintf(w, "Instances (%d)\n", len(instances))
 	for _, instance := range instances {
 		fmt.Fprintf(w, " - %v\n", instance)
 	}
 
-	if len(info.Networks) > 0 {
-		fmt.Fprintln(w, "Networks")
-		for _, network := range info.Networks {
-			fmt.Fprintf(w, " * %+v", network)
+	if len(topop.Networks) > 0 {
+		fmt.Fprintf(w, "Networks (%d)\n", len(topop.Networks))
+		for _, network := range topop.Networks {
+			fmt.Fprintf(w, " - %+v", network)
 		}
 	}
 
-	fmt.Fprintln(w, "Connections")
-	for _, conn := range info.Connections {
-		fmt.Fprintf(w, " * %+v <=> %+v\n", conn.Source, conn.Destination)
+	fmt.Fprintf(w, "Connections (%d)\n", len(topop.Connections))
+	for _, conn := range topop.Connections {
+		fmt.Fprintf(w, " - %+v <=> %+v\n", conn.Source, conn.Destination)
 	}
 }

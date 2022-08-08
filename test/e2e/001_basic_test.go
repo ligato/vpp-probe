@@ -17,9 +17,9 @@ import (
 
 func TestBasicTestSuite(t *testing.T) {
 	suite.Run(t, &BasicTestSuite{
-		E2ETestSuite{
+		E2ETestSuite: E2ETestSuite{
 			resourcesDir: "./resources",
-			kubectx:      "kind-c1",
+			clusters:     []string{*cluster1},
 		},
 	})
 }
@@ -30,32 +30,36 @@ type BasicTestSuite struct {
 
 func (s *BasicTestSuite) SetupSuite() {
 	// setup topology
-	kubectl(s.T(), s.kubectx, "apply", "-f", filepath.Join(s.resourcesDir, "vnf.yml"))
+	kubectl(s.T(), s.kubectx(0), "apply", "-f", filepath.Join(s.resourcesDir, "vnf.yml"))
 	time.Sleep(time.Second * 5)
-	kubectl(s.T(), s.kubectx, "wait", "--for=condition=Ready", "pod/vpp-vnf1", "pod/vpp-vnf2", "pod/vpp-vswitch", "--timeout=120s")
+	kubectl(s.T(), s.kubectx(0), "wait", "--for=condition=Ready", "pod/vpp-vnf1", "pod/vpp-vnf2", "pod/vpp-vswitch", fmt.Sprintf("--timeout=%v", waitPodReady))
 
 	// copy configs to containers
-	kubectl(s.T(), s.kubectx, "cp", filepath.Join(s.resourcesDir, "vnf1-config.yml"), "vpp-vnf1:/")
-	kubectl(s.T(), s.kubectx, "cp", filepath.Join(s.resourcesDir, "vnf2-config.yml"), "vpp-vnf2:/")
-	kubectl(s.T(), s.kubectx, "cp", filepath.Join(s.resourcesDir, "vswitch-config.yml"), "vpp-vswitch:/")
+	kubectl(s.T(), s.kubectx(0), "cp", filepath.Join(s.resourcesDir, "vnf1-config.yml"), "vpp-vnf1:/")
+	kubectl(s.T(), s.kubectx(0), "cp", filepath.Join(s.resourcesDir, "vnf2-config.yml"), "vpp-vnf2:/")
+	kubectl(s.T(), s.kubectx(0), "cp", filepath.Join(s.resourcesDir, "vswitch-config.yml"), "vpp-vswitch:/")
 }
 
 func (s *BasicTestSuite) TearDownSuite() {
 	// teardown topology
-	execCmd(s.T(), "kubectl", "--context", "kind-c1", "delete", "-f", filepath.Join(s.resourcesDir, "vnf.yml"))
+	kubectl(s.T(), s.kubectx(0), "delete", "-f", filepath.Join(s.resourcesDir, "vnf.yml"))
 }
 
 func (s *BasicTestSuite) SetupTest() {
 	// configure VPPs
-	kubectl(s.T(), s.kubectx, "exec", "-i", "vpp-vnf1", "--", "agentctl", "config", "update", "--replace", "/vnf1-config.yml")
-	kubectl(s.T(), s.kubectx, "exec", "-i", "vpp-vnf2", "--", "agentctl", "config", "update", "--replace", "/vnf2-config.yml")
-	kubectl(s.T(), s.kubectx, "exec", "-i", "vpp-vswitch", "--", "agentctl", "config", "update", "--replace", "/vswitch-config.yml")
+	kubectl(s.T(), s.kubectx(0), "exec", "-i", "vpp-vnf1", "--", "agentctl", "config", "update", "--replace", "/vnf1-config.yml")
+	kubectl(s.T(), s.kubectx(0), "exec", "-i", "vpp-vnf2", "--", "agentctl", "config", "update", "--replace", "/vnf2-config.yml")
+	kubectl(s.T(), s.kubectx(0), "exec", "-i", "vpp-vswitch", "--", "agentctl", "config", "update", "--replace", "/vswitch-config.yml")
 }
 
-func (s *BasicTestSuite) TestDiscover() {
+func (s *BasicTestSuite) TearDownTest() {
+	// cleanup after test
+}
+
+func (s *BasicTestSuite) TestQuery() {
 	t := s.T()
 
-	p, err := kube.NewProvider("", s.kubectx)
+	p, err := kube.NewProvider("", s.kubectx(0))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,22 +102,33 @@ func (s *BasicTestSuite) TestDiscover() {
 	})
 }
 
+func (s *BasicTestSuite) TestDiscover() {
+	cli := s.setupProbeCli()
+
+	discOpts := cmd.DiscoverOptions{
+		IPsecAgg: true,
+	}
+	err := cmd.RunDiscover(cli, discOpts)
+	s.NoError(err)
+}
+
 func (s *BasicTestSuite) TestTracer() {
-	cli, err := cmd.NewProbeCli()
-	s.NoError(err)
-
-	var opts cmd.ProbeOptions
-	opts.Kube.Context = s.kubectx
-	opts.Queries = []string{"label=app=vpp"}
-
-	err = cli.Initialize(opts)
-	s.NoError(err)
+	cli := s.setupProbeCli()
 
 	tracerOpts := cmd.DefaultTraceOptions
 	tracerOpts.CustomCmd = fmt.Sprintf(
-		"kubectl --context=%s exec -i %s -- ping -c 1 %s", s.kubectx, "vpp-vswitch", "192.168.23.2",
+		"kubectl --context=%s exec -i %s -- ping -c 1 %s", s.kubectx(0), "vpp-vswitch", "192.168.23.2",
 	)
 
-	err = cmd.RunTrace(cli, tracerOpts)
+	err := cmd.RunTrace(cli, tracerOpts)
+	s.NoError(err)
+}
+
+func (s *BasicTestSuite) TestTopology() {
+	cli := s.setupProbeCli()
+
+	topoOpts := cmd.TopologyOptions{}
+
+	err := cmd.RunTopology(cli, topoOpts)
 	s.NoError(err)
 }

@@ -26,7 +26,7 @@ type App struct {
 	cancel func()
 	wg     sync.WaitGroup
 
-	probectl  *client.Client
+	probectl  client.API
 	instances []*VPP
 
 	navbar         *Navbar
@@ -41,7 +41,7 @@ type App struct {
 	logFile   *os.File
 }
 
-func NewApp(probectl *client.Client) *App {
+func NewApp(probectl client.API) *App {
 	a := &App{
 		Application: tview.NewApplication(),
 		probectl:    probectl,

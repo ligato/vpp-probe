@@ -6,38 +6,32 @@ import (
 	"go.ligato.io/vpp-probe/vpp"
 )
 
+// Info groups together a topology information.
 type Info struct {
 	Networks    []Network
-	Connections []*Connection
+	Connections []Connection
 }
 
+// NetworkType is a type of network found in a topology.
 type NetworkType string
 
 const (
-	UnknownNetworkType NetworkType = ""
-	VppNetwork                     = "vpp"
-	LinuxNetwork                   = "linux"
+	UndefinedNetwork NetworkType = ""
+	// UserNetwork is a network in the user space (SDN)
+	UserNetwork = "user"
+	// KernelNetwork is a network in kernel space (Linux networking)
+	KernelNetwork = "kernel"
 )
 
+// Network defines a particular network in topology.
 type Network struct {
-	Type      NetworkType
-	Instance  string
+	// Instance is the name of instance this network is part of.
+	Instance string
+	// Type is the type of this network.
+	Type NetworkType
+	// Namespace is the name of namespace this network belongs to.
+	// If empty, default network is assumed.
 	Namespace string
-}
-
-func newVppNetwork(instance *vpp.Instance) Network {
-	return Network{
-		Type:     VppNetwork,
-		Instance: instance.ID(),
-	}
-}
-
-func newLinuxNetwork(instance *vpp.Instance, namespace string) Network {
-	return Network{
-		Type:      LinuxNetwork,
-		Instance:  instance.ID(),
-		Namespace: namespace,
-	}
 }
 
 type EndpointType string
@@ -47,6 +41,21 @@ const (
 	InterfaceEndpoint                = "interface"
 	FileEndpoint                     = "file"
 )
+
+func newVppNetwork(instance *vpp.Instance) Network {
+	return Network{
+		Type:     UserNetwork,
+		Instance: instance.ID(),
+	}
+}
+
+func newLinuxNetwork(instance *vpp.Instance, namespace string) Network {
+	return Network{
+		Type:      KernelNetwork,
+		Instance:  instance.ID(),
+		Namespace: namespace,
+	}
+}
 
 // Endpoint defines a communication endpoint in a network.
 type Endpoint struct {
@@ -75,10 +84,10 @@ type Connection struct {
 func (c Connection) String() string {
 	src := c.Source.Interface
 	dst := c.Destination.Interface
-	if c.Source.Type == LinuxNetwork {
+	if c.Source.Type == KernelNetwork {
 		src = fmt.Sprintf("LINUX-%s", src)
 	}
-	if c.Destination.Type == LinuxNetwork {
+	if c.Destination.Type == KernelNetwork {
 		dst = fmt.Sprintf("LINUX-%s", dst)
 	}
 	if c.Source.Namespace != "" {

@@ -19,7 +19,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v1
         with:
-          go-version: '1.15'
+          go-version: '1.18'
 
       - name: Download Module Deps
         run: |
@@ -62,7 +62,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v1
         with:
-          go-version: '1.15'
+          go-version: '1.18'
 
       - name: Download Module Deps
         run: |
@@ -83,7 +83,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v1
         with:
-          go-version: '1.15'
+          go-version: '1.18'
 
       - name: Download Module Deps
         run: |
