@@ -46,13 +46,13 @@ func NewRootCmd(cli Cli) *cobra.Command {
 	)
 	cmd := &cobra.Command{
 		Use:           "vpp-probe [options] [command]",
-		Short:         "vpp-probe is a tool for inspecting VPP instances",
+		Short:         "vpp-probe is a tool for probing VPP instances",
 		Long:          fmt.Sprintf(logo, version.Short(), version.BuildTime(), version.BuiltBy()),
 		Version:       version.String(),
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			InitOptions(cli, glob)
+			InitOptions(cli, &glob)
 
 			return cli.Initialize(opts)
 		},
@@ -94,7 +94,7 @@ func NewRootCmd(cli Cli) *cobra.Command {
 	return cmd
 }
 
-func InitOptions(cli Cli, opts GlobalOptions) {
+func InitOptions(cli Cli, opts *GlobalOptions) {
 	// color mode
 	if opts.Color == "" && os.Getenv("NO_COLOR") != "" {
 		// https://no-color.org/

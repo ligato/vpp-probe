@@ -19,8 +19,8 @@ import (
 const traceExample = `  # Trace packets while running ping
   trace --env kube -- ping 10.10.1.1
 
-  # Trace packets for duration 3s
-  trace --env kube -- sleep 3`
+  # Trace packets for duration 10s
+  trace --env kube -- sleep 10`
 
 type TraceOptions struct {
 	TraceNodes  []string
@@ -44,14 +44,15 @@ func NewTraceCmd(cli Cli) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "trace [flags] -- [command]",
 		Short:   "Trace packets from VPP instances",
-		Long:    "Trace packets from selected VPP instances during execution of custom command (defaults to 'sleep 5')",
+		Long:    "Trace packets from VPP instances while executing a command (defaults to 'sleep 5')",
 		Example: traceExample,
 		Args:    cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				return fmt.Errorf("command to run during tracing must be defined")
+				opts.CustomCmd = "sleep 5"
+			} else {
+				opts.CustomCmd = strings.Join(args, " ")
 			}
-			opts.CustomCmd = strings.Join(args, " ")
 			return RunTrace(cli, opts)
 		},
 	}
