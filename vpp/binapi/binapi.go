@@ -12,18 +12,15 @@ import (
 	"github.com/sirupsen/logrus"
 	_ "go.ligato.io/cn-infra/v2/logging/logrus"
 
-	//"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2202/vlib"
+	interfaces "go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2202/interface"
+	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2202/interface_types"
+	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2202/ip"
+	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2202/memclnt"
+	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2202/vlib"
+	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2202/vpe"
 
-	interfaces "go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2106/interface"
-	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2106/interface_types"
-	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2106/ip"
-	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2106/memclnt"
-
-	//"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2202/vlib"
-	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2106/vpe"
-
-	_ "go.ligato.io/vpp-agent/v3/plugins/govppmux/vppcalls/vpp2101"
-	_ "go.ligato.io/vpp-agent/v3/plugins/govppmux/vppcalls/vpp2106"
+	//_ "go.ligato.io/vpp-agent/v3/plugins/govppmux/vppcalls/vpp2101"
+	//_ "go.ligato.io/vpp-agent/v3/plugins/govppmux/vppcalls/vpp2106"
 	_ "go.ligato.io/vpp-agent/v3/plugins/govppmux/vppcalls/vpp2202"
 
 	"go.ligato.io/vpp-probe/vpp/api"
@@ -132,9 +129,9 @@ func ShowVersion(ch govppapi.Channel) (*ShowVersionData, error) {
 }
 
 func GetPID(conn govppapi.Connection) (int, error) {
-	rpc := vpe.NewServiceClient(conn)
+	rpc := memclnt.NewServiceClient(conn)
 
-	reply, err := rpc.ControlPing(context.Background(), &vpe.ControlPing{})
+	reply, err := rpc.ControlPing(context.Background(), &memclnt.ControlPing{})
 	if err != nil {
 		return 0, err
 	}
@@ -143,9 +140,9 @@ func GetPID(conn govppapi.Connection) (int, error) {
 }
 
 func GetPIDChan(ch govppapi.Channel) (int, error) {
-	reply := &vpe.ControlPingReply{}
+	reply := &memclnt.ControlPingReply{}
 
-	err := ch.SendRequest(&vpe.ControlPing{}).ReceiveReply(reply)
+	err := ch.SendRequest(&memclnt.ControlPing{}).ReceiveReply(reply)
 	if err != nil {
 		return 0, err
 	}
@@ -491,8 +488,8 @@ func dumpApiVersions(ch govppapi.Channel) ([]string, error) {
 }
 
 func RunCliChan(ch govppapi.Channel, cmd string) (string, error) {
-	reply := &vpe.CliInbandReply{}
-	err := ch.SendRequest(&vpe.CliInband{Cmd: cmd}).ReceiveReply(reply)
+	reply := &vlib.CliInbandReply{}
+	err := ch.SendRequest(&vlib.CliInband{Cmd: cmd}).ReceiveReply(reply)
 	if err != nil {
 		return "", err
 	} else if e := govppapi.RetvalToVPPApiError(reply.Retval); e != nil {

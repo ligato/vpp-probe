@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2106/interface_types"
-	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2106/vpe"
-	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2106/vpe_types"
+	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2202/interface_types"
+	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2202/vpe"
+	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2202/vpe_types"
 
 	"go.ligato.io/vpp-probe/vpp/api"
 )

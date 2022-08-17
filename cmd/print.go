@@ -103,8 +103,9 @@ func PrintVPPInterfacesTable(out io.Writer, instance *vpp.Instance) {
 	w := tabwriter.NewWriter(&buf, 0, 1, 2, ' ', tabwriter.StripEscape|tabwriter.FilterHTML|tabwriter.DiscardEmptyColumns)
 
 	header := []string{
-		"Idx", "Internal", "Interface", "Type", "State", "IP", "MTU", "MAC", "Config", "Related", "Stats",
+		"Idx", "Internal", "Interface", "Type", "State", "IP", "MTU", "MAC", "Config", "Related", "TX", "RX", "",
 	}
+
 	for i, h := range header {
 		if h != "" {
 			header[i] = colorize(color.Bold, h)
@@ -130,10 +131,10 @@ func PrintVPPInterfacesTable(out io.Writer, instance *vpp.Instance) {
 		mac := interfaceMAC(iface.PhysAddress)
 		info := vppInterfaceInfo(v)
 		other := relatedInfo(config, v)
-		stats := vppInterfaceStats(instance, v)
+		tx, rx, misc := vppInterfaceStats(instance, v)
 
 		cols := []string{
-			idx, internal, name, typ, state, ips, mtu, mac, info, other, stats,
+			idx, internal, name, typ, state, ips, mtu, mac, info, other, tx, rx, misc,
 		}
 		fmt.Fprintln(w, strings.Join(cols, "\t"))
 	}
@@ -466,37 +467,36 @@ func relatedInfo(conf *agent.Config, iface agent.VppInterface) string {
 	return strings.Join(info, ", ")
 }
 
-func vppInterfaceStats(instance *vpp.Instance, iface agent.VppInterface) string {
+func vppInterfaceStats(instance *vpp.Instance, iface agent.VppInterface) (tx string, rx string, misc string) {
 	stats := instance.VppStats()
 	if stats == nil {
-		return "-"
+		return "", "", ""
 	}
 
-	var s string
-
 	padnum := func(num uint64) string {
-		return fmt.Sprintf("%5d", num)
+		return fmt.Sprintf("%6d", num)
 	}
 
 	if ifaceStats, ok := stats.Interfaces[interfaceInternalName(iface)]; ok {
-		var tx, rx string
+		//var tx, rx string
 		if ifaceStats.Tx != nil {
-			tx = fmt.Sprintf("%v pkts / %v bytes", colorize(color.LightCyan, padnum(ifaceStats.Tx.Packets)), colorize(color.LightCyan, padnum(ifaceStats.Tx.Bytes)))
+			tx = fmt.Sprintf("%v pkts %v bytes", colorize(color.LightCyan, padnum(ifaceStats.Tx.Packets)), colorize(color.LightCyan, padnum(ifaceStats.Tx.Bytes)))
 		}
 		if ifaceStats.TxErrors > 0 {
 			tx += fmt.Sprintf(", %v errors", colorize(color.LightRed, ifaceStats.TxErrors))
 		}
 		if ifaceStats.Rx != nil {
-			rx = fmt.Sprintf("%v pkts / %v bytes", colorize(color.LightCyan, padnum(ifaceStats.Rx.Packets)), colorize(color.LightCyan, padnum(ifaceStats.Rx.Bytes)))
+			rx = fmt.Sprintf("%v pkts %v bytes", colorize(color.LightCyan, padnum(ifaceStats.Rx.Packets)), colorize(color.LightCyan, padnum(ifaceStats.Rx.Bytes)))
 		}
 		if ifaceStats.RxErrors > 0 {
 			rx += fmt.Sprintf(", %v errors", colorize(color.LightRed, ifaceStats.RxErrors))
 		}
-		statsStr := fmt.Sprintf("%v: %24v | %v: %24v", colorize(color.LightWhite, "TX"), tx, colorize(color.LightWhite, "RX"), rx)
+		//tx = fmt.Sprintf("%v: %v", colorize(color.LightWhite, "TX"), tx)
+		//rx = fmt.Sprintf("%v: %v", colorize(color.LightWhite, "RX"), rx)
+		misc = ""
 		if ifaceStats.Drops > 0 {
-			statsStr += fmt.Sprintf(" | %v drops", colorize(color.LightYellow, ifaceStats.Drops))
+			misc = fmt.Sprintf("%v drops", colorize(color.LightYellow, ifaceStats.Drops))
 		}
-		return statsStr
 
 		/*b, err := json.Marshal(ifaceStats)
 		  if err != nil {
@@ -509,7 +509,7 @@ func vppInterfaceStats(instance *vpp.Instance, iface agent.VppInterface) string 
 		  return string(b)*/
 	}
 
-	return s
+	return
 }
 
 func interfaceLinkInfo(ifaceMsg protoreflect.Message) string {

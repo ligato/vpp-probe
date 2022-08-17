@@ -60,6 +60,7 @@ func ParseTracePackets(trace string) (packets []Packet, err error) {
 			if len(packet.Captures) == 0 {
 				continue
 			}
+			// TODO: add customizable filters for filtering packets
 			/*if strings.Contains(packet.Captures[len(packet.Captures)-1].Content, "ACL deny packets") {
 				continue
 			}*/

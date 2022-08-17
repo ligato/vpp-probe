@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	git.fd.io/govpp.git v0.5.0
-	github.com/docker/cli v0.0.0-20191017083524-a8ff7f821017
+	github.com/docker/cli v20.10.17+incompatible
 	github.com/fsouza/go-dockerclient v1.7.1
 	github.com/gdamore/tcell/v2 v2.0.1-0.20201019142633-1057d5591ed1
 	github.com/go-stack/stack v1.8.0

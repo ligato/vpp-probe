@@ -108,7 +108,7 @@ func containerExec(client *docker.Client, containerID string, command string, st
 	}
 
 	logrus.WithFields(logrus.Fields{
-		"container": containerID,
+		"cid": containerID,
 	}).Tracef("running container exec: %+v", opts.Cmd)
 
 	if err := client.StartExec(exe.ID, startOpts); err != nil {
