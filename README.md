@@ -69,7 +69,7 @@ Where is your VPP running?
 
 <details>
 
-<summary><b>Kubernetes</b></summary>
+<summary><b><img src="https://kubernetes.io/images/wheel.svg" height="16"> Kubernetes</b></summary>
 
 ---
 
@@ -111,7 +111,7 @@ docker run -it --net=host --volume "$HOME/.kube/config:/.kube/config" ligato/vpp
 
 <details>
 
-<summary><b>Docker</b></summary>
+<summary><img src="https://www.docker.com/wp-content/uploads/2022/03/Moby-logo.png" height="16"> <b>Docker</b></summary>
 
 ---
 
@@ -148,11 +148,11 @@ docker run -it --net=host --volume "/var/run/docker.sock:/var/run/docker.sock" l
 
 <details>
 
-<summary><b>Local</b></summary>
+<summary>💻 <b>Host</b></summary>
 
 ---
 
-Basic commands for VPP running locally
+Basic commands for VPP running locally on the host
 
 ```sh
 # Discover VPP instances running as local process
