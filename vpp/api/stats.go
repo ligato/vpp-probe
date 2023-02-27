@@ -1,7 +1,7 @@
 package api
 
 import (
-	govppapi "git.fd.io/govpp.git/api"
+	govppapi "go.fd.io/govpp/api"
 )
 
 type (

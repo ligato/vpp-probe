@@ -331,7 +331,7 @@ func vppInterfaceIPs(iface *vpp_interfaces.Interface) string {
 		ip = strings.Join(ipsclr, ", ")
 	}
 	if unnum != nil {
-		ip = fmt.Sprintf("unnumbered: %s", unnum.GetInterfaceWithIp())
+		ip = fmt.Sprintf("unnumbered: %s", colorize(interfaceColor, unnum.GetInterfaceWithIp()))
 	}
 	if vrf > 0 {
 		ip += fmt.Sprintf(" (VRF %v)", colorize(color.Cyan, vrf))

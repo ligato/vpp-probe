@@ -10,14 +10,16 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/suite"
+
 	"go.ligato.io/vpp-probe/cmd"
 )
 
 var (
-	doSetup  = flag.Bool("setup", true, "Setup clusters for tests")
-	doTest   = flag.Bool("test", true, "Run tests")
-	cluster1 = flag.String("cluster1", "c1", "Name of cluster 1")
-	cluster2 = flag.String("cluster2", "c2", "Name of cluster 2")
+	doSetup    = flag.Bool("setup", true, "Setup clusters for tests")
+	doTeardown = flag.Bool("teardown", true, "Teardown clusters after tests")
+	doTest     = flag.Bool("test", true, "Run tests")
+	cluster1   = flag.String("cluster1", "c1", "Name of cluster 1")
+	cluster2   = flag.String("cluster2", "c2", "Name of cluster 2")
 )
 
 func init() {
@@ -53,7 +55,7 @@ func RunTests(run func() int) int {
 		return 0
 	}
 
-	if *doSetup {
+	if *doTeardown {
 		defer Teardown()
 	}
 

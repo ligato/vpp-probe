@@ -2,7 +2,7 @@
 package probe
 
 import (
-	govppapi "git.fd.io/govpp.git/api"
+	govppapi "go.fd.io/govpp/api"
 
 	"go.ligato.io/vpp-probe/pkg/exec"
 )

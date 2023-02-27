@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	govppapi "git.fd.io/govpp.git/api"
 	"github.com/sirupsen/logrus"
+	govppapi "go.fd.io/govpp/api"
 
 	"go.ligato.io/vpp-probe/vpp/api"
 )

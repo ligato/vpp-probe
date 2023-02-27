@@ -8,20 +8,20 @@ import (
 	"strings"
 	"time"
 
-	govppapi "git.fd.io/govpp.git/api"
 	"github.com/sirupsen/logrus"
+	govppapi "go.fd.io/govpp/api"
 	_ "go.ligato.io/cn-infra/v2/logging/logrus"
 
-	interfaces "go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2202/interface"
-	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2202/interface_types"
-	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2202/ip"
-	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2202/memclnt"
-	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2202/vlib"
-	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2202/vpe"
+	interfaces "go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2210/interface"
+	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2210/interface_types"
+	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2210/ip"
+	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2210/memclnt"
+	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2210/vlib"
+	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi/vpp2210/vpe"
 
 	//_ "go.ligato.io/vpp-agent/v3/plugins/govppmux/vppcalls/vpp2101"
 	//_ "go.ligato.io/vpp-agent/v3/plugins/govppmux/vppcalls/vpp2106"
-	_ "go.ligato.io/vpp-agent/v3/plugins/govppmux/vppcalls/vpp2202"
+	_ "go.ligato.io/vpp-agent/v3/plugins/govppmux/vppcalls/vpp2210"
 
 	"go.ligato.io/vpp-probe/vpp/api"
 )

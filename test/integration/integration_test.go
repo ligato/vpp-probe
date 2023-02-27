@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"flag"
 	"log"
 	"os"
 	"strconv"
@@ -11,7 +12,17 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+const (
+	DefaultVppAgentImage = "ligato/vpp-agent:latest"
+)
+
+var (
+	VppAgentImage string
+)
+
 func init() {
+	flag.StringVar(&VppAgentImage, "agent-image", DefaultVppAgentImage, "Use custom vpp-agent image")
+
 	log.SetFlags(0)
 	log.SetOutput(os.Stdout)
 	logrus.SetFormatter(&logrus.TextFormatter{
@@ -21,9 +32,16 @@ func init() {
 	logrus.SetOutput(os.Stdout)
 }
 
-const (
-	DefaultVppAgentImage = "ligato/vpp-agent:latest"
-)
+func TestMain(m *testing.M) {
+	flag.Parse()
+
+	if testing.Short() {
+		log.Println("skipping integration tests in short mode")
+		return
+	}
+
+	os.Exit(m.Run())
+}
 
 type IntegrationSuite struct {
 	suite.Suite
@@ -38,7 +56,7 @@ func TestDockerSuite(t *testing.T) {
 		IntegrationSuite{
 			msLabel:       "vpp1",
 			vpp1:          "integration-test-vpp1",
-			vppAgentImage: DefaultVppAgentImage,
+			vppAgentImage: VppAgentImage,
 		},
 	})
 }

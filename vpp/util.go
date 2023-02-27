@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 
-	govppapi "git.fd.io/govpp.git/api"
 	"github.com/goccy/go-yaml"
 	"github.com/k0kubun/pp"
-	"go.ligato.io/vpp-probe/pkg/exec"
-	"go.ligato.io/vpp-probe/probe"
+	govppapi "go.fd.io/govpp/api"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+
+	"go.ligato.io/vpp-probe/pkg/exec"
+	"go.ligato.io/vpp-probe/probe"
 )
 
 func init() {

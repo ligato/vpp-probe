@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	govppapi "git.fd.io/govpp.git/api"
-	"git.fd.io/govpp.git/proxy"
 	"github.com/sirupsen/logrus"
+	govppapi "go.fd.io/govpp/api"
+	"go.fd.io/govpp/proxy"
 
 	"go.ligato.io/vpp-probe/pkg/exec"
 	"go.ligato.io/vpp-probe/probe"
