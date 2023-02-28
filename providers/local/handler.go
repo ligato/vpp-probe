@@ -3,10 +3,10 @@ package local
 import (
 	"fmt"
 
-	"git.fd.io/govpp.git"
-	"git.fd.io/govpp.git/adapter/statsclient"
-	govppapi "git.fd.io/govpp.git/api"
-	govppcore "git.fd.io/govpp.git/core"
+	"go.fd.io/govpp"
+	"go.fd.io/govpp/adapter/statsclient"
+	govppapi "go.fd.io/govpp/api"
+	govppcore "go.fd.io/govpp/core"
 
 	"go.ligato.io/vpp-probe/pkg/exec"
 	"go.ligato.io/vpp-probe/probe"

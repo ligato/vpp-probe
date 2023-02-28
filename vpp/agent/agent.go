@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	"github.com/sirupsen/logrus"
-	"go.ligato.io/vpp-probe/pkg/log"
 
+	"go.ligato.io/vpp-probe/pkg/log"
 	"go.ligato.io/vpp-probe/probe"
 )
 

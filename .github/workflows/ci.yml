@@ -5,25 +5,33 @@ on:
     branches: [ master ]
   pull_request:
     branches: [ master ]
+  # manual run
+  workflow_dispatch:
+  # weekday run
+  schedule:
+  - cron: "15 2 * * 1-5"
 
 jobs:
-
   build-test:
     name: "Build & Test"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: [ '1.20', '1.19' ]
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+      - name: "Checkout"
+        uses: actions/checkout@v3
 
-      - name: Install Go
-        uses: actions/setup-go@v1
+      - name: "Setup Go"
+        uses: actions/setup-go@v3
         with:
-          go-version: '1.18'
+          go-version: ${{ matrix.go-version }}
 
       - name: Download Module Deps
         run: |
-          go mod download
+          go mod download -x
 
       - name: Build Packages
         run: |
@@ -33,40 +41,26 @@ jobs:
         run: |
           go test -short ./...
 
-  docker-image:
-    name: "Docker Image"
-    runs-on: ubuntu-latest
-    env:
-      DOCKER_BUILDKIT: 1
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Build Image
-        run: |
-          docker build -t vpp-probe .
-
-      - name: Try Image
-        run: |
-          docker run --rm -i vpp-probe
-
   test-integration:
     name: "Integration Tests"
+    needs: build-test
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: [ '1.20', '1.19' ]
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+      - name: "Checkout"
+        uses: actions/checkout@v3
 
-      - name: Setup Go
-        uses: actions/setup-go@v1
+      - name: "Setup Go"
+        uses: actions/setup-go@v3
         with:
-          go-version: '1.18'
+          go-version: ${{ matrix.go-version }}
 
       - name: Download Module Deps
         run: |
-          go mod download
+          go mod download -x
 
       - name: Run Tests
         run: |
@@ -74,22 +68,45 @@ jobs:
 
   test-e2e:
     name: "E2E Tests"
+    needs: test-integration
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: [ '1.20', '1.19' ]
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+      - name: "Checkout"
+        uses: actions/checkout@v3
 
-      - name: Setup Go
-        uses: actions/setup-go@v1
+      - name: "Setup Go"
+        uses: actions/setup-go@v3
         with:
-          go-version: '1.18'
+          go-version: ${{ matrix.go-version }}
 
       - name: Download Module Deps
         run: |
-          go mod download
+          go mod download -x
 
       - name: Run Tests
         run: |
           go test -v ./test/e2e/...
 
+  docker-image:
+    name: "Docker Image"
+    needs: build-test
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_BUILDKIT: 1
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v3
+
+      - name: "Build Image"
+        run: |
+          docker build -t vpp-probe .
+
+      - name: "Try Running Image"
+        run: |
+          docker run --rm -i vpp-probe

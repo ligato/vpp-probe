@@ -3,7 +3,6 @@ module go.ligato.io/vpp-probe
 go 1.18
 
 require (
-	git.fd.io/govpp.git v0.5.0
 	github.com/docker/cli v20.10.17+incompatible
 	github.com/fsouza/go-dockerclient v1.7.1
 	github.com/gdamore/tcell/v2 v2.0.1-0.20201019142633-1057d5591ed1
@@ -12,17 +11,18 @@ require (
 	github.com/gookit/color v1.3.2
 	github.com/k0kubun/pp v3.0.1+incompatible
 	github.com/mitchellh/go-homedir v1.1.0
-	github.com/mitchellh/go-ps v0.0.0-20170309133038-4fdf99ab2936
+	github.com/mitchellh/go-ps v1.0.0
 	github.com/moby/term v0.0.0-20201216013528-df9cb8a40635
 	github.com/pkg/errors v0.9.1
 	github.com/segmentio/textio v1.2.0
 	github.com/sirupsen/logrus v1.9.0
-	github.com/spf13/cobra v1.4.0
+	github.com/spf13/cobra v1.5.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
 	gitlab.com/tslocum/cview v1.5.1
+	go.fd.io/govpp v0.7.0
 	go.ligato.io/cn-infra/v2 v2.5.0-alpha.0.20220610112835-012faf45555e
-	go.ligato.io/vpp-agent/v3 v3.4.0
+	go.ligato.io/vpp-agent/v3 v3.5.0-alpha.0.20221208122858-ee3433b67005
 	google.golang.org/protobuf v1.28.0
 	k8s.io/api v0.24.3
 	k8s.io/apimachinery v0.24.3

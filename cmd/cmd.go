@@ -52,7 +52,7 @@ func NewRootCmd(cli Cli) *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			InitOptions(cli, &glob)
+			InitOptions(cli, glob)
 
 			return cli.Initialize(opts)
 		},
@@ -94,7 +94,7 @@ func NewRootCmd(cli Cli) *cobra.Command {
 	return cmd
 }
 
-func InitOptions(cli Cli, opts *GlobalOptions) {
+func InitOptions(cli Cli, opts GlobalOptions) {
 	// color mode
 	if opts.Color == "" && os.Getenv("NO_COLOR") != "" {
 		// https://no-color.org/

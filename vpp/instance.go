@@ -8,12 +8,12 @@ import (
 	"runtime/debug"
 	"strings"
 
-	govppapi "git.fd.io/govpp.git/api"
 	"github.com/sirupsen/logrus"
+	govppapi "go.fd.io/govpp/api"
 	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi"
-	"go.ligato.io/vpp-probe/pkg/log"
 
 	"go.ligato.io/vpp-probe/pkg/exec"
+	"go.ligato.io/vpp-probe/pkg/log"
 	"go.ligato.io/vpp-probe/probe"
 	"go.ligato.io/vpp-probe/vpp/agent"
 	"go.ligato.io/vpp-probe/vpp/api"
@@ -224,9 +224,9 @@ func (v *Instance) initCLI() error {
 	})
 
 	/*cli, err := v.handler.GetCLI()
-	if err != nil {
-		return fmt.Errorf("CLI handler: %w", err)
-	}*/
+	  if err != nil {
+	  	return fmt.Errorf("CLI handler: %w", err)
+	  }*/
 
 	out, err := cli.RunCli("show version verbose")
 	if err != nil {
