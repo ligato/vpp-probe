@@ -12,9 +12,8 @@ import (
 	govppapi "go.fd.io/govpp/api"
 	"go.ligato.io/vpp-agent/v3/plugins/vpp/binapi"
 
-	"go.ligato.io/vpp-probe/pkg/log"
-
 	"go.ligato.io/vpp-probe/pkg/exec"
+	"go.ligato.io/vpp-probe/pkg/log"
 	"go.ligato.io/vpp-probe/probe"
 	"go.ligato.io/vpp-probe/vpp/agent"
 	"go.ligato.io/vpp-probe/vpp/api"

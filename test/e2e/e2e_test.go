@@ -18,6 +18,7 @@ var (
 	doSetup    = flag.Bool("setup", true, "Setup clusters for tests")
 	doTeardown = flag.Bool("teardown", true, "Teardown clusters after tests")
 	doTest     = flag.Bool("test", true, "Run tests")
+	reuse      = flag.Bool("reuse", false, "Reuse clusters across tests")
 	cluster1   = flag.String("cluster1", "c1", "Name of cluster 1")
 	cluster2   = flag.String("cluster2", "c2", "Name of cluster 2")
 )
@@ -36,30 +37,40 @@ func TestMain(m *testing.M) {
 	flag.Parse()
 
 	if testing.Short() {
-		log.Println("skipping e2e tests in short mode")
+		log.Println("SKIPPING e2e tests in short mode")
 		return
 	}
 
 	os.Exit(RunTests(m.Run))
 }
 
-func RunTests(run func() int) int {
-	if *doSetup {
+func RunTests(run func() (code int)) int {
+	if *doSetup && !*reuse {
 		Setup()
 	} else {
-		log.Println("# skipping setup")
+		log.Println("# SKIPPING Setup")
 	}
 
-	if !*doTest {
-		log.Println("# skipping test")
-		return 0
+	ret := 0
+	if *doTest {
+		ret = run()
+	} else {
+		log.Println("# SKIPPING Test")
 	}
 
-	if *doTeardown {
-		defer Teardown()
+	// export cluster dump
+	if ret != 0 {
+		dumpData(*cluster1)
+		dumpData(*cluster2)
 	}
 
-	return run()
+	if *doTeardown && !*reuse {
+		Teardown()
+	} else {
+		log.Println("# SKIPPING Teardown")
+	}
+
+	return ret
 }
 
 func Setup() {
@@ -68,7 +79,9 @@ func Setup() {
 	log.Println("---------------------------------------")
 	log.Println("============== [ SETUP ] ==============")
 	log.Println("---------------------------------------")
-	defer log.Printf("--------------- setup done (took %.3f sec) ---------------", time.Since(t).Seconds())
+	defer func() {
+		log.Printf("--------------- Setup done (took %.1f sec) ---------------", time.Since(t).Seconds())
+	}()
 
 	createCluster(*cluster1)
 	createCluster(*cluster2)
@@ -80,7 +93,9 @@ func Teardown() {
 	log.Println("---------------------------------")
 	log.Println("========= [ TEARDOWN ] ==========")
 	log.Println("---------------------------------")
-	defer log.Printf("--------------- teardown done (took %.3f sec) ---------------", time.Since(t).Seconds())
+	defer func() {
+		log.Printf("--------------- Teardown done (took %.1f sec) ---------------", time.Since(t).Seconds())
+	}()
 
 	deleteCluster(*cluster1)
 	deleteCluster(*cluster2)

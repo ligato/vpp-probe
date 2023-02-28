@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/sirupsen/logrus"
+
 	"go.ligato.io/vpp-probe/pkg/exec"
 )
 

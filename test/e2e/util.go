@@ -1,9 +1,12 @@
 package e2e
 
 import (
+	"bytes"
+	"flag"
 	"log"
-	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -13,8 +16,14 @@ const (
 	waitPodReady      = time.Second * 120
 )
 
+var (
+	dumpDir = flag.String("dumpdir", "./logs/dumps", "Directory location for dumps")
+)
+
 func kubectl(t *testing.T, context string, args ...string) {
-	t.Helper()
+	if t != nil {
+		t.Helper()
+	}
 
 	args = append([]string{
 		"--context", context,
@@ -34,24 +43,38 @@ func deleteCluster(name string) {
 	execCmd(nil, "kind", "delete", "cluster", "--name", name)
 }
 
+func dumpData(name string) {
+	kubectl(nil, contextName(name), "cluster-info", "dump", "--all-namespaces", "--output-directory", filepath.Join(*dumpDir, name))
+}
+
 func execCmd(t *testing.T, cmd string, args ...string) {
 	if t != nil {
 		t.Helper()
 	}
-
+	var stdout, stderr bytes.Buffer
 	c := exec.Command(cmd, args...)
-	c.Stdout = os.Stdout
-	c.Stderr = os.Stderr
+	c.Stdout = &stdout
+	c.Stderr = &stderr
 	if t != nil {
 		t.Logf("[EXEC] %v", c)
 	} else {
 		log.Printf("[EXEC] %v", c)
 	}
-	if err := c.Run(); err != nil {
+	err := c.Run()
+	out := strings.TrimSpace(stdout.String())
+	if t != nil {
+		t.Logf("[STDOUT]\n%v\n-----", out)
+	} else {
+		log.Printf("[STDOUT] %v\n------", out)
+	}
+	if err != nil {
+		if ee, ok := err.(*exec.ExitError); ok {
+			ee.Stderr = stderr.Bytes()
+		}
 		if t == nil {
-			log.Fatalf("ERROR: %v", err)
+			log.Fatalf("%v: %s", err, stderr.Bytes())
 		} else {
-			t.Fatalf("ERROR: %v", err)
+			t.Fatalf("%v: %s", err, stderr.Bytes())
 		}
 	}
 }
