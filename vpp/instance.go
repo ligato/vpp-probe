@@ -213,7 +213,11 @@ func (v *Instance) initCLI() error {
 		args = append(args, "-s", defaultCliAddr)
 		logrus.Tracef("checking cli socket error: %v, using flag '%s' for vppctl", err, args)
 	}
-	wrapper := exec.Wrap(v.handler, "/usr/bin/vppctl", args...)
+	vppctl := "/usr/bin/vppctl"
+	if _, err := v.handler.Command("ls", vppctl).Output(); err != nil {
+		vppctl = "vppctl"
+	}
+	wrapper := exec.Wrap(v.handler, vppctl, args...)
 	cli := vppcli.ExecutorFunc(func(cmd string) (string, error) {
 		c := `"` + cmd + `"`
 		out, err := wrapper.Command(c).Output()
