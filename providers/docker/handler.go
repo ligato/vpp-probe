@@ -70,7 +70,11 @@ func (h *ContainerHandler) GetCLI() (probe.CliExecutor, error) {
 		args = append(args, "-s", "localhost:5002")
 		logrus.Tracef("checking cli socket error: %v, using flag '%s' for vppctl", err, args)
 	}
-	wrapper := exec.Wrap(h, "/usr/bin/vppctl", args...)
+	vppctl := "/usr/bin/vppctl"
+	if _, err := h.Command("ls", vppctl).Output(); err != nil {
+		vppctl = "vppctl"
+	}
+	wrapper := exec.Wrap(h, vppctl, args...)
 	cli := vppcli.ExecutorFunc(func(cmd string) (string, error) {
 		out, err := wrapper.Command(cmd).Output()
 		if err != nil {
