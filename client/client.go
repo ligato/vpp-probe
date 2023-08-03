@@ -203,6 +203,8 @@ func RunOnInstances(instances []*vpp.Instance, workFn func(*vpp.Instance) error)
 
 	start := time.Now()
 
+	logrus.Debugf("preparing %d instances for run", len(instances))
+
 	// create work channel to send all instances
 	workch := make(chan *vpp.Instance)
 	go func() {
@@ -219,15 +221,17 @@ func RunOnInstances(instances []*vpp.Instance, workFn func(*vpp.Instance) error)
 	}
 	resultch := make(chan *Result)
 
+	logrus.Debugf("starting %d workers to do work", numWorkers)
+
 	// start workers to run for instances from work channel
 	var wg sync.WaitGroup
-	wg.Add(numWorkers)
 	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			for instance := range workch {
 				t := time.Now()
-				logrus.Tracef("processing instance: %v", instance)
+				logrus.Tracef("starting work on instance: %v", instance)
 				err := workFn(instance)
 				resultch <- &Result{
 					Instance: instance,
@@ -254,17 +258,18 @@ func RunOnInstances(instances []*vpp.Instance, workFn func(*vpp.Instance) error)
 		}
 		results = append(results, res)
 	}
-	if !anyOk {
-		return fmt.Errorf("all instances encountered errors")
-	}
 
-	logrus.Debugf("%d instances finished", len(instances))
+	logrus.Debugf("processing %d results", len(results))
+
 	var total time.Duration
 	for _, res := range results {
 		logrus.Debugf("- %+v", res)
 		total += res.Elapsed
 	}
-	logrus.Tracef("elapsed time %v (total time: %v)", time.Since(start).Round(time.Second), total.Round(time.Second))
+	logrus.Tracef("elapsed time %v (total time: %v)", time.Since(start).Round(time.Millisecond), total.Round(time.Millisecond))
 
+	if !anyOk {
+		return fmt.Errorf("all instances encountered errors")
+	}
 	return nil
 }

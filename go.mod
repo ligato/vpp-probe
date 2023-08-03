@@ -31,7 +31,7 @@ require (
 	k8s.io/klog v1.0.0
 )
 
-//replace github.com/sirupsen/logrus => github.com/ondrej-fabry/logrus v1.8.2-0.20220805075151-1a551bd6b7ab
+replace github.com/sirupsen/logrus => github.com/ondrej-fabry/logrus v1.8.2-0.20220805075151-1a551bd6b7ab
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect

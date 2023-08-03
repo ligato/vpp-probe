@@ -208,12 +208,59 @@ const (
 )
 
 func (v *Instance) initCLI() error {
-	var args []string
-	if _, err := v.handler.Command("ls", defaultCliSocket).Output(); err != nil {
-		args = append(args, "-s", defaultCliAddr)
-		logrus.Tracef("checking cli socket error: %v, using flag '%s' for vppctl", err, args)
+	log := logrus.WithField("id", v.handler.ID())
+
+	/*var args []string
+	  if _, err := v.handler.Command("ls", defaultCliSocket).Output(); err != nil {
+	  	args = append(args, "-s", defaultCliAddr)
+	  	logrus.Tracef("checking cli socket error: %v, using flag '%s' for vppctl", err, args)
+	  }
+	  wrapper := exec.Wrap(v.handler, "/usr/bin/vppctl", args...)
+	  cli := vppcli.ExecutorFunc(func(cmd string) (string, error) {
+	  	c := `"` + cmd + `"`
+	  	out, err := wrapper.Command(c).Output()
+	  	if err != nil {
+	  		return "", err
+	  	}
+	  	return string(out), nil
+	  })
+
+	  out, err := cli.RunCli("show version verbose")
+	  if err != nil {
+	  	return fmt.Errorf("CLI version check: %w", err)
+	  }
+	  logrus.Tracef("VPP version:\n%v", out)*/
+
+	attempts := [][]string{
+		{"vppctl"},
+		{"/usr/bin/vppctl"},
+		{"/usr/bin/vppctl", "-s", defaultCliAddr},
 	}
-	wrapper := exec.Wrap(v.handler, "/usr/bin/vppctl", args...)
+
+	for _, attempt := range attempts {
+		log := log.WithField("attempt", attempt)
+		log.Tracef("attempting to access VPP CLI")
+
+		cli, err := tryCli(v.handler, attempt[0], attempt[1:]...)
+		if err != nil {
+			log.Tracef("[FAIL] CLI access attempt failed: %v", err)
+		} else {
+			log.Debugf("[OK] CLI access succeeded")
+			v.cli = cli
+			break
+		}
+
+	}
+	if v.cli == nil {
+		log.Warnf("CLI init failed")
+		return fmt.Errorf("CLI init failed")
+	}
+
+	return nil
+}
+
+func tryCli(handler probe.Handler, cmd string, args ...string) (probe.CliExecutor, error) {
+	wrapper := exec.Wrap(handler, cmd, args...)
 	cli := vppcli.ExecutorFunc(func(cmd string) (string, error) {
 		c := `"` + cmd + `"`
 		out, err := wrapper.Command(c).Output()
@@ -230,12 +277,12 @@ func (v *Instance) initCLI() error {
 
 	out, err := cli.RunCli("show version verbose")
 	if err != nil {
-		return fmt.Errorf("CLI version check: %w", err)
+		return nil, fmt.Errorf("CLI error: %w", err)
+	} else {
+		logrus.WithField("id", handler.ID()).Tracef("VPP version from CLI:\n%v", out)
 	}
-	logrus.Tracef("VPP version:\n%v", out)
 
-	v.cli = cli
-	return nil
+	return cli, nil
 }
 
 func (v *Instance) initBinapi() (err error) {

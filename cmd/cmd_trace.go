@@ -116,7 +116,7 @@ func RunTrace(cli Cli, opts TraceOptions) error {
 		done = append(done, traced)
 	}
 
-	logrus.Debugf("trace results retrieved from %d instances", len(done))
+	logrus.Debugf("trace results collected from %d instances", len(done))
 
 	for _, traced := range done {
 		result := traced.TraceResult()
@@ -138,6 +138,9 @@ func RunTrace(cli Cli, opts TraceOptions) error {
 	}
 
 	if opts.PrintResult {
+		fmt.Fprintf(cli.Err(), "\n\tPress any key to print trace results\n")
+		fmt.Fscanf(cli.In(), "%c")
+
 		for _, traced := range done {
 			result := traced.TraceResult()
 			if result == nil {
@@ -152,6 +155,8 @@ func RunTrace(cli Cli, opts TraceOptions) error {
 
 			fmt.Fprint(cli.Out(), renderColor(buf.String()))
 		}
+	} else {
+
 	}
 
 	return commandErr

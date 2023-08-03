@@ -46,6 +46,7 @@ func NewApp(probectl client.API) *App {
 		Application: tview.NewApplication(),
 		probectl:    probectl,
 	}
+
 	a.ctx, a.cancel = context.WithCancel(context.Background())
 	a.initLog()
 
@@ -95,7 +96,7 @@ func NewApp(probectl client.API) *App {
 
 func (a *App) initLog() {
 	/*a.logPanel.SetVisible(false)
-	a.logPanel.SetBorder(false)*/
+	  a.logPanel.SetBorder(false)*/
 	var err error
 	a.logFile, err = os.OpenFile("vpp-probe.log", os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
@@ -273,17 +274,17 @@ func (a *App) afterFocus(p tview.Primitive) {
 func (a *App) onInput(e *tcell.EventKey) *tcell.EventKey {
 	switch e.Key() {
 	/*case tcell.KeyF2:
-	if a.logPanel.GetVisible() {
-		a.logPanel.SetVisible(false)
-		if a.rootFlex != nil {
-			a.rootFlex.ResizeItem(a.logPanel, 1, 0)
-		}
-	} else {
-		a.logPanel.SetVisible(true)
-		if a.rootFlex != nil {
-			a.rootFlex.ResizeItem(a.logPanel, 0, 1)
-		}
-	}*/
+	  if a.logPanel.GetVisible() {
+	  	a.logPanel.SetVisible(false)
+	  	if a.rootFlex != nil {
+	  		a.rootFlex.ResizeItem(a.logPanel, 1, 0)
+	  	}
+	  } else {
+	  	a.logPanel.SetVisible(true)
+	  	if a.rootFlex != nil {
+	  		a.rootFlex.ResizeItem(a.logPanel, 0, 1)
+	  	}
+	  }*/
 	case tcell.KeyCtrlQ:
 		a.Suspend(func() {
 			debug.PrintStack()
